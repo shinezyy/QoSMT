@@ -964,6 +964,7 @@ FullO3CPU<Impl>::tick()
         rename.dumpFreeEntries();
         iew.instQueue.dumpUsedEntries();
         iew.ldstQueue.dumpUsedEntries();
+        fmt.dumpStats();
 
         if (autoControl) {
             fmtBasedDist();

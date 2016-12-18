@@ -3,12 +3,17 @@
 
 
 #include <cstdint>
+#include <list>
+#include <vector>
 
+#include "base/statistics.hh"
 #include "config/the_isa.hh"
+#include "cpu/inst_seq.hh"
 
 struct DerivO3CPUParams;
 
 struct BranchEntry {
+    InstSeqNum seqNum;
 
     uint64_t baseSlots;
 
@@ -34,11 +39,11 @@ class FMT {
 
     public:
 
-    typedef typename std::map<InstSeqNum, BranchEntry>::reverse_iterator
-        rBranchEntryIterator;
+    typedef typename std::list<BranchEntry>
+        ::reverse_iterator rBranchEntryIterator;
 
-    typedef typename std::map<InstSeqNum, BranchEntry>::iterator
-        BranchEntryIterator;
+    typedef typename std::list<BranchEntry>
+        ::iterator BranchEntryIterator;
 
     private:
 
@@ -50,7 +55,7 @@ class FMT {
 
     IEW *iew;
 
-    std::vector<std::map<InstSeqNum, BranchEntry> > table;
+    std::vector<std::list<BranchEntry> > table;
 
     public:
 
@@ -69,6 +74,8 @@ class FMT {
     Stats::Vector numWaitSlots;
 
     Stats::Vector numMissSlots;
+
+    Stats::Vector fmtSize;
 
     public:
 
@@ -114,6 +121,8 @@ class FMT {
     void incMissSlot(ThreadID tid, int n);
 
     void incWaitSlot(ThreadID tid, int n);
+
+    void dumpStats();
 };
 
 #endif // __CPU_O3_FMT_HH__

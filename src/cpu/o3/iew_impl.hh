@@ -501,6 +501,7 @@ DefaultIEW<Impl>::squashDueToBranch(DynInstPtr &inst, ThreadID tid)
 
     // For convenience, I resolve mispredicted branch here
     fmt->resolveBranch(false, inst, tid);
+    inst->setMispred();
 
     if (!toCommit->squash[tid] ||
             inst->seqNum < toCommit->squashedSeqNum[tid]) {
