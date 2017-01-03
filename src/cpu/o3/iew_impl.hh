@@ -1764,9 +1764,9 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
             int missRect = fromRename->hptMissToWait;
             assert(missRect >= 0 && missRect <= dispatchWidth);
 
-            if (missRect > wastedSlot) {
+            if (missRect > wastedSlot) { // 完全因为另一个线程导致
                 fmt->incWaitSlot(t, wastedSlot);
-            } else {
+            } else { // 部分与另一个下线程有关
                 fmt->incWaitSlot(t, missRect);
                 fmt->incMissSlot(t, wastedSlot- missRect);
             }

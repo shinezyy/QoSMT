@@ -42,18 +42,21 @@ void FMT<Impl>::regStats()
         .init(cpu->numThreads)
         .name(name() + ".numBaseSlots")
         .desc("Number of slots dispatching instruction")
+        .flags(Stats::display)
         ;
 
     numMissSlots
         .init(cpu->numThreads)
         .name(name() + ".numMissSlots")
         .desc("Number of slots wasted because of stall")
+        .flags(Stats::display)
         ;
 
     numWaitSlots
         .init(cpu->numThreads)
         .name(name() + ".numWaitSlots")
         .desc("Number of slots wasted because of waiting another thread")
+        .flags(Stats::display)
         ;
 
     fmtSize

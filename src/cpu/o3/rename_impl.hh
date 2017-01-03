@@ -583,9 +583,11 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     if (tid == 0) {
         toIEW->hptMissToWait = 0;
         unsigned numMiss = fromIEW->iewInfo[tid].dispatchWidth - min_free_entries;
+        // 计算高优先级线程没有被利用起来的slots数量
 
         if (source == ROB) {
             unsigned occupied = calcOwnROBEntries(1);
+            // 计算这些slots中，有多少是由另一个线程造成的
             if (occupied > numMiss) {
                 toIEW->hptMissToWait += numMiss;
             } else {
@@ -1581,7 +1583,7 @@ inline int
 DefaultRename<Impl>::calcOwnROBEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[0].robEntries - freeEntries[0].robEntries;
+    return maxEntries[tid].robEntries - freeEntries[tid].robEntries;
 }
 
 template <class Impl>
@@ -1589,7 +1591,7 @@ inline int
 DefaultRename<Impl>::calcOwnLQEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[0].lqEntries - freeEntries[0].lqEntries;
+    return maxEntries[tid].lqEntries - freeEntries[tid].lqEntries;
 }
 
 template <class Impl>
@@ -1597,7 +1599,7 @@ inline int
 DefaultRename<Impl>::calcOwnSQEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[0].sqEntries - freeEntries[0].sqEntries;
+    return maxEntries[tid].sqEntries - freeEntries[tid].sqEntries;
 }
 
 template <class Impl>
@@ -1605,7 +1607,7 @@ inline int
 DefaultRename<Impl>::calcOwnIQEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[0].iqEntries - freeEntries[0].iqEntries;
+    return maxEntries[tid].iqEntries - freeEntries[tid].iqEntries;
 }
 
 
