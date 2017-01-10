@@ -982,14 +982,20 @@ FullO3CPU<Impl>::tick()
 
     //Tick each of the stages
     fetch.tick();
+    printf("=F");
 
     decode.tick();
+    printf("D");
 
     rename.tick();
+    printf("R");
 
     iew.tick();
+    printf("I");
 
     commit.tick();
+    printf("C");
+    fflush(stdout);
 
     // Now advance the time buffers
     timeBuffer.advance();

@@ -757,13 +757,13 @@ template<class Impl>
 void
 LSQ<Impl>::updateMaxEntries()
 {
-    DPRINTF(FmtCtrl, "LQ [0]: %d, [1]: %d\n", maxLQEntries[0], maxLQEntries[1]);
-    DPRINTF(FmtCtrl, "SQ [0]: %d, [1]: %d\n", maxSQEntries[0], maxSQEntries[1]);
-
     if (numThreads < 2 || lsqPolicy != Programmable ||
             (lqUptodate && sqUptodate)) {
         return;
     }
+
+    DPRINTF(FmtCtrl, "LQ [0]: %d, [1]: %d\n", maxLQEntries[0], maxLQEntries[1]);
+    DPRINTF(FmtCtrl, "SQ [0]: %d, [1]: %d\n", maxSQEntries[0], maxSQEntries[1]);
 
     DPRINTF(Pard, "Updating LSQ maxEntries\n");
 

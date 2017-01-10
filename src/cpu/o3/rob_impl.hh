@@ -361,8 +361,10 @@ ROB<Impl>::numFreeEntries(ThreadID tid)
     if ((robPolicy == Programmable && tid == 0) || robPolicy == Dynamic) {
         return numFreeEntries();
     } else {
+        /*
         DPRINTF(FmtCtrl, "maxEntries[%d]: %d\n", tid,
                 std::min(maxEntries[tid] - threadEntries[tid], numFreeEntries()));
+         */
         return std::min(maxEntries[tid] - threadEntries[tid],
                 numFreeEntries());
     }
@@ -655,10 +657,10 @@ template <class Impl>
 void
 ROB<Impl>::updateMaxEntries()
 {
-    DPRINTF(FmtCtrl, "ROB [0]: %d, [1]: %d\n", maxEntries[0], maxEntries[1]);
     if (robPolicy != Programmable || maxEntriesUpToDate || numThreads < 2) {
         return;
     }
+    DPRINTF(FmtCtrl, "ROB [0]: %d, [1]: %d\n", maxEntries[0], maxEntries[1]);
 
     assert(numThreads == 2);
 
