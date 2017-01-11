@@ -938,12 +938,13 @@ FullO3CPU<Impl>::fmtBasedDist()
         freeResource();
     }
 
-    // reset
+    /* reset
     for (ThreadID t = 0; t < numThreads; ++t) {
         fmt.globalBase[t] = 0;
         fmt.globalMiss[t] = 0;
         fmt.globalWait[t] = 0;
     }
+    */
 }
 
 
@@ -982,20 +983,14 @@ FullO3CPU<Impl>::tick()
 
     //Tick each of the stages
     fetch.tick();
-    printf("=F");
 
     decode.tick();
-    printf("D");
 
     rename.tick();
-    printf("R");
 
     iew.tick();
-    printf("I");
 
     commit.tick();
-    printf("C");
-    fflush(stdout);
 
     // Now advance the time buffers
     timeBuffer.advance();
