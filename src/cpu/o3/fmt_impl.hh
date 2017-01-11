@@ -164,6 +164,10 @@ void FMT<Impl>::resolveBranch(bool right, DynInstPtr &bran, ThreadID tid)
             } else if (it->seqNum == bran->seqNum) {
                 table[tid].erase(it);
                 break;
+            } else {
+                // This instruction is Control but not added to FMT
+                DPRINTF(FMT, "Committing control instruction which is not branch\n");
+                break;
             }
         }
     } else {
