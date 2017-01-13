@@ -602,6 +602,24 @@ FullO3CPU<Impl>::regStats()
         .flags(Stats::display)
         .init(numThreads);
 
+    HPTQoS
+        .name(name() + "HPTQoS")
+        .desc("Predicted QoS of HPT")
+        .precision(6)
+        .flags(Stats::display)
+        ;
+
+    HPTpredIPC
+        .name(name() + ".HPTpredIPC")
+        .desc("Predicted IPC of HPT when running alone")
+        .prereq(HPTQoS)
+        .precision(6)
+        .flags(Stats::display)
+        ;
+
+    // HPTpredIPC[1] is meaningless!!
+    HPTpredIPC = ipc / HPTQoS;
+
 }
 
 template <class Impl>
@@ -966,6 +984,7 @@ FullO3CPU<Impl>::tick()
         iew.instQueue.dumpUsedEntries();
         iew.ldstQueue.dumpUsedEntries();
         fmt.dumpStats();
+        dumpStats();
 
         if (autoControl) {
             fmtBasedDist();
@@ -2140,6 +2159,16 @@ FullO3CPU<Impl>::setUpSrcManagerConfigs(const std::string filename)
         DPRINTF(O3CPU, "%s -> %d\n", key.c_str(), value);
         srcManagerConfig[key] = value;
     }
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::dumpStats()
+{
+    ThreadID hpt = 0;
+    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt];
+    uint64_t real = predicted + fmt.globalWait[hpt];
+    HPTQoS = double(predicted)/double(real);
 }
 
 // Forward declaration of FullO3CPU.

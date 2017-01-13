@@ -67,7 +67,6 @@ void FMT<Impl>::regStats()
         .init(cpu->numThreads)
         .name(name() + ".fmtSize")
         .desc("Number of branches in FMT")
-        .flags(Stats::display)
         ;
 }
 

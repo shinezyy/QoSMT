@@ -131,11 +131,11 @@ class DerivO3CPU(BaseCPU):
 
     smtNumFetchingThreads = Param.Unsigned(1, "SMT Number of Fetching Threads")
 
-    smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
-    #smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")
+    #smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
+    smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")
 
-    smtLSQPolicy    = Param.String('Programmable', "SMT LSQ Sharing Policy")
-    #smtLSQPolicy    = Param.String('Dynamic', "SMT LSQ Sharing Policy")
+    #smtLSQPolicy    = Param.String('Programmable', "SMT LSQ Sharing Policy")
+    smtLSQPolicy    = Param.String('Dynamic', "SMT LSQ Sharing Policy")
 
     smtLSQThreshold = Param.Int(10, "SMT LSQ Threshold Sharing Parameter")
     # LSQ threshold is treated as bull shit
@@ -147,8 +147,8 @@ class DerivO3CPU(BaseCPU):
     smtIQThreshold = Param.Int(50, "SMT IQ Threshold Sharing Parameter")
     # IQ threshold is counted with precentage!!
 
-    #smtROBPolicy   = Param.String('Dynamic', "SMT ROB Sharing Policy")
-    smtROBPolicy   = Param.String('Programmable', "SMT ROB Sharing Policy")
+    smtROBPolicy   = Param.String('Dynamic', "SMT ROB Sharing Policy")
+    #smtROBPolicy   = Param.String('Programmable', "SMT ROB Sharing Policy")
     smtROBThreshold = Param.Int(58, "SMT ROB Threshold Sharing Parameter")
     # ROB threshold is counted with absolute number
 
@@ -162,11 +162,11 @@ class DerivO3CPU(BaseCPU):
     needsTSO = Param.Bool(buildEnv['TARGET_ISA'] == 'x86',
                           "Enable TSO Memory model")
 
-    autoControl = Param.Bool(True, "Enable auto control")
+    autoControl = Param.Bool(False, "Enable auto control")
 
     expectedSlowdown = Param.Int(200, "Expected max slowdown 1024 as deno")
 
-    iewProgrammable = Param.Bool(True, "Enable programmable dispatch")
+    iewProgrammable = Param.Bool(False, "Enable programmable dispatch")
 
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:

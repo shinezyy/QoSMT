@@ -761,6 +761,10 @@ class FullO3CPU : public BaseO3CPU
 
     Stats::Vector numInstsPerThread;
 
+    Stats::Scalar HPTQoS;
+
+    Stats::Formula HPTpredIPC;
+
   protected:
     typedef std::map<std::string, int> SrcManagerConfig;
     SrcManagerConfig srcManagerConfig;
@@ -804,6 +808,8 @@ class FullO3CPU : public BaseO3CPU
     unsigned numContCtrl;
 
     bool checkAbn();
+
+    void dumpStats();
 };
 
 #endif // __CPU_O3_CPU_HH__
