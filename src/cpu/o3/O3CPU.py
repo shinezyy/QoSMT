@@ -167,6 +167,7 @@ class DerivO3CPU(BaseCPU):
     expectedSlowdown = Param.Int(200, "Expected max slowdown 1024 as deno")
 
     iewProgrammable = Param.Bool(False, "Enable programmable dispatch")
+    hptInitDispatchWidth = Param.Unsigned(0, "Initial dispatch width of HPT")
 
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:

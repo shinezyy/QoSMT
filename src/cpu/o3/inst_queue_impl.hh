@@ -683,7 +683,7 @@ InstructionQueue<Impl>::numFreeEntries(ThreadID tid)
     if ((iqPolicy == Programmable && tid == 0) || iqPolicy == Dynamic) {
         return numFreeEntries();
     } else {
-        return maxEntries[tid] - count[tid];
+        return std::min(maxEntries[tid] - count[tid], numFreeEntries());
     }
 }
 

@@ -61,6 +61,7 @@
 #include "debug/IEW.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
+#include "debug/FmtSlot.hh"
 #include "params/DerivO3CPU.hh"
 
 using namespace std;
@@ -80,7 +81,8 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       wbWidth(params->wbWidth),
       numThreads(params->numThreads),
       numIQFull(params->numThreads),
-      Programmable(params->iewProgrammable)
+      Programmable(params->iewProgrammable),
+      hptInitDispatchWidth(params->hptInitDispatchWidth)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -110,6 +112,15 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
         fetchRedirect[tid] = false;
         tempWaitSlots[tid] = 0;
         dispatchWidths[tid] = dispatchWidth/numThreads;
+    }
+
+    if (hptInitDispatchWidth != 0) {
+        // overwrite assignments to DisWidthin last for statment
+        dispatchWidths[0] = hptInitDispatchWidth;
+        for (ThreadID tid = 1; tid < numThreads; tid++) {
+            dispatchWidths[tid] =
+                (dispatchWidth - hptInitDispatchWidth)/(numThreads - 1);
+        }
     }
 
     updateLSQNextCycle = false;
@@ -1151,7 +1162,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         toRename->iewInfo[tid].dispatched++;
 
         // check other threads' status
-        for (ThreadID i = 0; i < numThreads; i++) {
+        for (ThreadID i = 0; i < 1; i++) {
             if (i == tid) {
                 inst->setWaitSlot(tempWaitSlots[i]);
                 fmt->incBaseSlot(inst, i);
@@ -1160,7 +1171,9 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 if (dispatchStatus[i] == Unblocking ||
                         dispatchStatus[i] == Running ||
                         dispatchStatus[i] == Idle) {
-
+                    DPRINTF(FmtSlot, "Increment wait slot of thread %d,"
+                            " because thread %d dispatch one instruction\n",
+                            i, tid);
                     fmt->incWaitSlot(inst, i);
                     tempWaitSlots[tid] += 1;
                 } else {
@@ -1758,15 +1771,21 @@ template<class Impl>
 void
 DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
 {
-    for (ThreadID t = 0; t < numThreads; t++) {
+    for (ThreadID t = 0; t < 1; t++) {
         if (tid == 0 && t == 0) {
 
             int missRect = fromRename->hptMissToWait;
             assert(missRect >= 0 && missRect <= dispatchWidth);
 
             if (missRect > wastedSlot) { // 完全因为另一个线程导致
+                DPRINTF(FmtSlot, "Increment %d wait slot of thread %d,"
+                        " because others occupied some queue entries\n",
+                        wastedSlot, tid);
                 fmt->incWaitSlot(t, wastedSlot);
             } else { // 部分与另一个下线程有关
+                DPRINTF(FmtSlot, "Increment %d wait slot of thread %d,"
+                        " because others occupied some queue entries\n",
+                        missRect, tid);
                 fmt->incWaitSlot(t, missRect);
                 fmt->incMissSlot(t, wastedSlot- missRect);
             }

@@ -58,6 +58,7 @@
 #include "debug/LSQUnit.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
+#include "debug/FmtSlot.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 
@@ -1344,26 +1345,30 @@ LSQUnit<Impl>::setLQLimit(unsigned lqLimit)
 {
     // lqLimit should take dummy entry into accound
     // return -x to indicate need more free entries
-    if (loads + 1 > lqLimit) {
+    if (loads + 1 > lqLimit + 1) {
+        DPRINTF(FmtSlot, "Set lqValid to %d\n", loads + 1);
         lqValid = loads + 1;
     }
     else {
-        lqValid = lqLimit;
+        DPRINTF(FmtSlot, "Set lqValid to %d\n", lqLimit);
+        lqValid = lqLimit + 1;
     }
-    return lqLimit - loads - 1;
+    return lqLimit - loads;
 }
 
 template <class Impl>
 int
 LSQUnit<Impl>::setSQLimit(unsigned sqLimit)
 {
-    if (stores + 1 > sqLimit) {
+    if (stores + 1 > sqLimit + 1) {
+        DPRINTF(FmtSlot, "Set sqValid to %d\n", stores + 1);
         sqValid = stores + 1;
     }
     else {
-        sqValid = sqLimit;
+        DPRINTF(FmtSlot, "Set sqValid to %d\n", sqLimit);
+        sqValid = sqLimit + 1;
     }
-    return sqLimit - stores - 1;
+    return sqLimit - stores;
 }
 
 
