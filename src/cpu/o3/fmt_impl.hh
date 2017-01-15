@@ -63,6 +63,13 @@ void FMT<Impl>::regStats()
         .flags(Stats::display)
         ;
 
+    numOverlappedMisses
+        .init(cpu->numThreads)
+        .name(name() + ".numOverlappedMisses")
+        .desc("Number of slots in stall but overlapped by another thread")
+        .flags(Stats::display)
+        ;
+
     fmtSize
         .init(cpu->numThreads)
         .name(name() + ".fmtSize")
@@ -144,6 +151,7 @@ void FMT<Impl>::incMissSlot(DynInstPtr &inst, ThreadID tid)
     rBranchEntryIterator it = table[tid].rbegin();
     for (; it->seqNum > inst->seqNum; it++);
     it->missSlots++;
+    numOverlappedMisses[tid]++;
 }
 
     template<class Impl>

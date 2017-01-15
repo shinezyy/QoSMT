@@ -75,6 +75,8 @@ class FMT {
 
     Stats::Vector numMissSlots;
 
+    Stats::Vector numOverlappedMisses;
+
     Stats::Vector fmtSize;
 
     public:

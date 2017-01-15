@@ -1183,7 +1183,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                     fmt->incWaitSlot(inst, i);
                     tempWaitSlots[tid] += 1;
                 } else {
-                    /** If there is a front-end miss, then thread tid can be
+                    /** If there is a front-end miss, then thread[tid] can be
                       * dispatched;
                       * Else if there is a backend miss and ROB full,
                       * then no thread can be issue, and the following
@@ -1793,7 +1793,7 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
                         " because others occupied some queue entries\n",
                         wastedSlot, tid);
                 fmt->incWaitSlot(t, wastedSlot);
-            } else { // 部分与另一个下线程有关
+            } else { // 部分与另一个线程有关
                 DPRINTF(FmtSlot, "Increment %d wait slot of thread %d,"
                         " because others occupied some queue entries\n",
                         missRect, tid);
