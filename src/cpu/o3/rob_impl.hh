@@ -371,6 +371,13 @@ ROB<Impl>::numFreeEntries(ThreadID tid)
 }
 
 template <class Impl>
+unsigned
+ROB<Impl>::numBusyEntries(ThreadID tid)
+{
+    return threadEntries[tid];
+}
+
+template <class Impl>
 void
 ROB<Impl>::doSquash(ThreadID tid)
 {

@@ -149,6 +149,7 @@ struct TimeBufStruct {
         unsigned freeIQEntries;
         unsigned freeLQEntries;
         unsigned freeSQEntries;
+
         unsigned dispatchedToLQ;
         unsigned dispatchedToSQ;
 
@@ -164,6 +165,10 @@ struct TimeBufStruct {
         unsigned maxSQEntries;
 
         unsigned dispatchWidth;
+
+        unsigned busyIQEntries;
+        unsigned busyLQEntries;
+        unsigned busySQEntries;
     };
 
     iewComm iewInfo[Impl::MaxThreads];
@@ -231,6 +236,7 @@ struct TimeBufStruct {
 
         unsigned maxROBEntries;
 
+        unsigned busyROBEntries;
     };
 
     commitComm commitInfo[Impl::MaxThreads];

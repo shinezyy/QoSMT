@@ -327,16 +327,22 @@ void
 DefaultIEW<Impl>::startupStage()
 {
     for (ThreadID tid = 0; tid < numThreads; tid++) {
+
         toRename->iewInfo[tid].usedIQ = true;
         toRename->iewInfo[tid].freeIQEntries = instQueue.numFreeEntries(tid);
         toRename->iewInfo[tid].maxIQEntries = instQueue.maxEntries[tid];
 
         toRename->iewInfo[tid].usedLSQ = true;
+
         toRename->iewInfo[tid].freeLQEntries = ldstQueue.numFreeLoadEntries(tid);
         toRename->iewInfo[tid].freeSQEntries = ldstQueue.numFreeStoreEntries(tid);
 
         toRename->iewInfo[tid].maxLQEntries = ldstQueue.maxLQEntries[tid];
         toRename->iewInfo[tid].maxSQEntries = ldstQueue.maxSQEntries[tid];
+
+        toRename->iewInfo[tid].busyIQEntries = instQueue.numBusyEntries(tid);
+        toRename->iewInfo[tid].busyLQEntries = ldstQueue.numLoads(tid);
+        toRename->iewInfo[tid].busySQEntries = ldstQueue.numStores(tid);
 
         toRename->iewInfo[tid].dispatchWidth = dispatchWidths[tid];
     }
@@ -1621,6 +1627,11 @@ DefaultIEW<Impl>::tick()
 
             toRename->iewInfo[tid].maxLQEntries = ldstQueue.maxLQEntries[tid];
             toRename->iewInfo[tid].maxSQEntries = ldstQueue.maxSQEntries[tid];
+
+            toRename->iewInfo[tid].busyIQEntries = instQueue.numBusyEntries(tid);
+            toRename->iewInfo[tid].busyLQEntries = ldstQueue.numLoads(tid);
+            toRename->iewInfo[tid].busySQEntries = ldstQueue.numStores(tid);
+
 
             toRename->iewInfo[tid].dispatchWidth = dispatchWidths[tid];
 

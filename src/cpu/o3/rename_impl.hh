@@ -56,6 +56,7 @@
 #include "debug/Rename.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
+#include "debug/FmtSlot.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 
@@ -1345,6 +1346,7 @@ DefaultRename<Impl>::readFreeEntries(ThreadID tid)
     if (fromIEW->iewInfo[tid].usedIQ) {
         freeEntries[tid].iqEntries = fromIEW->iewInfo[tid].freeIQEntries;
         maxEntries[tid].iqEntries = fromIEW->iewInfo[tid].maxIQEntries;
+        busyEntries[tid].iqEntries = fromIEW->iewInfo[tid].busyIQEntries;
     }
 
     if (fromIEW->iewInfo[tid].usedLSQ) {
@@ -1353,14 +1355,16 @@ DefaultRename<Impl>::readFreeEntries(ThreadID tid)
 
         maxEntries[tid].lqEntries = fromIEW->iewInfo[tid].maxLQEntries;
         maxEntries[tid].sqEntries = fromIEW->iewInfo[tid].maxSQEntries;
+
+        busyEntries[tid].lqEntries = fromIEW->iewInfo[tid].busyLQEntries;
+        busyEntries[tid].sqEntries = fromIEW->iewInfo[tid].busySQEntries;
     }
 
     if (fromCommit->commitInfo[tid].usedROB) {
-        freeEntries[tid].robEntries =
-            fromCommit->commitInfo[tid].freeROBEntries;
         emptyROB[tid] = fromCommit->commitInfo[tid].emptyROB;
-        maxEntries[tid].robEntries =
-            fromCommit->commitInfo[tid].maxROBEntries;
+        freeEntries[tid].robEntries = fromCommit->commitInfo[tid].freeROBEntries;
+        maxEntries[tid].robEntries = fromCommit->commitInfo[tid].maxROBEntries;
+        busyEntries[tid].robEntries = fromCommit->commitInfo[tid].busyROBEntries;
     }
 
     DPRINTF(Rename, "[tid:%i]: Free IQ: %i, Free ROB: %i, "
@@ -1583,7 +1587,7 @@ inline int
 DefaultRename<Impl>::calcOwnROBEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[tid].robEntries - freeEntries[tid].robEntries;
+    return busyEntries[tid].robEntries;
 }
 
 template <class Impl>
@@ -1591,7 +1595,7 @@ inline int
 DefaultRename<Impl>::calcOwnLQEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[tid].lqEntries - freeEntries[tid].lqEntries;
+    return busyEntries[tid].lqEntries;
 }
 
 template <class Impl>
@@ -1599,7 +1603,7 @@ inline int
 DefaultRename<Impl>::calcOwnSQEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[tid].sqEntries - freeEntries[tid].sqEntries;
+    return busyEntries[tid].sqEntries;
 }
 
 template <class Impl>
@@ -1607,7 +1611,7 @@ inline int
 DefaultRename<Impl>::calcOwnIQEntries(ThreadID tid)
 {
     assert(tid == 1); // assume that we calculate thread 1 only
-    return maxEntries[tid].iqEntries - freeEntries[tid].iqEntries;
+    return busyEntries[tid].iqEntries;
 }
 
 

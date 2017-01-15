@@ -182,6 +182,9 @@ class ROB
     /** Returns the number of free entries in a specific ROB paritition. */
     unsigned numFreeEntries(ThreadID tid);
 
+    /** Returns the number of entries in use in a specific ROB paritition. */
+    unsigned numBusyEntries(ThreadID tid);
+
     /** Returns the maximum number of entries for a specific thread.
      * Which was only used by commit stage.
      * In order to avoid corner case of renaming, treat is as Dynamic!

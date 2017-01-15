@@ -177,6 +177,9 @@ class InstructionQueue
     /** Returns number of free entries for a thread. */
     unsigned numFreeEntries(ThreadID tid);
 
+    /** Returns number of entries in use for a thread. */
+    unsigned numBusyEntries(ThreadID tid);
+
     /** Returns whether or not the IQ is full. */
     bool isFull();
 

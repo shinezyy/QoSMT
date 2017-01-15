@@ -687,6 +687,13 @@ InstructionQueue<Impl>::numFreeEntries(ThreadID tid)
     }
 }
 
+template <class Impl>
+unsigned
+InstructionQueue<Impl>::numBusyEntries(ThreadID tid)
+{
+    return count[tid];
+}
+
 // Might want to do something more complex if it knows how many instructions
 // will be issued this cycle.
 template <class Impl>

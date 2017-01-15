@@ -398,12 +398,21 @@ class DefaultRename
         unsigned sqEntries;
     };
 
+    struct BusyEntries {
+        unsigned iqEntries;
+        unsigned robEntries;
+        unsigned lqEntries;
+        unsigned sqEntries;
+    };
+
     /** Per-thread tracking of the number of free entries of back-end
      * structures.
      */
     FreeEntries freeEntries[Impl::MaxThreads];
 
     MaxEntries maxEntries[Impl::MaxThreads];
+
+    BusyEntries busyEntries[Impl::MaxThreads];
 
     /** Records if the ROB is empty. In SMT mode the ROB may be dynamically
      * partitioned between threads, so the ROB must tell rename when it is

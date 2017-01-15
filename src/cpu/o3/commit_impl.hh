@@ -378,7 +378,8 @@ DefaultCommit<Impl>::startupStage()
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         toIEW->commitInfo[tid].usedROB = true;
         toIEW->commitInfo[tid].freeROBEntries = rob->numFreeEntries(tid);
-        toIEW->commitInfo[tid].maxROBEntries = rob->numFreeEntries(tid);
+        toIEW->commitInfo[tid].maxROBEntries = rob->getMaxEntries(tid);
+        toIEW->commitInfo[tid].busyROBEntries = rob->numBusyEntries(tid);
         toIEW->commitInfo[tid].emptyROB = true;
     }
 
@@ -938,7 +939,7 @@ DefaultCommit<Impl>::commit()
         if (changedROBNumEntries[tid]) {
             toIEW->commitInfo[tid].usedROB = true;
             toIEW->commitInfo[tid].freeROBEntries = rob->numFreeEntries(tid);
-            toIEW->commitInfo[tid].maxROBEntries = rob->numFreeEntries(tid);
+            toIEW->commitInfo[tid].maxROBEntries = rob->getMaxEntries(tid);
 
             wroteToTimeBuffer = true;
             changedROBNumEntries[tid] = false;
@@ -960,7 +961,7 @@ DefaultCommit<Impl>::commit()
             toIEW->commitInfo[tid].usedROB = true;
             toIEW->commitInfo[tid].emptyROB = true;
             toIEW->commitInfo[tid].freeROBEntries = rob->numFreeEntries(tid);
-            toIEW->commitInfo[tid].maxROBEntries = rob->numFreeEntries(tid);
+            toIEW->commitInfo[tid].maxROBEntries = rob->getMaxEntries(tid);
             wroteToTimeBuffer = true;
         }
 
