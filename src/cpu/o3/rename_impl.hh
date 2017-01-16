@@ -574,28 +574,23 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     int free_iq_entries  = calcFreeIQEntries(tid);
     int min_free_entries = free_rob_entries;
 
+    int ROBcause = 0, IQcause = 0;
+    // 当ROB或者IQ瓶颈时，造成的无法重命名的指令的数量
+
+    int LPTcause = 0;
+
     FullSource source = ROB;
 
     if (free_iq_entries < min_free_entries) {
         min_free_entries = free_iq_entries;
         source = IQ;
+        // 如果空闲项足够，那么cause设置为0
+        IQcause = std::max(insts_available - min_free_entries, 0);
+    } else {
+        ROBcause = std::max(insts_available - min_free_entries, 0);
     }
 
-    if (tid == 0) {
-        toIEW->hptMissToWait = 0;
-        unsigned numMiss = fromIEW->iewInfo[tid].dispatchWidth - min_free_entries;
-        // 计算高优先级线程没有被利用起来的slots数量
 
-        if (source == ROB) {
-            unsigned occupied = calcOwnROBEntries(1);
-            // 计算这些slots中，有多少是由另一个线程造成的
-            if (occupied > numMiss) {
-                toIEW->hptMissToWait += numMiss;
-            } else {
-                toIEW->hptMissToWait += occupied;
-            }
-        }
-    }
 
     // Check if there's any space left.
     if (min_free_entries <= 0) {
@@ -613,6 +608,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         incrFullStat(source, tid);
 
+        if (tid == 0) {
+            if (IQcause && calcOwnIQEntries(1)) {
+                // 如果空闲项足够，那么矫正值为0
+                toIEW->hptMissToWait = std::min(calcOwnIQEntries(1), IQcause);
+            } else if (ROBcause && calcOwnROBEntries(1)) {
+                toIEW->hptMissToWait = std::min(calcOwnROBEntries(1), ROBcause);
+            }
+        }
 
         return;
     } else if (min_free_entries < insts_available) {
@@ -626,6 +629,16 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         blockThisCycle = true;
 
         incrFullStat(source, tid);
+
+        if (tid == 0) {
+            if (IQcause && calcOwnIQEntries(1)) {
+                //LPTcause会在后续计算中被用到
+                LPTcause = std::min(calcOwnIQEntries(1), IQcause);
+            } else if (ROBcause && calcOwnROBEntries(1)) {
+                LPTcause = std::min(calcOwnROBEntries(1), ROBcause);
+            }
+            // 否则LPT不对HPT的阻塞负责
+        }
     }
 
     InstQueue &insts_to_rename = renameStatus[tid] == Unblocking ?
@@ -670,13 +683,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         if (inst->isLoad()) {
             if(calcFreeLQEntries(tid) <= 0) {
                 DPRINTF(Rename, "[tid:%u]: Cannot rename due to no free LQ\n");
-
-                if (tid == 0) {
-                    unsigned occupied = calcOwnLQEntries(1);
-                    if (occupied > 0) {
-                        toIEW->hptMissToWait += 1;
-                    }
-                }
                 source = LQ;
                 incrFullStat(source, tid);
                 break;
@@ -686,13 +692,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         if (inst->isStore()) {
             if(calcFreeSQEntries(tid) <= 0) {
                 DPRINTF(Rename, "[tid:%u]: Cannot rename due to no free SQ\n");
-
-                if (tid == 0) {
-                    unsigned occupied = calcOwnSQEntries(1);
-                    if (occupied > 0) {
-                        toIEW->hptMissToWait += 1;
-                    }
-                }
                 source = SQ;
                 incrFullStat(source, tid);
                 break;
@@ -801,6 +800,25 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         // Decrement how many instructions are available.
         --insts_available;
     }
+
+    if (tid == 0) {
+        //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
+        if (source == LQ && calcOwnLQEntries(1)) {
+            toIEW->hptMissToWait = insts_available + LPTcause;
+        }
+        if (source == SQ && calcOwnSQEntries(1)) {
+            toIEW->hptMissToWait = insts_available + LPTcause;
+        }
+    }
+
+    DPRINTF(FmtSlot, "Misses should be rectified to waits is %d, "
+            "IQcasue is %d, "
+            "ROBcause is %d, "
+            "LSQ casue is %d.\n",
+            toIEW->hptMissToWait,
+            IQcause,
+            ROBcause,
+            insts_available);
 
     instsInProgress[tid] += renamed_insts;
     renameRenamedInsts += renamed_insts;

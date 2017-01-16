@@ -946,6 +946,7 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
 
     if (dispatchStatus[tid] == Blocked) {
         ++iewBlockCycles;
+        DPRINTF(FmtSlot, "Recording miss slots when T[%d] is blocked.\n", tid);
         recordMiss(dispatchWidths[tid], tid);
 
     } else if (dispatchStatus[tid] == Squashing) {
@@ -1209,6 +1210,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         toRename->iewUnblock[tid] = false;
 
     } else if (dis_num_inst < dispatchWidths[tid]){
+        DPRINTF(FmtSlot, "Recording miss slots when T[%d] does not make "
+                "full use of all dispatch slots\n", tid);
         recordMiss(dispatchWidths[tid] - dis_num_inst, tid);
     }
 
@@ -1782,19 +1785,23 @@ template<class Impl>
 void
 DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
 {
+    int missRect = fromRename->hptMissToWait;
+    assert(missRect >= 0);
+
+    DPRINTF(FmtSlot, "Number of wasted slots is %d\n", wastedSlot);
+    DPRINTF(FmtSlot, "Number of missRect is %d\n", missRect);
+
     for (ThreadID t = 0; t < 1; t++) {
         if (tid == 0 && t == 0) {
 
-            int missRect = fromRename->hptMissToWait;
-            assert(missRect >= 0 && missRect <= dispatchWidth);
 
             if (missRect > wastedSlot) { // 完全因为另一个线程导致
-                DPRINTF(FmtSlot, "Increment %d wait slot of thread %d,"
+                DPRINTF(FmtSlot, "Increment %d wait slot of T[%d],"
                         " because others occupied some queue entries\n",
                         wastedSlot, tid);
                 fmt->incWaitSlot(t, wastedSlot);
             } else { // 部分与另一个线程有关
-                DPRINTF(FmtSlot, "Increment %d wait slot of thread %d,"
+                DPRINTF(FmtSlot, "Increment %d wait slot of T[%d],"
                         " because others occupied some queue entries\n",
                         missRect, tid);
                 fmt->incWaitSlot(t, missRect);
