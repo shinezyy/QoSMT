@@ -146,12 +146,14 @@ void FMT<Impl>::incWaitSlot(DynInstPtr &inst, ThreadID tid)
 }
 
     template<class Impl>
-void FMT<Impl>::incMissSlot(DynInstPtr &inst, ThreadID tid)
+void FMT<Impl>::incMissSlot(DynInstPtr &inst, ThreadID tid, bool Overlapped)
 {
     rBranchEntryIterator it = table[tid].rbegin();
     for (; it->seqNum > inst->seqNum; it++);
     it->missSlots++;
-    numOverlappedMisses[tid]++;
+    if (Overlapped) {
+        numOverlappedMisses[tid]++;
+    }
 }
 
     template<class Impl>
@@ -209,10 +211,13 @@ void FMT<Impl>::incBaseSlot(ThreadID tid, int n)
 }
 
     template<class Impl>
-void FMT<Impl>::incMissSlot(ThreadID tid,int n)
+void FMT<Impl>::incMissSlot(ThreadID tid, int n, bool Overlapped)
 {
     rBranchEntryIterator it = table[tid].rbegin();
     it->missSlots += n;
+    if (Overlapped) {
+        numOverlappedMisses[tid] += n;
+    }
 }
 
     template<class Impl>

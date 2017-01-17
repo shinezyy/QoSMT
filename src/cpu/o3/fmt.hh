@@ -107,7 +107,7 @@ class FMT {
     /* When there is a miss event for tid,
      * and dispatched another thread
      */
-    void incMissSlot(DynInstPtr &bran, ThreadID tid);
+    void incMissSlot(DynInstPtr &bran, ThreadID tid, bool Overlapped);
 
     /* If prediction is right:
      * add timestamp difference counts to global dispatching count;
@@ -120,7 +120,7 @@ class FMT {
     // Default to inc newest Branch
     void incBaseSlot(ThreadID tid, int n);
 
-    void incMissSlot(ThreadID tid, int n);
+    void incMissSlot(ThreadID tid, int n, bool Overlapped);
 
     void incWaitSlot(ThreadID tid, int n);
 

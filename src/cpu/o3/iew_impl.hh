@@ -944,6 +944,15 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     //     continue trying to empty skid buffer
     //     check if stall conditions have passed
 
+    // 计算每个线程可以dispatch的指令数
+    for (ThreadID t = 0; t < numThreads; t++) {
+        if (dispatchStatus[t] == Unblocking) {
+            insts_can_dis[t] = skidBuffer[t].size();
+        } else {
+            insts_can_dis[t] = insts[t].size();
+        }
+    }
+
     if (dispatchStatus[tid] == Blocked) {
         ++iewBlockCycles;
         DPRINTF(FmtSlot, "Recording miss slots when T[%d] is blocked.\n", tid);
@@ -951,6 +960,8 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
 
     } else if (dispatchStatus[tid] == Squashing) {
         ++iewSquashCycles;
+        DPRINTF(FmtSlot, "Recording miss slots when T[%d] is squashing.\n", tid);
+        recordMiss(dispatchWidths[tid], tid);
     }
 
     // Dispatch should try to dispatch as many instructions as its bandwidth
@@ -1172,25 +1183,22 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         for (ThreadID i = 0; i < 1; i++) {
             if (i == tid) {
                 inst->setWaitSlot(tempWaitSlots[i]);
+                DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
                 fmt->incBaseSlot(inst, i);
                 //voc->allocVrob(i, inst);
             } else {
-                if (dispatchStatus[i] == Unblocking ||
-                        dispatchStatus[i] == Running ||
-                        dispatchStatus[i] == Idle) {
-                    DPRINTF(FmtSlot, "Increment wait slot of thread %d,"
-                            " because thread %d dispatch one instruction\n",
-                            i, tid);
-                    fmt->incWaitSlot(inst, i);
+                if (insts_can_dis[i] > 0) {
+                    DPRINTF(FmtSlot, "Increment 1 wait slot of T[%d],"
+                            " because thread %d dispatch one instruction\n", i, tid);
+                    fmt->incWaitSlot(i, 1);
+                    insts_can_dis[i] -= 1;
+                    // 必须保证减的是另一个线程的insts_can_dis
                     tempWaitSlots[tid] += 1;
+
                 } else {
-                    /** If there is a front-end miss, then thread[tid] can be
-                      * dispatched;
-                      * Else if there is a backend miss and ROB full,
-                      * then no thread can be issue, and the following
-                      * increasement cannot be done
-                      */
-                    fmt->incMissSlot(inst, i);
+                    DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
+                            " because it is blocked.\n", i);
+                    fmt->incMissSlot(i, 1, true);
                 }
             }
         }
@@ -1786,35 +1794,34 @@ void
 DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
 {
     int missRect = fromRename->hptMissToWait;
+    ThreadID hpt = 0; // Only care T[0]
     assert(missRect >= 0);
 
+    DPRINTF(FmtSlot, "Recording miss of T[%d].\n", tid);
     DPRINTF(FmtSlot, "Number of wasted slots is %d\n", wastedSlot);
     DPRINTF(FmtSlot, "Number of missRect is %d\n", missRect);
 
-    for (ThreadID t = 0; t < 1; t++) {
-        if (tid == 0 && t == 0) {
+    int numCanDisp;
 
+    if (tid == 0) {
+        numCanDisp = missRect;
+    } else {
+        numCanDisp = missRect + insts_can_dis[hpt];
+    }
 
-            if (missRect > wastedSlot) { // 完全因为另一个线程导致
-                DPRINTF(FmtSlot, "Increment %d wait slot of T[%d],"
-                        " because others occupied some queue entries\n",
-                        wastedSlot, tid);
-                fmt->incWaitSlot(t, wastedSlot);
-            } else { // 部分与另一个线程有关
-                DPRINTF(FmtSlot, "Increment %d wait slot of T[%d],"
-                        " because others occupied some queue entries\n",
-                        missRect, tid);
-                fmt->incWaitSlot(t, missRect);
-                fmt->incMissSlot(t, wastedSlot- missRect);
-            }
+    DPRINTF(FmtSlot, "Number of inst can dis is %d\n", numCanDisp);
 
-        } else {
-            if (t == tid) {
-                fmt->incWaitSlot(t, wastedSlot);
-            } else {
-                fmt->incMissSlot(t, wastedSlot);
-            }
-        }
+    int waits = std::min(numCanDisp, wastedSlot);
+
+    if (waits) {
+        DPRINTF(FmtSlot, "Increment %d wait slot of T[%d] in Record miss.\n",
+                waits, hpt);
+        fmt->incWaitSlot(hpt, waits);
+    }
+    if (wastedSlot - waits) {
+        DPRINTF(FmtSlot, "Increment %d miss slot of T[%d] in Record miss.\n",
+                wastedSlot - waits, hpt);
+        fmt->incMissSlot(hpt, wastedSlot - waits, true);
     }
 }
 
