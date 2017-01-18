@@ -62,6 +62,7 @@
 #include "debug/Quiesce.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtCtrl.hh"
+#include "debug/FMT.hh"
 #include "enums/MemoryMode.hh"
 #include "sim/core.hh"
 #include "sim/full_system.hh"
@@ -974,6 +975,7 @@ FullO3CPU<Impl>::tick()
     assert(!switchedOut());
     assert(getDrainState() != Drainable::Drained);
 
+    DPRINTFR(FMT,"Tick-----------------------------------\n");
     ++numCycles;
     ++localCycles;
     ++dumpCycles;

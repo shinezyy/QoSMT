@@ -126,32 +126,40 @@ void FMT<Impl>::addBranch(DynInstPtr &bran, ThreadID tid, uint64_t timeStamp)
 }
 
     template<class Impl>
-void FMT<Impl>::incBaseSlot(DynInstPtr &inst, ThreadID tid)
+void FMT<Impl>::incBaseSlot(DynInstPtr &inst, ThreadID tid, int n)
 {
     rBranchEntryIterator it = table[tid].rbegin();
     for (; it->seqNum > inst->seqNum; it++);
-    it->baseSlots++;
+    it->baseSlots += n;
+    DPRINTF(FMT, "Count inst[%i] on Branch[%i]\n", inst->seqNum, it->seqNum);
 }
 
     template<class Impl>
-void FMT<Impl>::incWaitSlot(DynInstPtr &inst, ThreadID tid)
+void FMT<Impl>::incWaitSlot(DynInstPtr &inst, ThreadID tid, int n)
 {
     rBranchEntryIterator it = table[tid].rbegin();
     for (; it->seqNum > inst->seqNum; it++);
-    it->waitSlots++;
+    it->waitSlots += n;
+    DPRINTF(FMT, "Count inst[%i] on Branch[%i]\n", inst->seqNum, it->seqNum);
 }
 
     template<class Impl>
-void FMT<Impl>::incMissSlot(DynInstPtr &inst, ThreadID tid, bool Overlapped)
+void FMT<Impl>::incMissDirect(ThreadID tid, int n, bool Overlapped)
 {
-    rBranchEntryIterator it = table[tid].rbegin();
-    for (; it->seqNum > inst->seqNum; it++);
-    it->missSlots++;
+    BranchEntryIterator it = table[tid].begin();
+    it->missSlots += n;
 
     if (Overlapped) {
-        numOverlappedMisses[tid]++;
+        numOverlappedMisses[tid] += n;
     }
 }
+    template<class Impl>
+void FMT<Impl>::incWaitDirect(ThreadID tid, int n)
+{
+    rBranchEntryIterator it = table[tid].rbegin();
+    it->waitSlots += n;
+}
+
 
     template<class Impl>
 void FMT<Impl>::resolveBranch(bool right, DynInstPtr &bran, ThreadID tid)
@@ -208,30 +216,6 @@ void FMT<Impl>::resolveBranch(bool right, DynInstPtr &bran, ThreadID tid)
         DPRINTFR(FMT, "%d, ", it2->seqNum);
     }
     DPRINTFR(FMT, "\n");
-}
-
-    template<class Impl>
-void FMT<Impl>::incBaseSlot(ThreadID tid, int n)
-{
-    rBranchEntryIterator it = table[tid].rbegin();
-    it->baseSlots += n;
-}
-
-    template<class Impl>
-void FMT<Impl>::incMissSlot(ThreadID tid, int n, bool Overlapped)
-{
-    rBranchEntryIterator it = table[tid].rbegin();
-    it->missSlots += n;
-    if (Overlapped) {
-        numOverlappedMisses[tid] += n;
-    }
-}
-
-    template<class Impl>
-void FMT<Impl>::incWaitSlot(ThreadID tid, int n)
-{
-    rBranchEntryIterator it = table[tid].rbegin();
-    it->waitSlots += n;
 }
 
 

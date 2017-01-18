@@ -502,6 +502,8 @@ class DefaultIEW
 
     int insts_can_dis[Impl::MaxThreads];
 
+    DynInstPtr PerThreadHead[Impl::MaxThreads];
+
   public:
 
     int getNumIQFull(ThreadID tid) const;

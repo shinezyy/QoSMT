@@ -98,17 +98,6 @@ class FMT {
 
     void addBranch(DynInstPtr &bran, ThreadID tid, uint64_t timeStamp);
 
-    // BranchEntryT *getCounter(DynInstPtr& inst, ThreadID tid);
-
-    void incBaseSlot(DynInstPtr &bran, ThreadID tid);
-
-    void incWaitSlot(DynInstPtr &bran, ThreadID tid);
-
-    /* When there is a miss event for tid,
-     * and dispatched another thread
-     */
-    void incMissSlot(DynInstPtr &bran, ThreadID tid, bool Overlapped);
-
     /* If prediction is right:
      * add timestamp difference counts to global dispatching count;
      * else:
@@ -117,12 +106,25 @@ class FMT {
      */
     void resolveBranch(bool right, DynInstPtr &bran, ThreadID tid);
 
-    // Default to inc newest Branch
-    void incBaseSlot(ThreadID tid, int n);
 
-    void incMissSlot(ThreadID tid, int n, bool Overlapped);
+    void incBaseSlot(DynInstPtr &bran, ThreadID tid, int n);
 
-    void incWaitSlot(ThreadID tid, int n);
+    //Because miss is always deterministic, so it is not needed
+    //void incMissSlot(DynInstPtr &bran, ThreadID tid, int n, bool Overlapped);
+
+    void incWaitSlot(DynInstPtr &bran, ThreadID tid, int n);
+
+
+    /* The following functions are used to add slots to global counter
+     * directly, which should be deterministic
+     */
+    void incMissDirect(ThreadID tid, int n, bool Overlapped);
+
+    /* incWaitDirect是不准确的，它的存在是为了解决：
+     * 当T处于wait时，不知道它的下一条指令应该属于哪一个branch
+     * 姑且认为它属于最新的branch（一般是这样，但是可能引入误差）
+     */
+    void incWaitDirect(ThreadID tid, int n);
 
     void dumpStats();
 };

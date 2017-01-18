@@ -945,11 +945,20 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     //     check if stall conditions have passed
 
     // 计算每个线程可以dispatch的指令数
+
+    DPRINTF(FmtSlot, "Dispatch thread(%d)\n", tid);
+
     for (ThreadID t = 0; t < numThreads; t++) {
         if (dispatchStatus[t] == Unblocking) {
             insts_can_dis[t] = skidBuffer[t].size();
+            if (insts_can_dis[t]) {
+                PerThreadHead[t] = skidBuffer[t].front();
+            }
         } else {
             insts_can_dis[t] = insts[t].size();
+            if (insts_can_dis[t]) {
+                PerThreadHead[t] = insts[t].front();
+            }
         }
     }
 
@@ -1000,6 +1009,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 {
     // Obtain instructions from skid buffer if unblocking, or queue from rename
     // otherwise.
+    DPRINTF(FmtSlot, "DispatchInsts(%d)\n", tid);
     std::queue<DynInstPtr> &insts_to_dispatch =
         dispatchStatus[tid] == Unblocking ?
         skidBuffer[tid] : insts[tid];
@@ -1184,25 +1194,25 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         toRename->iewInfo[tid].dispatched++;
 
         // check other threads' status
-        for (ThreadID i = 0; i < 1; i++) {
-            if (i == tid) {
-                inst->setWaitSlot(tempWaitSlots[i]);
+        for (ThreadID t = 0; t < 1; t++) {
+            if (t == tid) {
+                inst->setWaitSlot(tempWaitSlots[t]);
                 DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
-                fmt->incBaseSlot(inst, tid);
-                //voc->allocVrob(i, inst);
+                fmt->incBaseSlot(inst, t, 1);
+                //voc->allocVrob(t, inst);
             } else {
-                if (insts_can_dis[i] > 0) {
+                if (insts_can_dis[t] > 0) {
                     DPRINTF(FmtSlot, "Increment 1 wait slot of T[%d],"
-                            " because thread %d dispatch one instruction\n", i, tid);
-                    fmt->incWaitSlot(i, 1);
-                    insts_can_dis[i] -= 1;
+                            " because thread %d dispatch one instruction\n", t, tid);
+                    fmt->incWaitSlot(PerThreadHead[t], t, 1);
+                    insts_can_dis[t] -= 1;
                     // 必须保证减的是另一个线程的insts_can_dis
-                    tempWaitSlots[tid] += 1;
+                    tempWaitSlots[t] += 1;
 
                 } else {
                     DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
-                            " because it is blocked.\n", i);
-                    fmt->incMissSlot(i, 1, true);
+                            " because it is blocked.\n", t);
+                    fmt->incMissDirect(t, 1, true);
                 }
             }
         }
@@ -1221,7 +1231,9 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         block(tid);
         toRename->iewUnblock[tid] = false;
 
-    } else if (dis_num_inst < dispatchWidths[tid]){
+    }
+
+    if (dis_num_inst < dispatchWidths[tid]){
         DPRINTF(FmtSlot, "Recording miss slots when T[%d] does not make "
                 "full use of all dispatch slots\n", tid);
         recordMiss(dispatchWidths[tid] - dis_num_inst, tid);
@@ -1820,12 +1832,19 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
     if (waits) {
         DPRINTF(FmtSlot, "Increment %d wait slot of T[%d] in Record miss.\n",
                 waits, hpt);
-        fmt->incWaitSlot(hpt, waits);
+
+        if (insts_can_dis[hpt]) {
+            fmt->incWaitSlot(PerThreadHead[hpt], hpt, waits);
+
+        } else {
+            fmt->incWaitDirect(hpt, waits);
+        }
     }
+
     if (wastedSlot - waits) {
         DPRINTF(FmtSlot, "Increment %d miss slot of T[%d] in Record miss.\n",
                 wastedSlot - waits, hpt);
-        fmt->incMissSlot(hpt, wastedSlot - waits, true);
+        fmt->incMissDirect(hpt, wastedSlot - waits, true);
     }
 }
 
