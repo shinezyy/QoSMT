@@ -6,6 +6,7 @@
 
 #include "cpu/o3/comm.hh"
 #include "debug/FMT.hh"
+#include "debug/FmtSlot.hh"
 #include "params/DerivO3CPU.hh"
 #include "cpu/o3/fmt.hh"
 
@@ -82,9 +83,9 @@ void FMT<Impl>::dumpStats()
 {
     using namespace Stats;
     for (ThreadID tid = 0; tid < numThreads; tid++) {
-        numBaseSlots[tid] = globalBase[tid];
-        numMissSlots[tid] = globalMiss[tid];
-        numWaitSlots[tid] = globalWait[tid];
+        numBaseSlots[tid] = globalBase[tid] + table[tid].begin()->baseSlots;
+        numMissSlots[tid] = globalMiss[tid] + table[tid].begin()->missSlots;
+        numWaitSlots[tid] = globalWait[tid] + table[tid].begin()->waitSlots;
         fmtSize[tid] = table[tid].size();
     }
 }
@@ -96,17 +97,6 @@ void FMT<Impl>::setStage(Fetch *_fetch, Decode *_decode, IEW *_iew)
     decode = _decode;
     iew = _iew;
 }
-
-#if 0
-    template<class Impl>
-void FMT<Impl>::init(std::vector<DynInstPtr> &v_bran, uint64_t timeStamp)
-{
-    ThreadID tid = 0;
-    for (auto&& it : v_bran) {
-        addBranch(it, tid++, timeStamp);
-    }
-}
-#endif
 
     template<class Impl>
 void FMT<Impl>::addBranch(DynInstPtr &bran, ThreadID tid, uint64_t timeStamp)
@@ -127,6 +117,12 @@ void FMT<Impl>::addBranch(DynInstPtr &bran, ThreadID tid, uint64_t timeStamp)
     BranchEntryIterator it2 = it.base();
 
     table[tid].emplace(it2, BranchEntry{bran->seqNum, 0, 0, 0, timeStamp});
+
+    DPRINTF(FMT, "Branches now in table[%d] is: ", tid);
+    for (it2 = table[tid].begin(); it2 != table[tid].end(); it2++) {
+        DPRINTFR(FMT, "%d, ", it2->seqNum);
+    }
+    DPRINTFR(FMT, "\n");
 }
 
     template<class Impl>
@@ -151,6 +147,7 @@ void FMT<Impl>::incMissSlot(DynInstPtr &inst, ThreadID tid, bool Overlapped)
     rBranchEntryIterator it = table[tid].rbegin();
     for (; it->seqNum > inst->seqNum; it++);
     it->missSlots++;
+
     if (Overlapped) {
         numOverlappedMisses[tid]++;
     }
@@ -171,12 +168,16 @@ void FMT<Impl>::resolveBranch(bool right, DynInstPtr &bran, ThreadID tid)
             globalWait[tid] += it->waitSlots;
 
             DPRINTF(FMT, "Commiting Inst: %i\n", it->seqNum);
+
             if (it->seqNum < bran->seqNum) {
+                DPRINTF(FMT, "Erase branch: %i from FMT\n", it->seqNum);
                 it = table[tid].erase(it);
 
             } else if (it->seqNum == bran->seqNum) {
                 table[tid].erase(it);
+                DPRINTF(FMT, "Erase latest branch: %i from FMT\n", it->seqNum);
                 break;
+
             } else {
                 // This instruction is Control but not added to FMT
                 DPRINTF(FMT, "Committing control instruction which is not branch\n");
@@ -201,6 +202,12 @@ void FMT<Impl>::resolveBranch(bool right, DynInstPtr &bran, ThreadID tid)
             it = table[tid].erase(it);
         }
     }
+
+    DPRINTF(FMT, "Branches now in table[%d] is: ", tid);
+    for (BranchEntryIterator it2 = table[tid].begin(); it2 != table[tid].end(); it2++) {
+        DPRINTFR(FMT, "%d, ", it2->seqNum);
+    }
+    DPRINTFR(FMT, "\n");
 }
 
     template<class Impl>

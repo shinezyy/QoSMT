@@ -1169,6 +1169,10 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             add_to_iq = false;
         }
 
+        if (inst->isControl()) {
+            fmt->addBranch(inst, tid, cpu->localCycles);
+        }
+
         // If the instruction queue is not full, then add the
         // instruction.
         if (add_to_iq) {
@@ -1184,7 +1188,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             if (i == tid) {
                 inst->setWaitSlot(tempWaitSlots[i]);
                 DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
-                fmt->incBaseSlot(inst, i);
+                fmt->incBaseSlot(inst, tid);
                 //voc->allocVrob(i, inst);
             } else {
                 if (insts_can_dis[i] > 0) {

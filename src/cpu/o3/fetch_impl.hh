@@ -613,8 +613,6 @@ DefaultFetch<Impl>::lookupAndUpdateNextPC(
     inst->setPredTarg(nextPC);
     inst->setPredTaken(predict_taken);
 
-    fmt->addBranch(inst, tid, cpu->localCycles);
-
     ++fetchedBranches;
 
     if (predict_taken) {
