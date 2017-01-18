@@ -88,7 +88,7 @@ class LRUPartition : public BaseSetAssoc
      * Determine the upper bound ways for each thread
      * the max numSets is 128 (to simplify implementation).
      */
-#define MAX_NUM_SETS 512
+#define MAX_NUM_SETS 4096
     int threadWayRation[MAX_NUM_SETS][2];
     int curThreadID;
 };
