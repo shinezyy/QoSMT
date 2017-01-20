@@ -251,7 +251,7 @@ class DataWrap : public InfoAccess
     {
         Info *info = this->info();
         info->setName(name);
-        //info->flags.set(display);
+        info->flags.set(display);
         return this->self();
     }
     const std::string &name() const { return this->info()->name; }

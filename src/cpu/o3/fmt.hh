@@ -127,6 +127,11 @@ class FMT {
     void incWaitDirect(ThreadID tid, int n);
 
     void dumpStats();
+
+    uint64_t getHptWait() { return table[0].begin()->waitSlots; }
+
+    uint64_t getHptNonWait() { return table[0].begin()->baseSlots +
+        table[0].begin()->missSlots; }
 };
 
 #endif // __CPU_O3_FMT_HH__

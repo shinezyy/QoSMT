@@ -245,7 +245,9 @@ InstructionQueue<Impl>::regStats()
     iqInstsIssued
         .name(name() + ".iqInstsIssued")
         .desc("Number of instructions issued")
-        .prereq(iqInstsIssued);
+        .prereq(iqInstsIssued)
+        .flags(display)
+        ;
 
     iqInstsIssuedPerThread
         .init(numThreads)
@@ -354,7 +356,7 @@ InstructionQueue<Impl>::regStats()
     issueRate
         .name(name() + ".rate")
         .desc("Inst issue rate")
-        .flags(total)
+        .flags(total | display)
         ;
     issueRate = iqInstsIssued / cpu->numCycles;
 
@@ -362,7 +364,7 @@ InstructionQueue<Impl>::regStats()
         .init(Num_OpClasses)
         .name(name() + ".fu_full")
         .desc("attempts to use FU when none available")
-        .flags(pdf | dist)
+        .flags(pdf | dist | display)
         ;
     for (int i=0; i < Num_OpClasses; ++i) {
         statFuBusy.subname(i, Enums::OpClassStrings[i]);
@@ -372,13 +374,13 @@ InstructionQueue<Impl>::regStats()
         .init(numThreads)
         .name(name() + ".fu_busy_cnt")
         .desc("FU busy when requested")
-        .flags(total)
+        .flags(total | display)
         ;
 
     fuBusyRate
         .name(name() + ".fu_busy_rate")
         .desc("FU busy rate (busy events/executed inst)")
-        .flags(total)
+        .flags(total | display)
         ;
     fuBusyRate = fuBusy / iqInstsIssued;
 

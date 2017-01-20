@@ -318,7 +318,7 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    cpu.windowSize = 15000
+    cpu.windowSize = 10000000
     cpu.max_insts_all_threads = 200*(10**6)
 
 for cpu in system.cpu:

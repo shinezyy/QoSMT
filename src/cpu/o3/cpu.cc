@@ -2168,8 +2168,12 @@ void
 FullO3CPU<Impl>::dumpStats()
 {
     ThreadID hpt = 0;
-    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt];
-    uint64_t real = predicted + fmt.globalWait[hpt];
+
+    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt] +
+        fmt.getHptNonWait();
+
+    uint64_t real = predicted + fmt.globalWait[hpt] + fmt.getHptWait();
+
     HPTQoS = double(predicted)/double(real);
 }
 
