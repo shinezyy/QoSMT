@@ -490,6 +490,10 @@ class DefaultIEW
     /** Number of instructions per cycle delayed in writing back . */
     Stats::Formula wbPenalizedRate;
 
+    /** Numbers of slots rectified from miss to wait. */
+    Stats::Vector rectifiedWaits;
+
+
   private:
 
     std::vector<int> numIQFull;

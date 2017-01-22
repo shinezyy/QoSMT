@@ -320,6 +320,13 @@ DefaultIEW<Impl>::regStats()
         .desc("insts written-back per cycle")
         .flags(total);
     wbRate = writebackCount / cpu->numCycles;
+
+    rectifiedWaits
+        .init(cpu->numThreads)
+        .name(name() + ".rectified_waits")
+        .desc("Numbers of slots rectified from miss to wait.")
+        .flags(display)
+        ;
 }
 
 template<class Impl>
@@ -1832,6 +1839,8 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
     if (waits) {
         DPRINTF(FmtSlot, "Increment %d wait slot of T[%d] in Record miss.\n",
                 waits, hpt);
+
+        rectifiedWaits[hpt] += waits;
 
         if (insts_can_dis[hpt]) {
             fmt->incWaitSlot(PerThreadHead[hpt], hpt, waits);
