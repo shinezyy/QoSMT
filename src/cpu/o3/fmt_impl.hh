@@ -76,6 +76,21 @@ void FMT<Impl>::regStats()
         .name(name() + ".fmtSize")
         .desc("Number of branches in FMT")
         ;
+
+    waitToMiss
+        .init(cpu->numThreads)
+        .name(name() + ".wait_to_miss")
+        .desc("Wait slots converted to miss because of branch miss prediction.")
+        .flags(Stats::display)
+        ;
+
+    baseToMiss
+        .init(cpu->numThreads)
+        .name(name() + ".base_to_miss")
+        .desc("Base slots converted to miss because of branch miss prediction.")
+        .flags(Stats::display)
+        ;
+
 }
 
     template<class Impl>
@@ -204,6 +219,9 @@ void FMT<Impl>::resolveBranch(bool right, DynInstPtr &bran, ThreadID tid)
             globalMiss[tid] += it->baseSlots;
             globalMiss[tid] += it->missSlots;
             globalMiss[tid] += it->waitSlots;
+
+            waitToMiss[tid] += it->waitSlots;
+            baseToMiss[tid] += it->baseSlots;
 
             DPRINTF(FMT, "Squashing Inst: %i\n", it->seqNum);
 

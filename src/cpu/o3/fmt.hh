@@ -79,6 +79,11 @@ class FMT {
 
     Stats::Vector fmtSize;
 
+    /** slots converted to miss because of branch miss prediction. */
+    Stats::Vector waitToMiss;
+
+    Stats::Vector baseToMiss;
+
     public:
 
     std::string name() const
