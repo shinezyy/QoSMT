@@ -207,16 +207,24 @@ DefaultIEW<Impl>::regStats()
         .desc("Number of memory order violations");
 
     predictedTakenIncorrect
+        .init(cpu->numThreads)
         .name(name() + ".predictedTakenIncorrect")
-        .desc("Number of branches that were predicted taken incorrectly");
+        .desc("Number of branches that were predicted taken incorrectly")
+        .flags(total)
+        ;
 
     predictedNotTakenIncorrect
+        .init(cpu->numThreads)
         .name(name() + ".predictedNotTakenIncorrect")
-        .desc("Number of branches that were predicted not taken incorrectly");
+        .desc("Number of branches that were predicted not taken incorrectly")
+        .flags(total)
+        ;
 
     branchMispredicts
         .name(name() + ".branchMispredicts")
-        .desc("Number of branch mispredicts detected at execute");
+        .desc("Number of branch mispredicts detected at execute")
+        .flags(total)
+        ;
 
     branchMispredicts = predictedTakenIncorrect + predictedNotTakenIncorrect;
 
@@ -1438,9 +1446,9 @@ DefaultIEW<Impl>::executeInsts()
                 ppMispredict->notify(inst);
 
                 if (inst->readPredTaken()) {
-                    predictedTakenIncorrect++;
+                    predictedTakenIncorrect[tid]++;
                 } else {
-                    predictedNotTakenIncorrect++;
+                    predictedNotTakenIncorrect[tid]++;
                 }
             } else if (ldstQueue.violation(tid)) {
                 assert(inst->isMemRef());
@@ -1752,9 +1760,9 @@ DefaultIEW<Impl>::checkMisprediction(DynInstPtr &inst)
             squashDueToBranch(inst, tid);
 
             if (inst->readPredTaken()) {
-                predictedTakenIncorrect++;
+                predictedTakenIncorrect[tid]++;
             } else {
-                predictedNotTakenIncorrect++;
+                predictedNotTakenIncorrect[tid]++;
             }
         }
     }

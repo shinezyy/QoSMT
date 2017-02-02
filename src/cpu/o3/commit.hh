@@ -501,7 +501,7 @@ class DefaultCommit
      */
     Stats::Scalar commitNonSpecStalls;
     /** Stat for the total number of branch mispredicts that caused a squash. */
-    Stats::Scalar branchMispredicts;
+    Stats::Vector branchMispredicts;
     /** Distribution of the number of committed instructions each cycle. */
     Stats::Distribution numCommittedDist;
 

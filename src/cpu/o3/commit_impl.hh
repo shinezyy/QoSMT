@@ -193,9 +193,12 @@ DefaultCommit<Impl>::regStats()
         .prereq(commitNonSpecStalls);
 
     branchMispredicts
+        .init(cpu->numThreads)
         .name(name() + ".branchMispredicts")
         .desc("The number of times a branch was mispredicted")
-        .prereq(branchMispredicts);
+        .prereq(branchMispredicts)
+        .flags(total)
+        ;
 
     numCommittedDist
         .init(0,commitWidth,1)
@@ -905,7 +908,7 @@ DefaultCommit<Impl>::commit()
                 if (toIEW->commitInfo[tid].mispredictInst->isUncondCtrl()) {
                      toIEW->commitInfo[tid].branchTaken = true;
                 }
-                ++branchMispredicts;
+                branchMispredicts[tid]++;
             }
 
             toIEW->commitInfo[tid].pc = fromIEW->pc[tid];

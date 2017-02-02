@@ -444,9 +444,9 @@ class DefaultIEW
     /** Stat for total number of memory ordering violation events. */
     Stats::Scalar memOrderViolationEvents;
     /** Stat for total number of incorrect predicted taken branches. */
-    Stats::Scalar predictedTakenIncorrect;
+    Stats::Vector predictedTakenIncorrect;
     /** Stat for total number of incorrect predicted not taken branches. */
-    Stats::Scalar predictedNotTakenIncorrect;
+    Stats::Vector predictedNotTakenIncorrect;
     /** Stat for total number of mispredicted branches detected at execute. */
     Stats::Formula branchMispredicts;
 
