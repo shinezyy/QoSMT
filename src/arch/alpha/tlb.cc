@@ -79,12 +79,15 @@ void
 TLB::regStats()
 {
     fetch_hits
+        .init(MaxNumThreads)
         .name(name() + ".fetch_hits")
         .desc("ITB hits");
     fetch_misses
+        .init(MaxNumThreads)
         .name(name() + ".fetch_misses")
         .desc("ITB misses");
     fetch_acv
+        .init(MaxNumThreads)
         .name(name() + ".fetch_acv")
         .desc("ITB acv");
     fetch_accesses
@@ -94,41 +97,49 @@ TLB::regStats()
     fetch_accesses = fetch_hits + fetch_misses;
 
     read_hits
+        .init(MaxNumThreads)
         .name(name() + ".read_hits")
         .desc("DTB read hits")
         ;
 
     read_misses
+        .init(MaxNumThreads)
         .name(name() + ".read_misses")
         .desc("DTB read misses")
         ;
 
     read_acv
+        .init(MaxNumThreads)
         .name(name() + ".read_acv")
         .desc("DTB read access violations")
         ;
 
     read_accesses
+        .init(MaxNumThreads)
         .name(name() + ".read_accesses")
         .desc("DTB read accesses")
         ;
 
     write_hits
+        .init(MaxNumThreads)
         .name(name() + ".write_hits")
         .desc("DTB write hits")
         ;
 
     write_misses
+        .init(MaxNumThreads)
         .name(name() + ".write_misses")
         .desc("DTB write misses")
         ;
 
     write_acv
+        .init(MaxNumThreads)
         .name(name() + ".write_acv")
         .desc("DTB write access violations")
         ;
 
     write_accesses
+        .init(MaxNumThreads)
         .name(name() + ".write_accesses")
         .desc("DTB write accesses")
         ;
@@ -373,6 +384,7 @@ TLB::unserialize(Checkpoint *cp, const string &section)
 Fault
 TLB::translateInst(RequestPtr req, ThreadContext *tc)
 {
+    unsigned tid = req->threadId();
     //If this is a pal pc, then set PHYSICAL
     if (FullSystem && PcPAL(req->getPC()))
         req->setFlags(Request::PHYSICAL);
@@ -380,7 +392,7 @@ TLB::translateInst(RequestPtr req, ThreadContext *tc)
     if (PcPAL(req->getPC())) {
         // strip off PAL PC marker (lsb is 1)
         req->setPaddr((req->getVaddr() & ~3) & PAddrImplMask);
-        fetch_hits++;
+        fetch_hits[tid]++;
         return NoFault;
     }
 
@@ -389,7 +401,7 @@ TLB::translateInst(RequestPtr req, ThreadContext *tc)
     } else {
         // verify that this is a good virtual address
         if (!validVirtualAddress(req->getVaddr())) {
-            fetch_acv++;
+            fetch_acv[tid]++;
             return std::make_shared<ItbAcvFault>(req->getVaddr());
         }
 
@@ -400,7 +412,7 @@ TLB::translateInst(RequestPtr req, ThreadContext *tc)
             // only valid in kernel mode
             if (ICM_CM(tc->readMiscRegNoEffect(IPR_ICM)) !=
                 mode_kernel) {
-                fetch_acv++;
+                fetch_acv[tid]++;
                 return std::make_shared<ItbAcvFault>(req->getVaddr());
             }
 
@@ -418,7 +430,7 @@ TLB::translateInst(RequestPtr req, ThreadContext *tc)
                               asn);
 
             if (!entry) {
-                fetch_misses++;
+                fetch_misses[tid]++;
                 return std::make_shared<ItbPageFault>(req->getVaddr());
             }
 
@@ -430,11 +442,11 @@ TLB::translateInst(RequestPtr req, ThreadContext *tc)
             if (!(entry->xre &
                   (1 << ICM_CM(tc->readMiscRegNoEffect(IPR_ICM))))) {
                 // instruction access fault
-                fetch_acv++;
+                fetch_acv[tid]++;
                 return std::make_shared<ItbAcvFault>(req->getVaddr());
             }
 
-            fetch_hits++;
+            fetch_hits[tid]++;
         }
     }
 
@@ -450,6 +462,7 @@ TLB::translateInst(RequestPtr req, ThreadContext *tc)
 Fault
 TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
 {
+    unsigned tid = req->threadId();
     mode_type mode =
         (mode_type)DTB_CM_CM(tc->readMiscRegNoEffect(IPR_DTB_CM));
 
@@ -477,7 +490,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
     } else {
         // verify that this is a good virtual address
         if (!validVirtualAddress(req->getVaddr())) {
-            if (write) { write_acv++; } else { read_acv++; }
+            if (write) { write_acv[tid]++; } else { read_acv[tid]++; }
             uint64_t flags = (write ? MM_STAT_WR_MASK : 0) |
                 MM_STAT_BAD_VA_MASK |
                 MM_STAT_ACV_MASK;
@@ -491,7 +504,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
             // only valid in kernel mode
             if (DTB_CM_CM(tc->readMiscRegNoEffect(IPR_DTB_CM)) !=
                 mode_kernel) {
-                if (write) { write_acv++; } else { read_acv++; }
+                if (write) { write_acv[tid]++; } else { read_acv[tid]++; }
                 uint64_t flags = ((write ? MM_STAT_WR_MASK : 0) |
                                   MM_STAT_ACV_MASK);
 
@@ -509,9 +522,9 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
                 req->setPaddr(req->getPaddr() & ULL(0xffffffffff));
         } else {
             if (write)
-                write_accesses++;
+                write_accesses[tid]++;
             else
-                read_accesses++;
+                read_accesses[tid]++;
 
             int asn = DTB_ASN_ASN(tc->readMiscRegNoEffect(IPR_DTB_ASN));
 
@@ -520,7 +533,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
 
             if (!entry) {
                 // page fault
-                if (write) { write_misses++; } else { read_misses++; }
+                if (write) { write_misses[tid]++; } else { read_misses[tid]++; }
                 uint64_t flags = (write ? MM_STAT_WR_MASK : 0) |
                     MM_STAT_DTB_MISS_MASK;
                 return (req->getFlags() & AlphaRequestFlags::VPTE) ?
@@ -538,7 +551,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
             if (write) {
                 if (!(entry->xwe & MODE2MASK(mode))) {
                     // declare the instruction access fault
-                    write_acv++;
+                    write_acv[tid]++;
                     uint64_t flags = MM_STAT_WR_MASK |
                         MM_STAT_ACV_MASK |
                         (entry->fonw ? MM_STAT_FONW_MASK : 0);
@@ -547,7 +560,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
                                                           flags);
                 }
                 if (entry->fonw) {
-                    write_acv++;
+                    write_acv[tid]++;
                     uint64_t flags = MM_STAT_WR_MASK | MM_STAT_FONW_MASK;
                     return std::make_shared<DtbPageFault>(req->getVaddr(),
                                                           req->getFlags(),
@@ -555,7 +568,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
                 }
             } else {
                 if (!(entry->xre & MODE2MASK(mode))) {
-                    read_acv++;
+                    read_acv[tid]++;
                     uint64_t flags = MM_STAT_ACV_MASK |
                         (entry->fonr ? MM_STAT_FONR_MASK : 0);
                     return std::make_shared<DtbAcvFault>(req->getVaddr(),
@@ -563,7 +576,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
                                                          flags);
                 }
                 if (entry->fonr) {
-                    read_acv++;
+                    read_acv[tid]++;
                     uint64_t flags = MM_STAT_FONR_MASK;
                     return std::make_shared<DtbPageFault>(req->getVaddr(),
                                                           req->getFlags(),
@@ -573,9 +586,9 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
         }
 
         if (write)
-            write_hits++;
+            write_hits[tid]++;
         else
-            read_hits++;
+            read_hits[tid]++;
     }
 
     // check that the physical address is ok (catch bad physical addresses)

@@ -44,6 +44,8 @@
 #include "mem/request.hh"
 #include "params/AlphaTLB.hh"
 
+#define MaxNumThreads 8
+
 class ThreadContext;
 
 namespace AlphaISA {
@@ -53,18 +55,18 @@ struct TlbEntry;
 class TLB : public BaseTLB
 {
   protected:
-    mutable Stats::Scalar fetch_hits;
-    mutable Stats::Scalar fetch_misses;
-    mutable Stats::Scalar fetch_acv;
+    mutable Stats::Vector fetch_hits;
+    mutable Stats::Vector fetch_misses;
+    mutable Stats::Vector fetch_acv;
     mutable Stats::Formula fetch_accesses;
-    mutable Stats::Scalar read_hits;
-    mutable Stats::Scalar read_misses;
-    mutable Stats::Scalar read_acv;
-    mutable Stats::Scalar read_accesses;
-    mutable Stats::Scalar write_hits;
-    mutable Stats::Scalar write_misses;
-    mutable Stats::Scalar write_acv;
-    mutable Stats::Scalar write_accesses;
+    mutable Stats::Vector read_hits;
+    mutable Stats::Vector read_misses;
+    mutable Stats::Vector read_acv;
+    mutable Stats::Vector read_accesses;
+    mutable Stats::Vector write_hits;
+    mutable Stats::Vector write_misses;
+    mutable Stats::Vector write_acv;
+    mutable Stats::Vector write_accesses;
     Stats::Formula data_hits;
     Stats::Formula data_misses;
     Stats::Formula data_acv;
