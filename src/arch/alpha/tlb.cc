@@ -62,17 +62,23 @@ bool uncacheBit40 = false;
 #define MODE2MASK(X) (1 << (X))
 
 TLB::TLB(const Params *p)
-    : BaseTLB(p), size(p->size), nlu(0)
+    : BaseTLB(p), size(p->size)
 {
-    table = new TlbEntry[size];
-    memset(table, 0, sizeof(TlbEntry) * size);
-    flushCache();
+    for (unsigned tid = 0; tid < MaxNumThreads;tid ++) {
+        nlu[tid] = 0;
+
+        table[tid] = new TlbEntry[size];
+        memset(table[tid], 0, sizeof(TlbEntry) * size);
+        flushCache();
+    }
 }
 
 TLB::~TLB()
 {
-    if (table)
-        delete [] table;
+    for (unsigned tid = 0; tid < MaxNumThreads;tid ++) {
+        if (table[tid])
+            delete [] table[tid];
+    }
 }
 
 void
@@ -172,34 +178,34 @@ TLB::regStats()
 
 // look up an entry in the TLB
 TlbEntry *
-TLB::lookup(Addr vpn, uint8_t asn)
+TLB::lookup(Addr vpn, uint8_t asn, unsigned tid)
 {
     // assume not found...
     TlbEntry *retval = NULL;
 
-    if (EntryCache[0]) {
-        if (vpn == EntryCache[0]->tag &&
-            (EntryCache[0]->asma || EntryCache[0]->asn == asn))
-            retval = EntryCache[0];
-        else if (EntryCache[1]) {
-            if (vpn == EntryCache[1]->tag &&
-                (EntryCache[1]->asma || EntryCache[1]->asn == asn))
-                retval = EntryCache[1];
-            else if (EntryCache[2] && vpn == EntryCache[2]->tag &&
-                     (EntryCache[2]->asma || EntryCache[2]->asn == asn))
-                retval = EntryCache[2];
+    if (EntryCache[tid][0]) {
+        if (vpn == EntryCache[tid][0]->tag &&
+            (EntryCache[tid][0]->asma || EntryCache[tid][0]->asn == asn))
+            retval = EntryCache[tid][0];
+        else if (EntryCache[tid][1]) {
+            if (vpn == EntryCache[tid][1]->tag &&
+                (EntryCache[tid][1]->asma || EntryCache[tid][1]->asn == asn))
+                retval = EntryCache[tid][1];
+            else if (EntryCache[tid][2] && vpn == EntryCache[tid][2]->tag &&
+                     (EntryCache[tid][2]->asma || EntryCache[tid][2]->asn == asn))
+                retval = EntryCache[tid][2];
         }
     }
 
     if (retval == NULL) {
-        PageTable::const_iterator i = lookupTable.find(vpn);
-        if (i != lookupTable.end()) {
+        PageTable::const_iterator i = lookupTable[tid].find(vpn);
+        if (i != lookupTable[tid].end()) {
             while (i->first == vpn) {
                 int index = i->second;
-                TlbEntry *entry = &table[index];
+                TlbEntry *entry = &table[tid][index];
                 assert(entry->valid);
                 if (vpn == entry->tag && (entry->asma || entry->asn == asn)) {
-                    retval = updateCache(entry);
+                    retval = updateCache(entry, tid);
                     break;
                 }
 
@@ -245,7 +251,7 @@ TLB::checkCacheability(RequestPtr &req, bool itb)
         // We shouldn't be able to read from an uncachable address in Alpha as
         // we don't have a ROM and we don't want to try to fetch from a device 
         // register as we destroy any data that is clear-on-read. 
-        if (req->isUncacheable() && itb) 
+        if (req->isUncacheable() && itb)
             return std::make_shared<UnimpFault>(
                 "CPU trying to fetch from uncached I/O");
 
@@ -256,59 +262,62 @@ TLB::checkCacheability(RequestPtr &req, bool itb)
 
 // insert a new TLB entry
 void
-TLB::insert(Addr addr, TlbEntry &entry)
+TLB::insert(Addr addr, TlbEntry &entry, unsigned tid)
 {
     flushCache();
     VAddr vaddr = addr;
-    if (table[nlu].valid) {
-        Addr oldvpn = table[nlu].tag;
-        PageTable::iterator i = lookupTable.find(oldvpn);
+    if (table[tid][nlu[tid]].valid) {
+        Addr oldvpn = table[tid][nlu[tid]].tag;
+        PageTable::iterator i = lookupTable[tid].find(oldvpn);
 
-        if (i == lookupTable.end())
+        if (i == lookupTable[tid].end())
             panic("TLB entry not found in lookupTable");
 
         int index;
-        while ((index = i->second) != nlu) {
-            if (table[index].tag != oldvpn)
+        while ((index = i->second) != nlu[tid]) {
+            if (table[tid][index].tag != oldvpn)
                 panic("TLB entry not found in lookupTable");
 
             ++i;
         }
 
-        DPRINTF(TLB, "remove @%d: %#x -> %#x\n", nlu, oldvpn, table[nlu].ppn);
+        DPRINTF(TLB, "remove @%d: %#x -> %#x\n", nlu[tid], oldvpn,
+                table[tid][nlu[tid]].ppn);
 
-        lookupTable.erase(i);
+        lookupTable[tid].erase(i);
     }
 
-    DPRINTF(TLB, "insert @%d: %#x -> %#x\n", nlu, vaddr.vpn(), entry.ppn);
+    DPRINTF(TLB, "insert @%d: %#x -> %#x\n", nlu[tid], vaddr.vpn(), entry.ppn);
 
-    table[nlu] = entry;
-    table[nlu].tag = vaddr.vpn();
-    table[nlu].valid = true;
+    table[tid][nlu[tid]] = entry;
+    table[tid][nlu[tid]].tag = vaddr.vpn();
+    table[tid][nlu[tid]].valid = true;
 
-    lookupTable.insert(make_pair(vaddr.vpn(), nlu));
-    nextnlu();
+    lookupTable[tid].insert(make_pair(vaddr.vpn(), nlu[tid]));
+    nextnlu(tid);
 }
 
 void
 TLB::flushAll()
 {
     DPRINTF(TLB, "flushAll\n");
-    memset(table, 0, sizeof(TlbEntry) * size);
-    flushCache();
-    lookupTable.clear();
-    nlu = 0;
+    for (unsigned tid = 0; tid < MaxNumThreads; tid++) {
+        memset(table[tid], 0, sizeof(TlbEntry) * size);
+        flushCache();
+        lookupTable[tid].clear();
+        nlu[tid] = 0;
+    }
 }
 
 void
-TLB::flushProcesses()
+TLB::flushProcesses(unsigned tid)
 {
     flushCache();
-    PageTable::iterator i = lookupTable.begin();
-    PageTable::iterator end = lookupTable.end();
+    PageTable::iterator i = lookupTable[tid].begin();
+    PageTable::iterator end = lookupTable[tid].end();
     while (i != end) {
         int index = i->second;
-        TlbEntry *entry = &table[index];
+        TlbEntry *entry = &table[tid][index];
         assert(entry->valid);
 
         // we can't increment i after we erase it, so save a copy and
@@ -320,24 +329,24 @@ TLB::flushProcesses()
             DPRINTF(TLB, "flush @%d: %#x -> %#x\n", index,
                     entry->tag, entry->ppn);
             entry->valid = false;
-            lookupTable.erase(cur);
+            lookupTable[tid].erase(cur);
         }
     }
 }
 
 void
-TLB::flushAddr(Addr addr, uint8_t asn)
+TLB::flushAddr(Addr addr, uint8_t asn, unsigned tid)
 {
     flushCache();
     VAddr vaddr = addr;
 
-    PageTable::iterator i = lookupTable.find(vaddr.vpn());
-    if (i == lookupTable.end())
+    PageTable::iterator i = lookupTable[tid].find(vaddr.vpn());
+    if (i == lookupTable[tid].end())
         return;
 
-    while (i != lookupTable.end() && i->first == vaddr.vpn()) {
+    while (i != lookupTable[tid].end() && i->first == vaddr.vpn()) {
         int index = i->second;
-        TlbEntry *entry = &table[index];
+        TlbEntry *entry = &table[tid][index];
         assert(entry->valid);
 
         if (vaddr.vpn() == entry->tag && (entry->asma || entry->asn == asn)) {
@@ -347,7 +356,7 @@ TLB::flushAddr(Addr addr, uint8_t asn)
             // invalidate this entry
             entry->valid = false;
 
-            lookupTable.erase(i++);
+            lookupTable[tid].erase(i++);
         } else {
             ++i;
         }
@@ -359,11 +368,13 @@ void
 TLB::serialize(ostream &os)
 {
     SERIALIZE_SCALAR(size);
-    SERIALIZE_SCALAR(nlu);
+    for (unsigned tid = 0; tid < MaxNumThreads; tid++) {
+        SERIALIZE_SCALAR(nlu[tid]);
 
-    for (int i = 0; i < size; i++) {
-        nameOut(os, csprintf("%s.Entry%d", name(), i));
-        table[i].serialize(os);
+        for (int i = 0; i < size; i++) {
+            nameOut(os, csprintf("%s.Entry%d", name(), i));
+            table[tid][i].serialize(os);
+        }
     }
 }
 
@@ -371,12 +382,14 @@ void
 TLB::unserialize(Checkpoint *cp, const string &section)
 {
     UNSERIALIZE_SCALAR(size);
-    UNSERIALIZE_SCALAR(nlu);
+    for (unsigned tid = 0; tid < MaxNumThreads; tid++) {
+        UNSERIALIZE_SCALAR(nlu[tid]);
 
-    for (int i = 0; i < size; i++) {
-        table[i].unserialize(cp, csprintf("%s.Entry%d", section, i));
-        if (table[i].valid) {
-            lookupTable.insert(make_pair(table[i].tag, i));
+        for (int i = 0; i < size; i++) {
+            table[tid][i].unserialize(cp, csprintf("%s.Entry%d", section, i));
+            if (table[tid][i].valid) {
+                lookupTable[tid].insert(make_pair(table[tid][i].tag, i));
+            }
         }
     }
 }
@@ -427,7 +440,7 @@ TLB::translateInst(RequestPtr req, ThreadContext *tc)
             // not a physical address: need to look up pte
             int asn = DTB_ASN_ASN(tc->readMiscRegNoEffect(IPR_DTB_ASN));
             TlbEntry *entry = lookup(VAddr(req->getVaddr()).vpn(),
-                              asn);
+                              asn, tid);
 
             if (!entry) {
                 fetch_misses[tid]++;
@@ -529,7 +542,7 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
             int asn = DTB_ASN_ASN(tc->readMiscRegNoEffect(IPR_DTB_ASN));
 
             // not a physical address: need to look up pte
-            TlbEntry *entry = lookup(VAddr(req->getVaddr()).vpn(), asn);
+            TlbEntry *entry = lookup(VAddr(req->getVaddr()).vpn(), asn, tid);
 
             if (!entry) {
                 // page fault
@@ -600,12 +613,12 @@ TLB::translateData(RequestPtr req, ThreadContext *tc, bool write)
 }
 
 TlbEntry &
-TLB::index(bool advance)
+TLB::index(unsigned tid, bool advance)
 {
-    TlbEntry *entry = &table[nlu];
+    TlbEntry *entry = &table[tid][nlu[tid]];
 
     if (advance)
-        nextnlu();
+        nextnlu(tid);
 
     return *entry;
 }

@@ -370,14 +370,15 @@ ISA::setIpr(int idx, uint64_t val, ThreadContext *tc)
         // really a control write
         ipr[idx] = 0;
 
-        tc->getDTBPtr()->flushProcesses();
+        tc->getDTBPtr()->flushProcesses(tc->threadId());
         break;
 
       case IPR_DTB_IS:
         // really a control write
         ipr[idx] = val;
 
-        tc->getDTBPtr()->flushAddr(val, DTB_ASN_ASN(ipr[IPR_DTB_ASN]));
+        tc->getDTBPtr()->flushAddr(val, DTB_ASN_ASN(ipr[IPR_DTB_ASN]),
+                tc->threadId());
         break;
 
       case IPR_DTB_TAG: {
@@ -400,7 +401,7 @@ ISA::setIpr(int idx, uint64_t val, ThreadContext *tc)
           entry.asn = DTB_ASN_ASN(ipr[IPR_DTB_ASN]);
 
           // insert new TAG/PTE value into data TLB
-          tc->getDTBPtr()->insert(val, entry);
+          tc->getDTBPtr()->insert(val, entry, tc->threadId());
       }
         break;
 
@@ -424,7 +425,7 @@ ISA::setIpr(int idx, uint64_t val, ThreadContext *tc)
           entry.asn = ITB_ASN_ASN(ipr[IPR_ITB_ASN]);
 
           // insert new TAG/PTE value into data TLB
-          tc->getITBPtr()->insert(ipr[IPR_ITB_TAG], entry);
+          tc->getITBPtr()->insert(ipr[IPR_ITB_TAG], entry, tc->threadId());
       }
         break;
 
@@ -439,14 +440,14 @@ ISA::setIpr(int idx, uint64_t val, ThreadContext *tc)
         // really a control write
         ipr[idx] = 0;
 
-        tc->getITBPtr()->flushProcesses();
+        tc->getITBPtr()->flushProcesses(tc->threadId());
         break;
 
       case IPR_ITB_IS:
         // really a control write
         ipr[idx] = val;
 
-        tc->getITBPtr()->flushAddr(val, ITB_ASN_ASN(ipr[IPR_ITB_ASN]));
+        tc->getITBPtr()->flushAddr(val, ITB_ASN_ASN(ipr[IPR_ITB_ASN]), tc->threadId());
         break;
 
       default:

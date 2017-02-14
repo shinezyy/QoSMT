@@ -74,14 +74,14 @@ class TLB : public BaseTLB
 
 
     typedef std::multimap<Addr, int> PageTable;
-    PageTable lookupTable;  // Quick lookup into page table
+    PageTable lookupTable[MaxNumThreads];  // Quick lookup into page table
 
-    TlbEntry *table;        // the Page Table
+    TlbEntry *table[MaxNumThreads];        // the Page Table
     int size;               // TLB Size
-    int nlu;                // not last used entry (for replacement)
+    int nlu[MaxNumThreads];                // not last used entry (for replacement)
 
-    void nextnlu() { if (++nlu >= size) nlu = 0; }
-    TlbEntry *lookup(Addr vpn, uint8_t asn);
+    void nextnlu(unsigned tid) { if (++nlu[tid] >= size) nlu[tid] = 0; }
+    TlbEntry *lookup(Addr vpn, uint8_t asn, unsigned tid);
 
   public:
     typedef AlphaTLBParams Params;
@@ -94,18 +94,26 @@ class TLB : public BaseTLB
 
     int getsize() const { return size; }
 
-    TlbEntry &index(bool advance = true);
-    void insert(Addr vaddr, TlbEntry &entry);
+    TlbEntry &index(unsigned tid, bool advance = true);
+    void insert(Addr vaddr, TlbEntry &entry, unsigned tid);
 
     void flushAll();
-    void flushProcesses();
-    void flushAddr(Addr addr, uint8_t asn);
+    void flushProcesses(unsigned tid);
+    void flushAddr(Addr addr, uint8_t asn, unsigned tid);
 
+
+    /* demapPage的原型没有传入tid作为参数，如果需要完整实现，那么此函数应该
+     * 增加参数，但是我发现demapPage在OoO中没有被调用，不影响我们的实验结果。
+     * 因此采用了下面的实现，该实现的正确性可以保证，但是会是性能下降。但是
+     * 又因为不会被调用，所以实际上没有什么影响。。。。
+     */
     void
     demapPage(Addr vaddr, uint64_t asn)
     {
-        assert(asn < (1 << 8));
-        flushAddr(vaddr, asn);
+        for (unsigned tid = 0; tid < MaxNumThreads; tid++) {
+            assert(asn < (1 << 8));
+            flushAddr(vaddr, asn, tid);
+        }
     }
 
     // static helper functions... really EV5 VM traits
@@ -124,18 +132,20 @@ class TLB : public BaseTLB
     virtual void unserialize(Checkpoint *cp, const std::string &section);
 
     // Most recently used page table entries
-    TlbEntry *EntryCache[3];
+    TlbEntry *EntryCache[MaxNumThreads][3];
     inline void
     flushCache()
     {
-        memset(EntryCache, 0, 3 * sizeof(TlbEntry*));
+        for (unsigned tid = 0; tid < MaxNumThreads; tid++) {
+            memset(EntryCache[tid], 0, 3 * sizeof(TlbEntry*));
+        }
     }
 
     inline TlbEntry *
-    updateCache(TlbEntry *entry) {
-        EntryCache[2] = EntryCache[1];
-        EntryCache[1] = EntryCache[0];
-        EntryCache[0] = entry;
+    updateCache(TlbEntry *entry, unsigned tid) {
+        EntryCache[tid][2] = EntryCache[tid][1];
+        EntryCache[tid][1] = EntryCache[tid][0];
+        EntryCache[tid][0] = entry;
         return entry;
     }
 

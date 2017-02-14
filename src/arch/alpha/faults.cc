@@ -196,7 +196,7 @@ ItbPageFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
         panic("Tried to execute unmapped address %#x.\n", pc);
     } else {
         VAddr vaddr(pc);
-        tc->getITBPtr()->insert(vaddr.page(), entry);
+        tc->getITBPtr()->insert(vaddr.page(), entry, tc->threadId());
     }
 }
 
@@ -218,7 +218,7 @@ NDtbMissFault::invoke(ThreadContext *tc, const StaticInstPtr &inst)
     if (!success) {
         panic("Tried to access unmapped address %#x.\n", (Addr)vaddr);
     } else {
-        tc->getDTBPtr()->insert(vaddr.page(), entry);
+        tc->getDTBPtr()->insert(vaddr.page(), entry, tc->threadId());
     }
 }
 
