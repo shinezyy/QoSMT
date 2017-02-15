@@ -591,6 +591,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     }
 
 
+    toIEW->hptMissToWait = 0;
 
     // Check if there's any space left.
     if (min_free_entries <= 0) {
@@ -805,9 +806,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
         if (source == LQ && calcOwnLQEntries(1)) {
             toIEW->hptMissToWait = insts_available + LPTcause;
-        }
-        if (source == SQ && calcOwnSQEntries(1)) {
+        } else if (source == SQ && calcOwnSQEntries(1)) {
             toIEW->hptMissToWait = insts_available + LPTcause;
+        } else {
+            toIEW->hptMissToWait = LPTcause;
         }
     }
 
