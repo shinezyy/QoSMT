@@ -610,15 +610,15 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(source, tid);
 
         if (tid == 0) {
-            if (IQcause && calcOwnIQEntries(1)) {
+            if (source == IQ && calcOwnIQEntries(1)) {
                 // 如果空闲项足够，那么矫正值为0
                 toIEW->hptMissToWait = std::min(calcOwnIQEntries(1), IQcause);
-            } else if (ROBcause && calcOwnROBEntries(1)) {
+            } else if (source == ROB && calcOwnROBEntries(1)) {
                 toIEW->hptMissToWait = std::min(calcOwnROBEntries(1), ROBcause);
             }
         }
-
         return;
+
     } else if (min_free_entries < insts_available) {
         DPRINTF(Rename, "[tid:%u]: Will have to block this cycle."
                 "%i insts available, but only %i insts can be "
@@ -632,10 +632,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(source, tid);
 
         if (tid == 0) {
-            if (IQcause && calcOwnIQEntries(1)) {
+            if (source == IQ && calcOwnIQEntries(1)) {
                 //LPTcause会在后续计算中被用到
                 LPTcause = std::min(calcOwnIQEntries(1), IQcause);
-            } else if (ROBcause && calcOwnROBEntries(1)) {
+            } else if (source == ROB && calcOwnROBEntries(1)) {
                 LPTcause = std::min(calcOwnROBEntries(1), ROBcause);
             }
             // 否则LPT不对HPT的阻塞负责
