@@ -531,6 +531,10 @@ class DefaultIEW
     void recordMiss(int wastedSlot, ThreadID tid);
 
     unsigned hptInitDispatchWidth;
+
+  private:
+    bool LPTcauseStall;
+
 };
 
 #endif // __CPU_O3_IEW_HH__

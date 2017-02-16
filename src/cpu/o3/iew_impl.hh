@@ -82,7 +82,8 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       numIQFull(params->numThreads),
       Programmable(params->iewProgrammable),
-      hptInitDispatchWidth(params->hptInitDispatchWidth)
+      hptInitDispatchWidth(params->hptInitDispatchWidth),
+      LPTcauseStall(false)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -606,6 +607,8 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
     DPRINTF(IEW, "[tid:%i]: Reading instructions out of the skid "
             "buffer %u.\n",tid, tid);
 
+    LPTcauseStall = false;
+
     // If the skid buffer is empty, signal back to previous stages to unblock.
     // Also switch status to running.
     if (skidBuffer[tid].empty()) {
@@ -811,6 +814,9 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
         DPRINTF(IEW,"[tid:%i]: Stall from Commit stage detected.\n",tid);
         ret_val = true;
     } else if (instQueue.isFull(tid)) {
+        if (tid == 0 && instQueue.numBusyEntries(1) > 0) {
+            LPTcauseStall = true;
+        }
         DPRINTF(IEW,"[tid:%i]: Stall: IQ  is full.\n",tid);
         ret_val = true;
     }
@@ -852,6 +858,7 @@ DefaultIEW<Impl>::checkSignalsAndUpdate(ThreadID tid)
     }
 
     if (checkStall(tid)) {
+        // 可能因为rob squash或者IQ full
         block(tid);
         dispatchStatus[tid] = Blocked;
         return;
@@ -1081,12 +1088,18 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             continue;
         }
 
+        ThreadID LPT = 1;
+
         // Check for full conditions.
         if (instQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i]: Issue: IQ has become full.\n", tid);
 
             // Call function to start blocking.
             block(tid);
+
+            if (tid == 0 && instQueue.numBusyEntries(LPT) > 0) {
+                LPTcauseStall = true;
+            }
 
             // Set unblock to false. Special case where we are using
             // skidbuffer (unblocking) instructions but then we still
@@ -1109,6 +1122,16 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             // Call function to start blocking.
             block(tid);
+
+            ThreadID LPT = 1;
+
+            if (tid == 0) {
+                if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
+                    LPTcauseStall = true;
+                } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
+                    LPTcauseStall = true;
+                }
+            }
 
             // Set unblock to false. Special case where we are using
             // skidbuffer (unblocking) instructions but then we still
@@ -1246,6 +1269,11 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         block(tid);
         toRename->iewUnblock[tid] = false;
 
+        ThreadID LPT = 1;
+
+        if (tid == 0 && dispatchWidths[LPT]) {
+            LPTcauseStall = true;
+        }
     }
 
     if (dis_num_inst < dispatchWidths[tid]){
@@ -1609,6 +1637,14 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
+    if (wroteToTimeBuffer) {
+        toRename->iewInfo[0].LPTcauseStall = LPTcauseStall;
+
+        if (LPTcauseStall) {
+            DPRINTF(FmtSlot, "Send LPT cause HPT Stall backward to rename.\n");
+        }
+    }
+
     // Writeback any stores using any leftover bandwidth.
     ldstQueue.writebackStores();
 
@@ -1678,6 +1714,7 @@ DefaultIEW<Impl>::tick()
             toRename->iewInfo[tid].dispatchWidth = dispatchWidths[tid];
 
             wroteToTimeBuffer = true;
+
         }
 
         DPRINTF(IEW, "[tid:%i], Dispatch dispatched %i instructions.\n",

@@ -169,6 +169,8 @@ struct TimeBufStruct {
         unsigned busyIQEntries;
         unsigned busyLQEntries;
         unsigned busySQEntries;
+
+        bool LPTcauseStall;
     };
 
     iewComm iewInfo[Impl::MaxThreads];

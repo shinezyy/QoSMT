@@ -424,6 +424,7 @@ class DefaultRename
     struct Stalls {
         bool iew;
         bool commit;
+        bool LPTcauseIEWStall;
     };
 
     /** Tracks which stages are telling decode to stall. */
@@ -582,7 +583,10 @@ class DefaultRename
 
   private:
 
-    bool LPTBlockHPT;
+    bool LPTcauseStall; // LPT导致rename阶段直接变为blocked，不进入renameInsts函数
+    unsigned numLPTcause;
+
+    bool LPTBlockHPT; //在renameInsts函数中，发现LPT占据buffer导致指令不能全部rename
 };
 
 #endif // __CPU_O3_RENAME_HH__

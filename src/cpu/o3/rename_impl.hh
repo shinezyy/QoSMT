@@ -485,15 +485,21 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     //     continue trying to empty skid buffer
     //     check if stall conditions have passed
 
+    LPTBlockHPT = false;
+
     if (renameStatus[tid] == Blocked) {
-        if (LPTBlockHPT) {
-            // 这样一定会高估HPT的性能
-            toIEW->hptMissToWait = renameWidth;
-        }
         ++renameBlockCycles;
+        if (LPTcauseStall) {
+            DPRINTF(FmtSlot, "Send miss rectification to IEW stage: %i\n",
+                    numLPTcause);
+            toIEW->hptMissToWait = numLPTcause;
+        }
     } else if (renameStatus[tid] == Squashing) {
+        LPTcauseStall = false;
+
         ++renameSquashCycles;
     } else if (renameStatus[tid] == SerializeStall) {
+        LPTcauseStall = false;
         ++renameSerializeStallCycles;
         // If we are currently in SerializeStall and resumeSerialize
         // was set, then that means that we are resuming serializing
@@ -504,24 +510,23 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             toDecode->renameUnblock[tid] = false;
         }
     } else if (renameStatus[tid] == Unblocking) {
+        LPTcauseStall = false;
         if (resumeUnblocking) {
             block(tid);
             resumeUnblocking = false;
             toDecode->renameUnblock[tid] = false;
         }
-        if (LPTBlockHPT) {
-            // 这样一定会高估HPT的性能
-            toIEW->hptMissToWait = renameWidth;
-        }
     }
 
     if (renameStatus[tid] == Running ||
         renameStatus[tid] == Idle) {
+        LPTcauseStall = false;
         DPRINTF(Rename, "[tid:%u]: Not blocked, so attempting to run "
                 "stage.\n", tid);
 
         renameInsts(tid);
     } else if (renameStatus[tid] == Unblocking) {
+        LPTcauseStall = false;
         renameInsts(tid);
 
         if (validInsts()) {
@@ -533,6 +538,27 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
         // If we switched over to blocking, then there's a potential for
         // an overall status change.
         status_change = unblock(tid) || status_change || blockThisCycle;
+    }
+
+    if (tid == 0) {
+        if (LPTcauseStall) {
+            assert(renameStatus[0] == Blocked);
+            assert(!LPTBlockHPT);
+            DPRINTF(FmtSlot, "LPT cause IEW stall, which blocked rename stags.\n");
+            DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
+
+        } else if (LPTBlockHPT) {
+            assert(renameStatus[0] == Blocked);
+            DPRINTF(FmtSlot, "LPT occupied stall entries of buffers, which prevent"
+                    "HPT from rename all available insts.\n");
+            DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
+
+        } else if (renameStatus[0] == Blocked) {
+            DPRINTF(FmtSlot, "HPT blocked, but LPT is not responsible for it.\n");
+
+        } else {
+            DPRINTF(FmtSlot, "No block this cycle.\n");
+        }
     }
 }
 
@@ -588,8 +614,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     int ROBcause = 0, IQcause = 0;
     // 当ROB或者IQ瓶颈时，造成的无法重命名的指令的数量
 
-    int LPTcause = 0;
-
     FullSource source = ROB;
 
     if (free_iq_entries < min_free_entries) {
@@ -622,9 +646,9 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             LPTBlockHPT = true;
             if (source == IQ && calcOwnIQEntries(1)) {
                 // 如果空闲项足够，那么矫正值为0
-                toIEW->hptMissToWait = std::min(calcOwnIQEntries(1), IQcause);
+                numLPTcause = std::min(calcOwnIQEntries(1), IQcause);
             } else if (source == ROB && calcOwnROBEntries(1)) {
-                toIEW->hptMissToWait = std::min(calcOwnROBEntries(1), ROBcause);
+                numLPTcause = std::min(calcOwnROBEntries(1), ROBcause);
             } else {
                 LPTBlockHPT = false;
             }
@@ -646,10 +670,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         if (tid == 0) {
             LPTBlockHPT = true;
             if (source == IQ && calcOwnIQEntries(1)) {
-                //LPTcause会在后续计算中被用到
-                LPTcause = std::min(calcOwnIQEntries(1), IQcause);
+                //numLPTcause会在后续计算中被用到
+                numLPTcause = std::min(calcOwnIQEntries(1), IQcause);
             } else if (source == ROB && calcOwnROBEntries(1)) {
-                LPTcause = std::min(calcOwnROBEntries(1), ROBcause);
+                numLPTcause = std::min(calcOwnROBEntries(1), ROBcause);
             } else {
                 // 否则LPT不对HPT的阻塞负责
                 LPTBlockHPT = false;
@@ -781,7 +805,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             serializeInst[tid] = inst;
 
             blockThisCycle = true;
-            LPTBlockHPT = false;
 
             break;
         } else if ((inst->isStoreConditional() || inst->isSerializeAfter()) &&
@@ -823,12 +846,12 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
         if (source == LQ && calcOwnLQEntries(1)) {
             LPTBlockHPT = true;
-            toIEW->hptMissToWait = insts_available + LPTcause;
+            toIEW->hptMissToWait = insts_available + numLPTcause;
         } else if (source == SQ && calcOwnSQEntries(1)) {
             LPTBlockHPT = true;
-            toIEW->hptMissToWait = insts_available + LPTcause;
+            toIEW->hptMissToWait = insts_available + numLPTcause;
         } else {
-            toIEW->hptMissToWait = LPTcause;
+            toIEW->hptMissToWait = numLPTcause;
         }
     }
 
@@ -1342,6 +1365,10 @@ DefaultRename<Impl>::readStallSignals(ThreadID tid)
 {
     if (fromIEW->iewBlock[tid]) {
         stalls[tid].iew = true;
+
+        if (tid == 0) {
+            stalls[0].LPTcauseIEWStall = fromIEW->iewInfo[0].LPTcauseStall;
+        }
     }
 
     if (fromIEW->iewUnblock[tid]) {
@@ -1355,19 +1382,53 @@ bool
 DefaultRename<Impl>::checkStall(ThreadID tid)
 {
     bool ret_val = false;
+    ThreadID LPT = 1;
 
     if (stalls[tid].iew) {
         DPRINTF(Rename,"[tid:%i]: Stall from IEW stage detected.\n", tid);
         ret_val = true;
+
+        if (tid == 0 && stalls[tid].LPTcauseIEWStall) {
+            LPTcauseStall = true;
+            unsigned numAvailInsts = (unsigned) renameStatus[tid] == Unblocking ?
+                    skidBuffer[tid].size() : insts[tid].size();
+            numLPTcause = std::min(numAvailInsts, renameWidth);
+            DPRINTF(FmtSlot, "Receive HPT stall caused by LPT, computing"
+                    " miss to wait recification.\n");
+        }
     } else if (calcFreeROBEntries(tid) <= 0) {
         DPRINTF(Rename,"[tid:%i]: Stall: ROB has 0 free entries.\n", tid);
         ret_val = true;
+
+        if (tid == 0) {
+            LPTcauseStall = calcOwnROBEntries(LPT) > 0;
+            numLPTcause = calcOwnROBEntries(LPT);
+
+            DPRINTF(FmtSlot, "HPT stall because no ROB.\n");
+        }
+
     } else if (calcFreeIQEntries(tid) <= 0) {
         DPRINTF(Rename,"[tid:%i]: Stall: IQ has 0 free entries.\n", tid);
         ret_val = true;
+
+        if (tid == 0) {
+            LPTcauseStall = calcOwnIQEntries(LPT) > 0;
+            numLPTcause = calcOwnIQEntries(LPT);
+
+            DPRINTF(FmtSlot, "HPT stall because no IQ.\n");
+        }
+
     } else if (calcFreeLQEntries(tid) <= 0 && calcFreeSQEntries(tid) <= 0) {
         DPRINTF(Rename,"[tid:%i]: Stall: LSQ has 0 free entries.\n", tid);
         ret_val = true;
+
+        if (tid == 0) {
+            LPTcauseStall = (calcOwnLQEntries(LPT) > 0) && (calcOwnSQEntries(LPT) > 0);
+            numLPTcause = std::min(calcOwnLQEntries(LPT), calcOwnSQEntries(LPT));
+
+            DPRINTF(FmtSlot, "HPT stall because no LSQ.\n");
+        }
+
     } else if (renameMap[tid]->numFreeEntries() <= 0) {
         DPRINTF(Rename,"[tid:%i]: Stall: RenameMap has 0 free entries.\n", tid);
         ret_val = true;
