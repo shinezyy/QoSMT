@@ -579,6 +579,10 @@ class DefaultRename
     uint64_t numLQFull[Impl::MaxThreads];
     uint64_t numSQFull[Impl::MaxThreads];
     uint64_t numIQFull[Impl::MaxThreads];
+
+  private:
+
+    bool LPTBlockHPT;
 };
 
 #endif // __CPU_O3_RENAME_HH__

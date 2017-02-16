@@ -73,7 +73,8 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
-      availableInstCount(0)
+      availableInstCount(0),
+      LPTBlockHPT(false)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -413,6 +414,8 @@ DefaultRename<Impl>::tick()
 
     bool status_change = false;
 
+    toIEW->hptMissToWait = 0;
+
     toIEWIndex = 0;
 
     sortInsts();
@@ -483,6 +486,10 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     //     check if stall conditions have passed
 
     if (renameStatus[tid] == Blocked) {
+        if (LPTBlockHPT) {
+            // 这样一定会高估HPT的性能
+            toIEW->hptMissToWait = renameWidth;
+        }
         ++renameBlockCycles;
     } else if (renameStatus[tid] == Squashing) {
         ++renameSquashCycles;
@@ -501,6 +508,10 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             block(tid);
             resumeUnblocking = false;
             toDecode->renameUnblock[tid] = false;
+        }
+        if (LPTBlockHPT) {
+            // 这样一定会高估HPT的性能
+            toIEW->hptMissToWait = renameWidth;
         }
     }
 
@@ -591,8 +602,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     }
 
 
-    toIEW->hptMissToWait = 0;
-
     // Check if there's any space left.
     if (min_free_entries <= 0) {
         DPRINTF(Rename, "[tid:%u]: Blocking due to no free ROB/IQ/ "
@@ -610,11 +619,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(source, tid);
 
         if (tid == 0) {
+            LPTBlockHPT = true;
             if (source == IQ && calcOwnIQEntries(1)) {
                 // 如果空闲项足够，那么矫正值为0
                 toIEW->hptMissToWait = std::min(calcOwnIQEntries(1), IQcause);
             } else if (source == ROB && calcOwnROBEntries(1)) {
                 toIEW->hptMissToWait = std::min(calcOwnROBEntries(1), ROBcause);
+            } else {
+                LPTBlockHPT = false;
             }
         }
         return;
@@ -632,13 +644,16 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(source, tid);
 
         if (tid == 0) {
+            LPTBlockHPT = true;
             if (source == IQ && calcOwnIQEntries(1)) {
                 //LPTcause会在后续计算中被用到
                 LPTcause = std::min(calcOwnIQEntries(1), IQcause);
             } else if (source == ROB && calcOwnROBEntries(1)) {
                 LPTcause = std::min(calcOwnROBEntries(1), ROBcause);
+            } else {
+                // 否则LPT不对HPT的阻塞负责
+                LPTBlockHPT = false;
             }
-            // 否则LPT不对HPT的阻塞负责
         }
     }
 
@@ -731,6 +746,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             DPRINTF(Rename, "Blocking due to lack of free "
                     "physical registers to rename to.\n");
             blockThisCycle = true;
+            LPTBlockHPT = false;
             insts_to_rename.push_front(inst);
             ++renameFullRegistersEvents;
 
@@ -765,6 +781,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             serializeInst[tid] = inst;
 
             blockThisCycle = true;
+            LPTBlockHPT = false;
 
             break;
         } else if ((inst->isStoreConditional() || inst->isSerializeAfter()) &&
@@ -783,10 +800,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         renameDestRegs(inst, inst->threadNumber);
 
         if (inst->isLoad()) {
-                loadsInProgress[tid]++;
+            loadsInProgress[tid]++;
         }
         if (inst->isStore()) {
-                storesInProgress[tid]++;
+            storesInProgress[tid]++;
         }
         ++renamed_insts;
 
@@ -805,8 +822,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     if (tid == 0) {
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
         if (source == LQ && calcOwnLQEntries(1)) {
+            LPTBlockHPT = true;
             toIEW->hptMissToWait = insts_available + LPTcause;
         } else if (source == SQ && calcOwnSQEntries(1)) {
+            LPTBlockHPT = true;
             toIEW->hptMissToWait = insts_available + LPTcause;
         } else {
             toIEW->hptMissToWait = LPTcause;
@@ -834,6 +853,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // If so then block.
     if (insts_available) {
         blockThisCycle = true;
+    } else {
+        LPTBlockHPT = false;
     }
 
     if (blockThisCycle) {
@@ -998,6 +1019,8 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         wroteToTimeBuffer = true;
 
         renameStatus[tid] = Running;
+        LPTBlockHPT = false;
+
         return true;
     }
 

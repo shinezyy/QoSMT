@@ -1861,7 +1861,7 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
     if (wastedSlot - waits) {
         DPRINTF(FmtSlot, "Increment %d miss slot of T[%d] in Record miss.\n",
                 wastedSlot - waits, hpt);
-        fmt->incMissDirect(hpt, wastedSlot - waits, true);
+        fmt->incMissDirect(hpt, wastedSlot - waits, false);
     }
 }
 
