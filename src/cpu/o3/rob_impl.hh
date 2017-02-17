@@ -66,7 +66,7 @@ ROB<Impl>::ROB(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(10)
+      sampleRate(params->windowSize)
 {
 }
 

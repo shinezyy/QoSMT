@@ -81,7 +81,7 @@ LSQ<Impl>::LSQ(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params)
       sqUptodate(false),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(10)
+      sampleRate(params->windowSize)
 {
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         LQPortion[tid] = denominator/numThreads;
