@@ -81,11 +81,13 @@ template<class Impl>
 DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     : denominator(1024),
       cpu(_cpu),
+      numInsts(params->numThreads, 0),
       decodeToFetchDelay(params->decodeToFetchDelay),
       renameToFetchDelay(params->renameToFetchDelay),
       iewToFetchDelay(params->iewToFetchDelay),
       commitToFetchDelay(params->commitToFetchDelay),
       fetchWidth(params->fetchWidth),
+      fetchWidths(params->numThreads, params->fetchWidth / params->numThreads),
       decodeWidth(params->decodeWidth),
       retryPkt(NULL),
       retryTid(InvalidThreadID),
@@ -737,7 +739,8 @@ DefaultFetch<Impl>::finishTranslation(const Fault &fault, RequestPtr mem_req)
         }
     } else {
         // Don't send an instruction to decode if we can't handle it.
-        if (!(numInst < fetchWidth) || !(fetchQueue[tid].size() < fetchQueueSize)) {
+        if (!(numInst < fetchWidth) || !(fetchQueue[tid].size() < fetchQueueSize) ||
+                !(numInsts[tid] < fetchWidths[tid])) {
             DPRINTF(SmtFetch, "Fault! delayedFetch of Thread [%i].\n", tid);
             assert(!finishTranslationEvents[tid]->scheduled());
             finishTranslationEvents[tid]->setFault(fault);
@@ -1020,6 +1023,7 @@ DefaultFetch<Impl>::tick()
 
     // Reset the number of the instruction we've fetched.
     numInst = 0;
+    std::fill(numInsts.begin(), numInsts.end(), 0);
 }
 
 template <class Impl>
@@ -1292,14 +1296,14 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     TheISA::MachInst *cacheInsts =
         reinterpret_cast<TheISA::MachInst *>(fetchBuffer[tid]);
 
-    const unsigned numInsts = fetchBufferSize / instSize;
+    const unsigned instLimit = fetchBufferSize / instSize;
     unsigned blkOffset = (fetchAddr - fetchBufferPC[tid]) / instSize;
 
     // Loop through instruction memory from the cache.
     // Keep issuing while fetchWidth is available and branch is not
     // predicted taken
     while (numInst < fetchWidth && fetchQueue[tid].size() < fetchQueueSize
-           && !predictedBranch && !quiesce) {
+           && !predictedBranch && !quiesce && numInsts[tid] < fetchWidths[tid]) {
         // We need to process more memory if we aren't going to get a
         // StaticInst from the rom, the current macroop, or what's already
         // in the decoder.
@@ -1315,7 +1319,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
                 fetchBufferBlockPC != fetchBufferPC[tid])
                 break;
 
-            if (blkOffset >= numInsts) {
+            if (blkOffset >= instLimit) {
                 // We need to process more memory, but we've run out of the
                 // current block.
                 break;
@@ -1324,11 +1328,11 @@ DefaultFetch<Impl>::fetch(bool &status_change)
             if (ISA_HAS_DELAY_SLOT && pcOffset == 0) {
                 // Walk past any annulled delay slot instructions.
                 Addr pcAddr = thisPC.instAddr() & BaseCPU::PCMask;
-                while (fetchAddr != pcAddr && blkOffset < numInsts) {
+                while (fetchAddr != pcAddr && blkOffset < instLimit) {
                     blkOffset++;
                     fetchAddr += instSize;
                 }
-                if (blkOffset >= numInsts)
+                if (blkOffset >= instLimit)
                     break;
             }
 
@@ -1384,6 +1388,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
 
             ppFetch->notify(instruction);
             numInst++;
+            numInsts[tid]++;
 
 #if TRACING_ON
             if (DTRACE(O3PipeView)) {
@@ -1424,14 +1429,14 @@ DefaultFetch<Impl>::fetch(bool &status_change)
                 break;
             }
         } while ((curMacroop || decoder[tid]->instReady()) &&
-                 numInst < fetchWidth &&
+                 numInst < fetchWidth && numInsts[tid] < fetchWidths[tid] &&
                  fetchQueue[tid].size() < fetchQueueSize);
     }
 
     if (predictedBranch) {
         DPRINTF(Fetch, "[tid:%i]: Done fetching, predicted branch "
                 "instruction encountered.\n", tid);
-    } else if (numInst >= fetchWidth) {
+    } else if (numInst >= fetchWidth && numInsts[tid] > fetchWidths[tid]) {
         DPRINTF(Fetch, "[tid:%i]: Done fetching, reached fetch bandwidth "
                 "for this cycle.\n", tid);
     } else if (blkOffset >= fetchBufferSize) {
