@@ -63,6 +63,7 @@
 #include "debug/Commit.hh"
 #include "debug/CommitRate.hh"
 #include "debug/Drain.hh"
+#include "debug/FmtSlot.hh"
 #include "debug/ExecFaulting.hh"
 #include "debug/O3PipeView.hh"
 #include "params/DerivO3CPU.hh"
@@ -660,8 +661,13 @@ DefaultCommit<Impl>::tick()
     wroteToTimeBuffer = false;
     _nextStatus = Inactive;
 
-    if (activeThreads->empty())
+    if (activeThreads->empty()) {
+
+        for (ThreadID tid = 0; tid < numThreads; tid++) {
+            DPRINTF(FmtSlot, "T[%i] ROB: %i\n", tid, rob->numBusyEntries(tid));
+        }
         return;
+    }
 
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
@@ -734,6 +740,10 @@ DefaultCommit<Impl>::tick()
     rob->increaseUsedEntries();
 
     updateStatus();
+
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        DPRINTF(FmtSlot, "T[%i] ROB: %i\n", tid, rob->numBusyEntries(tid));
+    }
 }
 
 template <class Impl>

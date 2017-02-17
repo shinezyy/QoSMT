@@ -1900,6 +1900,13 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
                 wastedSlot - waits, hpt);
         fmt->incMissDirect(hpt, wastedSlot - waits, false);
     }
+
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        DPRINTF(FmtSlot, "T[%i]  IQ: %i, LQ: %i, SQ: %i\n", tid,
+                instQueue.numBusyEntries(tid), ldstQueue.numLoads(tid),
+                ldstQueue.numStores(tid)
+               );
+    }
 }
 
 

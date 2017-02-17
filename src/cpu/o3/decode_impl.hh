@@ -51,6 +51,7 @@
 #include "debug/Activity.hh"
 #include "debug/Decode.hh"
 #include "debug/O3PipeView.hh"
+#include "debug/FmtSlot2.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/full_system.hh"
 
@@ -630,6 +631,9 @@ DefaultDecode<Impl>::decode(bool &status_change, ThreadID tid)
 
         status_change = unblock(tid) || status_change;
     }
+
+    DPRINTF(FmtSlot2, "[Thread %i] Number of insts send to rename this cycles is %i\n",
+            tid, toRenameIndex);
 }
 
 template <class Impl>

@@ -384,6 +384,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
 
     // Set the status to Squashing.
     renameStatus[tid] = Squashing;
+    DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Squashing\n", tid);
 
     // Squash any instructions from decode.
     for (int i=0; i<fromDecode->size; i++) {
@@ -493,6 +494,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
         if (LPTcauseStall) {
             DPRINTF(FmtSlot, "Send miss rectification to IEW stage: %i\n",
                     numLPTcause);
+            DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
             toIEW->hptMissToWait = numLPTcause;
         }
     } else if (renameStatus[tid] == Squashing) {
@@ -545,7 +547,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
         if (LPTcauseStall) {
             assert(renameStatus[0] == Blocked || blockThisCycle);
             assert(!LPTBlockHPT);
-            DPRINTF(FmtSlot, "LPT cause IEW stall, which blocked rename stags.\n");
+            DPRINTF(FmtSlot, "LPT cause IEW stall, which blocked rename stage.\n");
             DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
 
         } else if (LPTBlockHPT) {
@@ -554,7 +556,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
                     "HPT from rename all available insts.\n");
             DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
 
-        } else if (renameStatus[0] == Blocked) {
+        } else if (renameStatus[0] == Blocked || renameStatus[0] == SerializeStall) {
             DPRINTF(FmtSlot, "HPT blocked, but LPT is not responsible for it.\n");
 
         } else {
@@ -801,6 +803,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // Change status over to SerializeStall so that other stages know
             // what this is blocked on.
             renameStatus[tid] = SerializeStall;
+            DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to SerializeStall\n",
+                    tid);
 
             serializeInst[tid] = inst;
 
@@ -847,19 +851,19 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         if (source == LQ && calcOwnLQEntries(1)) {
             LPTBlockHPT = true;
             toIEW->hptMissToWait = insts_available + numLPTcause;
-            DPRINTF(FmtSlot2, "%i insts cannot be renamed, %i because of LQ, "
-                    "%i because of IQ or ROB\n", toIEW->hptMissToWait, insts_available,
-                    numLPTcause);
+            DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
+                    " %i because of LQ, %i because of IQ or ROB\n",
+                    toIEW->hptMissToWait, insts_available, numLPTcause);
         } else if (source == SQ && calcOwnSQEntries(1)) {
             LPTBlockHPT = true;
             toIEW->hptMissToWait = insts_available + numLPTcause;
-            DPRINTF(FmtSlot2, "%i insts cannot be renamed, %i because of SQ, "
-                    "%i because of IQ or ROB\n", toIEW->hptMissToWait, insts_available,
-                    numLPTcause);
+            DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
+                    " %i because of SQ, %i because of IQ or ROB\n",
+                    toIEW->hptMissToWait, insts_available, numLPTcause);
         } else if (LPTBlockHPT ) {
             toIEW->hptMissToWait = numLPTcause;
-            DPRINTF(FmtSlot2, "%i insts cannot be renamed, because of IQ or ROB\n",
-                    insts_available);
+            DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
+                    " because of IQ or ROB\n", insts_available);
         }
     }
 
@@ -1020,7 +1024,11 @@ DefaultRename<Impl>::block(ThreadID tid)
         if (renameStatus[tid] != SerializeStall) {
             // Set status to Blocked.
             renameStatus[tid] = Blocked;
+            DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
             return true;
+        } else {
+            DPRINTF(FmtSlot2, "Thread [%i] Rename status remains SerializeStall\n",
+                    tid);
         }
     }
 
@@ -1042,7 +1050,7 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         toDecode->renameUnblock[tid] = true;
         wroteToTimeBuffer = true;
 
-        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] changed to Running.\n", tid);
+        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to Running.\n", tid);
         renameStatus[tid] = Running;
         LPTBlockHPT = false;
 
@@ -1393,11 +1401,13 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
 
         if (tid == 0 && stalls[tid].LPTcauseIEWStall) {
             LPTcauseStall = true;
-            unsigned numAvailInsts = (unsigned) renameStatus[tid] == Unblocking ?
-                    skidBuffer[tid].size() : insts[tid].size();
+            unsigned numAvailInsts = (unsigned) (renameStatus[tid] == Unblocking ?
+                    skidBuffer[tid].size() : insts[tid].size());
             numLPTcause = std::min(numAvailInsts, renameWidth);
             DPRINTF(FmtSlot, "Receive HPT stall caused by LPT, computing"
                     " miss to wait recification.\n");
+            DPRINTF(FmtSlot, "%i insts in skidbuffer, %i insts from decode\n",
+                    skidBuffer[tid].size(), insts[tid].size());
         }
     } else if (calcFreeROBEntries(tid) <= 0) {
         DPRINTF(Rename,"[tid:%i]: Stall: ROB has 0 free entries.\n", tid);
@@ -1521,6 +1531,8 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                 tid);
 
         renameStatus[tid] = Unblocking;
+        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to unblocking.\n",
+                tid);
 
         unblock(tid);
 
@@ -1535,17 +1547,23 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                     tid);
 
             renameStatus[tid] = SerializeStall;
+            DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+                    " SerializeStall.\n", tid);
             return true;
         } else if (resumeUnblocking) {
             DPRINTF(Rename, "[tid:%u]: Done squashing, switching to unblocking.\n",
                     tid);
             renameStatus[tid] = Unblocking;
+            DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+                    " unblocking.\n", tid);
             return true;
         } else {
             DPRINTF(Rename, "[tid:%u]: Done squashing, switching to running.\n",
                     tid);
 
             renameStatus[tid] = Running;
+            DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+                    " running.\n", tid);
             return false;
         }
     }
@@ -1558,6 +1576,8 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
         DynInstPtr serial_inst = serializeInst[tid];
 
         renameStatus[tid] = Unblocking;
+        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+                " unblocking.\n", tid);
 
         unblock(tid);
 
