@@ -971,7 +971,7 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     DPRINTF(FmtSlot, "Dispatch thread(%d)\n", tid);
 
     for (ThreadID t = 0; t < numThreads; t++) {
-        if (dispatchStatus[t] == Unblocking) {
+        if (dispatchStatus[t] == Unblocking || dispatchStatus[t] == Blocked) {
             insts_can_dis[t] = skidBuffer[t].size();
             if (insts_can_dis[t]) {
                 PerThreadHead[t] = skidBuffer[t].front();
@@ -1249,7 +1249,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
                 } else {
                     DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
-                            " because it is blocked.\n", t);
+                            " because it has no instruction to dispatch.\n", t);
                     fmt->incMissDirect(t, 1, true);
                 }
             }

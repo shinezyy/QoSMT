@@ -552,7 +552,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
 
         } else if (LPTBlockHPT) {
             assert(renameStatus[0] == Blocked || blockThisCycle);
-            DPRINTF(FmtSlot, "LPT occupied stall entries of buffers, which prevent"
+            DPRINTF(FmtSlot, "LPT occupied some entries of buffers, which prevent "
                     "HPT from rename all available insts.\n");
             DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
 
@@ -725,7 +725,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         if (inst->isLoad()) {
             if(calcFreeLQEntries(tid) <= 0) {
-                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free LQ\n");
+                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free LQ\n", tid);
                 source = LQ;
                 incrFullStat(source, tid);
                 break;
@@ -734,7 +734,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         if (inst->isStore()) {
             if(calcFreeSQEntries(tid) <= 0) {
-                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free SQ\n");
+                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free SQ\n", tid);
                 source = SQ;
                 incrFullStat(source, tid);
                 break;
@@ -887,6 +887,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         block(tid);
         toDecode->renameUnblock[tid] = false;
     }
+    DPRINTF(FmtSlot2, "[Thread %i] Rename send %i insts to dispatch\n",
+            tid, renamed_insts);
 }
 
 template<class Impl>
@@ -1401,8 +1403,19 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
 
         if (tid == 0 && stalls[tid].LPTcauseIEWStall) {
             LPTcauseStall = true;
-            unsigned numAvailInsts = (unsigned) (renameStatus[tid] == Unblocking ?
-                    skidBuffer[tid].size() : insts[tid].size());
+            unsigned numAvailInsts = 0;
+            switch (renameStatus[tid]) {
+                case Running:
+                case Idle:
+                    numAvailInsts = insts[tid].size();
+                    break;
+                case Blocked:
+                case Unblocking:
+                    numAvailInsts = skidBuffer[tid].size();
+                    break;
+                default:
+                    break;
+            }
             numLPTcause = std::min(numAvailInsts, renameWidth);
             DPRINTF(FmtSlot, "Receive HPT stall caused by LPT, computing"
                     " miss to wait recification.\n");
