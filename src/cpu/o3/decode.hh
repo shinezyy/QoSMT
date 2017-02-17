@@ -44,6 +44,7 @@
 #define __CPU_O3_DECODE_HH__
 
 #include <queue>
+#include <vector>
 
 #include "base/statistics.hh"
 #include "cpu/timebuf.hh"
@@ -269,8 +270,13 @@ class DefaultDecode
     /** The width of decode, in instructions. */
     unsigned decodeWidth;
 
+    std::vector<unsigned> decodeWidths;
+
     /** Index of instructions being sent to rename. */
     unsigned toRenameIndex;
+
+    /** 每个线程送入rename的指令数量，英文命名不太合理 */
+    std::vector<unsigned> toRenameIndices;
 
     /** number of Active Threads*/
     ThreadID numThreads;
