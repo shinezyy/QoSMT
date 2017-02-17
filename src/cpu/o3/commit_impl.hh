@@ -943,6 +943,7 @@ DefaultCommit<Impl>::commit()
             toIEW->commitInfo[tid].usedROB = true;
             toIEW->commitInfo[tid].freeROBEntries = rob->numFreeEntries(tid);
             toIEW->commitInfo[tid].maxROBEntries = rob->getMaxEntries(tid);
+            toIEW->commitInfo[tid].busyROBEntries = rob->numBusyEntries(tid);
 
             wroteToTimeBuffer = true;
             changedROBNumEntries[tid] = false;
@@ -965,6 +966,7 @@ DefaultCommit<Impl>::commit()
             toIEW->commitInfo[tid].emptyROB = true;
             toIEW->commitInfo[tid].freeROBEntries = rob->numFreeEntries(tid);
             toIEW->commitInfo[tid].maxROBEntries = rob->getMaxEntries(tid);
+            toIEW->commitInfo[tid].busyROBEntries = rob->numBusyEntries(tid);
             wroteToTimeBuffer = true;
         }
 
