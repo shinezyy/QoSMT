@@ -487,6 +487,34 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     //     continue trying to empty skid buffer
     //     check if stall conditions have passed
 
+    if (tid == 0) {
+        switch(renameStatus[tid]) {
+            case Running:
+                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Running\n", tid);
+                break;
+            case Idle:
+                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Idle\n", tid);
+                break;
+            case StartSquash:
+                DPRINTF(FmtSlot2, "Thread [%i] status now:" "StartSquash\n", tid);
+                break;
+            case Squashing:
+                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Squashing\n", tid);
+                break;
+            case Blocked:
+                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Blocked\n", tid);
+                break;
+            case Unblocking:
+                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Unblocking\n", tid);
+                break;
+            case SerializeStall:
+                DPRINTF(FmtSlot2, "Thread [%i] status now:" "SerializeStall\n", tid);
+                break;
+            default:
+                break;
+        }
+    }
+
     LPTBlockHPT = false;
 
     if (renameStatus[tid] == Blocked) {
@@ -560,7 +588,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             DPRINTF(FmtSlot, "HPT blocked, but LPT is not responsible for it.\n");
 
         } else {
-            DPRINTF(FmtSlot, "No block this cycle.\n");
+            DPRINTF(FmtSlot, "HPT No block this cycle.\n");
         }
     }
 }
@@ -595,8 +623,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // Check the decode queue to see if instructions are available.
     // If there are no available instructions to rename, then do nothing.
     if (insts_available == 0) {
-        DPRINTF(Rename, "[tid:%u]: Nothing to do, breaking out early.\n",
-                tid);
+        DPRINTF(FmtSlot2, "[tid:%u]: Nothing to do, breaking out early.\n", tid);
         // Should I change status to idle?
         ++renameIdleCycles;
         return;
@@ -939,6 +966,11 @@ DefaultRename<Impl>::sortInsts()
             inst->renameTick = curTick() - inst->fetchTick;
         }
 #endif
+    }
+    DPRINTF(FmtSlot2, "Total number of insts from decode is %i.\n", insts_from_decode);
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        DPRINTF(FmtSlot2, "Number of insts of Thread %i from decode is %i.\n",
+                tid, insts[tid].size());
     }
 }
 
