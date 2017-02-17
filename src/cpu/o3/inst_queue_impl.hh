@@ -94,7 +94,10 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
       numEntries(params->numIQEntries),
       totalWidth(params->issueWidth),
       commitToIEWDelay(params->commitToIEWDelay),
-      numUsedEntries(0)
+      numUsedEntries(0),
+      sampleCycle(0),
+      sampleTime(0),
+      sampleRate(params->windowSize)
 {
     assert(fuPool);
 
@@ -1798,9 +1801,13 @@ template <class Impl>
 void
 InstructionQueue<Impl>::increaseUsedEntries()
 {
-    numUsedEntries += countInsts();
-    numThreadUsedEntries[0] += count[0];
-    numThreadUsedEntries[1] += count[1];
+    sampleCycle++;
+    if (sampleTime*(cpu->windowSize/sampleRate) <= sampleCycle) {
+        sampleTime++;
+        numUsedEntries += countInsts();
+        numThreadUsedEntries[0] += count[0];
+        numThreadUsedEntries[1] += count[1];
+    }
 }
 
 template <class Impl>

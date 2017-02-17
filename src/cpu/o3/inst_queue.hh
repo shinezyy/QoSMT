@@ -613,6 +613,12 @@ class InstructionQueue
     double iqUtil;
 
     double iqThreadUtil[2];
+
+    unsigned sampleCycle;
+
+    unsigned sampleTime;
+
+    unsigned sampleRate;
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__
