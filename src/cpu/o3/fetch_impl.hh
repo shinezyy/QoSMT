@@ -64,6 +64,7 @@
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
 #include "debug/Fetch.hh"
+#include "debug/SmtFetch.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "mem/packet.hh"
@@ -737,6 +738,7 @@ DefaultFetch<Impl>::finishTranslation(const Fault &fault, RequestPtr mem_req)
     } else {
         // Don't send an instruction to decode if we can't handle it.
         if (!(numInst < fetchWidth) || !(fetchQueue[tid].size() < fetchQueueSize)) {
+            DPRINTF(SmtFetch, "Fault! delayedFetch of Thread [%i].\n", tid);
             assert(!finishTranslationEvents[tid]->scheduled());
             finishTranslationEvents[tid]->setFault(fault);
             finishTranslationEvents[tid]->setReq(mem_req);
@@ -928,6 +930,7 @@ DefaultFetch<Impl>::tick()
 
     for (ThreadID i = 0; i < numThreads; ++i) {
         issuePipelinedIfetch[i] = false;
+        fetchedThisCycle[i] = false;
     }
 
     while (threads != end) {
@@ -1207,6 +1210,8 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     }
 
     DPRINTF(Fetch, "Attempting to fetch from [tid:%i]\n", tid);
+    // avoid to fetch from same thread in one cycle
+    fetchedThisCycle[tid] = true;
 
     // The current PC.
     TheISA::PCState thisPC = pc[tid];
@@ -1545,9 +1550,9 @@ DefaultFetch<Impl>::roundRobin()
 
         assert(high_pri <= numThreads);
 
-        if (fetchStatus[high_pri] == Running ||
+        if ((fetchStatus[high_pri] == Running ||
             fetchStatus[high_pri] == IcacheAccessComplete ||
-            fetchStatus[high_pri] == Idle) {
+            fetchStatus[high_pri] == Idle) && !fetchedThisCycle[high_pri]) {
 
             priorityList.erase(pri_iter);
             priorityList.push_back(high_pri);

@@ -59,7 +59,7 @@ class DerivO3CPU(BaseCPU):
     iewToFetchDelay = Param.Cycles(1, "Issue/Execute/Writeback to fetch "
                                    "delay")
     commitToFetchDelay = Param.Cycles(1, "Commit to fetch delay")
-    fetchWidth = Param.Unsigned(8, "Fetch width")
+    fetchWidth = Param.Unsigned(4, "Fetch width")
     fetchBufferSize = Param.Unsigned(64, "Fetch buffer size in bytes")
     fetchQueueSize = Param.Unsigned(32, "Fetch queue size in micro-ops "
                                     "per-thread")
@@ -69,13 +69,13 @@ class DerivO3CPU(BaseCPU):
                                     "delay")
     commitToDecodeDelay = Param.Cycles(1, "Commit to decode delay")
     fetchToDecodeDelay = Param.Cycles(1, "Fetch to decode delay")
-    decodeWidth = Param.Unsigned(8, "Decode width")
+    decodeWidth = Param.Unsigned(4, "Decode width")
 
     iewToRenameDelay = Param.Cycles(1, "Issue/Execute/Writeback to rename "
                                     "delay")
     commitToRenameDelay = Param.Cycles(1, "Commit to rename delay")
     decodeToRenameDelay = Param.Cycles(1, "Decode to rename delay")
-    renameWidth = Param.Unsigned(8, "Rename width")
+    renameWidth = Param.Unsigned(4, "Rename width")
 
     commitToIEWDelay = Param.Cycles(1, "Commit to "
                "Issue/Execute/Writeback delay")
@@ -129,7 +129,7 @@ class DerivO3CPU(BaseCPU):
     numIQEntries = Param.Unsigned(64, "Number of instruction queue entries")
     numROBEntries = Param.Unsigned(192, "Number of reorder buffer entries")
 
-    smtNumFetchingThreads = Param.Unsigned(1, "SMT Number of Fetching Threads")
+    smtNumFetchingThreads = Param.Unsigned(2, "SMT Number of Fetching Threads")
 
     #smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
     smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")

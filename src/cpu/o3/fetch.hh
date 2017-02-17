@@ -601,6 +601,8 @@ class DefaultFetch
 
     Fmt *fmt;
 
+    bool fetchedThisCycle[Impl::MaxThreads];
+
   public:
 
     void updateFetchWidth();

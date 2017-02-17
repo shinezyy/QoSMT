@@ -57,6 +57,7 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
+#include "debug/FmtSlot2.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 
@@ -542,13 +543,13 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
 
     if (tid == 0) {
         if (LPTcauseStall) {
-            assert(renameStatus[0] == Blocked);
+            assert(renameStatus[0] == Blocked || blockThisCycle);
             assert(!LPTBlockHPT);
             DPRINTF(FmtSlot, "LPT cause IEW stall, which blocked rename stags.\n");
             DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
 
         } else if (LPTBlockHPT) {
-            assert(renameStatus[0] == Blocked);
+            assert(renameStatus[0] == Blocked || blockThisCycle);
             DPRINTF(FmtSlot, "LPT occupied stall entries of buffers, which prevent"
                     "HPT from rename all available insts.\n");
             DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
@@ -628,7 +629,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     // Check if there's any space left.
     if (min_free_entries <= 0) {
-        DPRINTF(Rename, "[tid:%u]: Blocking due to no free ROB/IQ/ "
+        DPRINTF(FmtSlot2, "[tid:%u]: Blocking due to no free ROB/IQ/ "
                 "entries.\n"
                 "ROB has %i free entries.\n"
                 "IQ has %i free entries.\n",
@@ -656,7 +657,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         return;
 
     } else if (min_free_entries < insts_available) {
-        DPRINTF(Rename, "[tid:%u]: Will have to block this cycle."
+        DPRINTF(FmtSlot2, "[tid:%u]: Will have to block this cycle."
                 "%i insts available, but only %i insts can be "
                 "renamed due to ROB/IQ/LSQ limits.\n",
                 tid, insts_available, min_free_entries);
@@ -722,7 +723,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         if (inst->isLoad()) {
             if(calcFreeLQEntries(tid) <= 0) {
-                DPRINTF(Rename, "[tid:%u]: Cannot rename due to no free LQ\n");
+                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free LQ\n");
                 source = LQ;
                 incrFullStat(source, tid);
                 break;
@@ -731,7 +732,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         if (inst->isStore()) {
             if(calcFreeSQEntries(tid) <= 0) {
-                DPRINTF(Rename, "[tid:%u]: Cannot rename due to no free SQ\n");
+                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free SQ\n");
                 source = SQ;
                 incrFullStat(source, tid);
                 break;
@@ -767,10 +768,9 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                                         inst->numFPDestRegs(),
                                         inst->numCCDestRegs())
               && nrFreeRegs[tid] >= inst->numIntDestRegs())) { // can handle 0
-            DPRINTF(Rename, "Blocking due to lack of free "
+            DPRINTF(FmtSlot2, "Blocking due to lack of free "
                     "physical registers to rename to.\n");
             blockThisCycle = true;
-            LPTBlockHPT = false;
             insts_to_rename.push_front(inst);
             ++renameFullRegistersEvents;
 
@@ -789,7 +789,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         // instructions.
         if ((inst->isIprAccess() || inst->isSerializeBefore()) &&
             !inst->isSerializeHandled()) {
-            DPRINTF(Rename, "Serialize before instruction encountered.\n");
+            DPRINTF(FmtSlot2, "Serialize before instruction encountered.\n");
 
             if (!inst->isTempSerializeBefore()) {
                 renamedSerializing++;
@@ -842,27 +842,26 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         --insts_available;
     }
 
-    if (tid == 0) {
+    if (tid == 0 && insts_available) {
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
         if (source == LQ && calcOwnLQEntries(1)) {
             LPTBlockHPT = true;
             toIEW->hptMissToWait = insts_available + numLPTcause;
+            DPRINTF(FmtSlot2, "%i insts cannot be renamed, %i because of LQ, "
+                    "%i because of IQ or ROB\n", toIEW->hptMissToWait, insts_available,
+                    numLPTcause);
         } else if (source == SQ && calcOwnSQEntries(1)) {
             LPTBlockHPT = true;
             toIEW->hptMissToWait = insts_available + numLPTcause;
-        } else {
+            DPRINTF(FmtSlot2, "%i insts cannot be renamed, %i because of SQ, "
+                    "%i because of IQ or ROB\n", toIEW->hptMissToWait, insts_available,
+                    numLPTcause);
+        } else if (LPTBlockHPT ) {
             toIEW->hptMissToWait = numLPTcause;
+            DPRINTF(FmtSlot2, "%i insts cannot be renamed, because of IQ or ROB\n",
+                    insts_available);
         }
     }
-
-    DPRINTF(FmtSlot, "Misses should be rectified to waits is %d, "
-            "IQcasue is %d, "
-            "ROBcause is %d, "
-            "LSQ casue is %d.\n",
-            toIEW->hptMissToWait,
-            IQcause,
-            ROBcause,
-            insts_available);
 
     instsInProgress[tid] += renamed_insts;
     renameRenamedInsts += renamed_insts;
@@ -998,6 +997,7 @@ bool
 DefaultRename<Impl>::block(ThreadID tid)
 {
     DPRINTF(Rename, "[tid:%u]: Blocking.\n", tid);
+    DPRINTF(FmtSlot2, "[tid:%u]: Blocking.\n", tid);
 
     // Add the current inputs onto the skid buffer, so they can be
     // reprocessed when this stage unblocks.
@@ -1032,6 +1032,7 @@ bool
 DefaultRename<Impl>::unblock(ThreadID tid)
 {
     DPRINTF(Rename, "[tid:%u]: Trying to unblock.\n", tid);
+    DPRINTF(FmtSlot2, "[tid:%u]: Trying to unblock.\n", tid);
 
     // Rename is done unblocking if the skid buffer is empty.
     if (skidBuffer[tid].empty() && renameStatus[tid] != SerializeStall) {
@@ -1041,11 +1042,13 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         toDecode->renameUnblock[tid] = true;
         wroteToTimeBuffer = true;
 
+        DPRINTF(FmtSlot2, "Rename Status changed to Running.\n", tid);
         renameStatus[tid] = Running;
         LPTBlockHPT = false;
 
         return true;
     }
+    DPRINTF(FmtSlot2, "Rename Status unchanged.\n", tid);
 
     return false;
 }
