@@ -1042,13 +1042,13 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         toDecode->renameUnblock[tid] = true;
         wroteToTimeBuffer = true;
 
-        DPRINTF(FmtSlot2, "Rename Status changed to Running.\n", tid);
+        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] changed to Running.\n", tid);
         renameStatus[tid] = Running;
         LPTBlockHPT = false;
 
         return true;
     }
-    DPRINTF(FmtSlot2, "Rename Status unchanged.\n", tid);
+    DPRINTF(FmtSlot2, "Rename Status of Thread [%u] unchanged.\n", tid);
 
     return false;
 }
