@@ -45,6 +45,7 @@
 #define __CPU_O3_RENAME_HH__
 
 #include <list>
+#include <vector>
 
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
@@ -450,6 +451,9 @@ class DefaultRename
     /** Rename width, in instructions. */
     unsigned renameWidth;
 
+    std::vector<unsigned> renameWidths;
+
+
     /** Commit width, in instructions.  Used so rename knows how many
      *  instructions might have freed registers in the previous cycle.
      */
@@ -459,6 +463,8 @@ class DefaultRename
      * currently using.
      */
     unsigned toIEWIndex;
+
+    std::vector<unsigned> toIEWNum;
 
     /** Whether or not rename needs to block this cycle. */
     bool blockThisCycle;

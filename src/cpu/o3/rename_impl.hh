@@ -70,7 +70,9 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       decodeToRenameDelay(params->decodeToRenameDelay),
       commitToRenameDelay(params->commitToRenameDelay),
       renameWidth(params->renameWidth),
+      renameWidths(params->numThreads, params->renameWidth / params->numThreads),
       commitWidth(params->commitWidth),
+      toIEWNum(params->numThreads, 0),
       numThreads(params->numThreads),
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
@@ -420,6 +422,8 @@ DefaultRename<Impl>::tick()
 
     toIEWIndex = 0;
 
+    std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
+
     sortInsts();
 
     list<ThreadID>::iterator threads = activeThreads->begin();
@@ -735,7 +739,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     int renamed_insts = 0;
 
-    while (insts_available > 0 &&  toIEWIndex < renameWidth) {
+    while (insts_available > 0 &&  toIEWIndex < renameWidth &&
+            toIEWNum[tid] < renameWidths[tid]) {
         DPRINTF(Rename, "[tid:%u]: Sending instructions to IEW.\n", tid);
 
         assert(!insts_to_rename.empty());
@@ -868,6 +873,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         // Increment which instruction we're on.
         ++toIEWIndex;
+        ++toIEWNum[tid];
 
         // Decrement how many instructions are available.
         --insts_available;

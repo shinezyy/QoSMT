@@ -70,6 +70,7 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
       fetchToDecodeDelay(params->fetchToDecodeDelay),
       decodeWidth(params->decodeWidth),
       decodeWidths(params->numThreads, params->decodeWidth / params->numThreads),
+      toRenameNum(params->numThreads, 0),
       numThreads(params->numThreads)
 {
     if (decodeWidth > Impl::MaxWidth)
@@ -563,7 +564,7 @@ DefaultDecode<Impl>::tick()
     bool status_change = false;
 
     toRenameIndex = 0;
-    std::fill(toRenameIndices.begin(), toRenameIndices.end(), 0);
+    std::fill(toRenameNum.begin(), toRenameNum.end(), 0);
 
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
@@ -637,7 +638,7 @@ DefaultDecode<Impl>::decode(bool &status_change, ThreadID tid)
     }
 
     DPRINTF(FmtSlot2, "[Thread %i] Number of insts send to rename this cycles is %i\n",
-            tid, toRenameIndices[tid]);
+            tid, toRenameNum[tid]);
 }
 
 template <class Impl>
@@ -672,7 +673,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
     DPRINTF(Decode, "[tid:%u]: Sending instruction to rename.\n",tid);
 
     while (insts_available > 0 && toRenameIndex < decodeWidth &&
-            toRenameIndices[tid] < decodeWidths[tid]) {
+            toRenameNum[tid] < decodeWidths[tid]) {
         assert(!insts_to_decode.empty());
 
         inst = insts_to_decode.front();
@@ -709,7 +710,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
         ++(toRename->size);
         ++toRenameIndex;
-        ++toRenameIndices[tid];
+        ++toRenameNum[tid];
         ++decodeDecodedInsts;
         --insts_available;
 

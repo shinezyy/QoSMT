@@ -275,8 +275,7 @@ class DefaultDecode
     /** Index of instructions being sent to rename. */
     unsigned toRenameIndex;
 
-    /** 每个线程送入rename的指令数量，英文命名不太合理 */
-    std::vector<unsigned> toRenameIndices;
+    std::vector<unsigned> toRenameNum;
 
     /** number of Active Threads*/
     ThreadID numThreads;
