@@ -94,6 +94,7 @@ class DefaultIEW
     typedef typename CPUPol::IEWStruct IEWStruct;
     typedef typename CPUPol::RenameStruct RenameStruct;
     typedef typename CPUPol::IssueStruct IssueStruct;
+    typedef typename CPUPol::FetchStruct FetchStruct;
 
     typedef typename CPUPol::Fmt Fmt;
     typedef typename CPUPol::Voc Voc;
@@ -152,6 +153,9 @@ class DefaultIEW
 
     /** Sets time buffer for getting instructions coming from rename. */
     void setRenameQueue(TimeBuffer<RenameStruct> *rq_ptr);
+
+    /** Sets time buffer for getting info coming from fetch. */
+    void setFetchQueue(TimeBuffer<FetchStruct> *rq_ptr);
 
     /** Sets time buffer to pass on instructions to commit. */
     void setIEWQueue(TimeBuffer<IEWStruct> *iq_ptr);
@@ -309,6 +313,12 @@ class DefaultIEW
     /** Wire to write information heading to previous stages. */
     typename TimeBuffer<TimeStruct>::wire toRename;
 
+    /** Fetch instruction queue interface. */
+    TimeBuffer<FetchStruct> *fetchQueue;
+
+    /** Wire to get fetch's output from fetch queue. */
+    typename TimeBuffer<FetchStruct>::wire fromFetch;
+
     /** Rename instruction queue interface. */
     TimeBuffer<RenameStruct> *renameQueue;
 
@@ -379,6 +389,9 @@ class DefaultIEW
 
     /** Rename to IEW delay. */
     Cycles renameToIEWDelay;
+
+    /** Rename to IEW delay. */
+    Cycles fetchToIEWDelay;
 
     /**
      * Issue to execute delay. What this actually represents is

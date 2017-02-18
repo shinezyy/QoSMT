@@ -67,6 +67,7 @@ struct DefaultFetchDefaultDecode {
     Fault fetchFault;
     InstSeqNum fetchFaultSN;
     bool clearFetchFault;
+    bool frontEndMiss;
 };
 
 /** Struct that defines the information passed from decode to rename. */

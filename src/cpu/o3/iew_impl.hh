@@ -75,6 +75,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       fuPool(params->fuPool),
       commitToIEWDelay(params->commitToIEWDelay),
       renameToIEWDelay(params->renameToIEWDelay),
+      fetchToIEWDelay(params->fetchToDecodeDelay),
       issueToExecuteDelay(params->issueToExecuteDelay),
       dispatchWidth(params->dispatchWidth),
       issueWidth(params->issueWidth),
@@ -387,6 +388,16 @@ DefaultIEW<Impl>::setTimeBuffer(TimeBuffer<TimeStruct> *tb_ptr)
 
     // Instruction queue also needs main time buffer.
     instQueue.setTimeBuffer(tb_ptr);
+}
+
+template<class Impl>
+void
+DefaultIEW<Impl>::setFetchQueue(TimeBuffer<FetchStruct> *fq_ptr)
+{
+    fetchQueue = fq_ptr;
+
+    // Setup wire to read information from fetch queue.
+    fromFetch = fetchQueue->getWire(-fetchToIEWDelay);
 }
 
 template<class Impl>
