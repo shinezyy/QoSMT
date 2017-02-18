@@ -1245,7 +1245,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         // check other threads' status
         for (ThreadID t = 0; t < 1; t++) {
             if (t == tid) {
-                inst->setWaitSlot(tempWaitSlots[t]);
                 DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
                 fmt->incBaseSlot(inst, t, 1);
                 //voc->allocVrob(t, inst);
@@ -1604,6 +1603,8 @@ DefaultIEW<Impl>::tick()
     updatedQueues = false;
 
     sortInsts();
+
+    HPTfrontEndMiss = fromFetch->frontEndMiss;
 
     // Free function units marked as being freed this cycle.
     fuPool->processFreeUnits();

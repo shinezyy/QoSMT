@@ -548,6 +548,7 @@ class DefaultIEW
   private:
     bool LPTcauseStall;
 
+    bool HPTfrontEndMiss;
 };
 
 #endif // __CPU_O3_IEW_HH__

@@ -67,6 +67,7 @@
 #include "debug/SmtFetch.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
+#include "debug/FmtSlot2.hh"
 #include "mem/packet.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/byteswap.hh"
@@ -440,6 +441,7 @@ DefaultFetch<Impl>::processCacheCompletion(PacketPtr pkt)
     switchToActive();
 
     // Only switch to IcacheAccessComplete if we're not stalled as well.
+    case(Squashing)
     if (checkStall(tid)) {
         fetchStatus[tid] = Blocked;
     } else {
@@ -1024,6 +1026,20 @@ DefaultFetch<Impl>::tick()
     // Reset the number of the instruction we've fetched.
     numInst = 0;
     std::fill(numInsts.begin(), numInsts.end(), 0);
+
+    // Pass status to IEW for PTA
+    switch(fetchStatus[0]) {
+        case(Idle):
+        case(Running):
+        case(Blocked):
+        case(Fetching): // WTF, unused status....
+            /** In fact, it was sent to IEW!*/
+            toDecode->frontEndMiss = false;
+            break;
+        default:
+            toDecode->frontEndMiss = true;
+            break;
+    }
 }
 
 template <class Impl>
