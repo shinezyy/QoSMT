@@ -1029,15 +1029,16 @@ DefaultFetch<Impl>::tick()
 
     // Pass status to IEW for PTA
     switch(fetchStatus[0]) {
+        case(Blocked): /** 传下去就行了*/
+            toDecode->FLB = fromDecode->decodeInfo[0].BLB;
         case(Idle):
         case(Running):
-        case(Blocked):
-        case(Fetching): // WTF, unused status....
-            /** In fact, it was sent to IEW!*/
             toDecode->frontEndMiss = false;
+            toDecode->FLB = false;
             break;
-        default:
+        default: /** Icache miss and branch misPred are both front end miss*/
             toDecode->frontEndMiss = true;
+            toDecode->FLB = false;
             break;
     }
 }
@@ -1212,8 +1213,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     // Start actual fetch
     //////////////////////////////////////////
     ThreadID tid = getFetchingThread(fetchPolicy);
-
-
+    /** 这里得到的tid一定不是Blocked状态的  */
 
     assert(!cpu->switchedOut());
 
