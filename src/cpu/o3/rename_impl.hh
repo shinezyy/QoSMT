@@ -420,6 +420,8 @@ DefaultRename<Impl>::tick()
 
     toIEW->hptMissToWait = 0;
 
+    toIEW->LPTBlockRename = false;
+
     toIEWIndex = 0;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
@@ -478,6 +480,34 @@ DefaultRename<Impl>::tick()
 
     increaseFreeEntries();
 
+    switch(renameStatus[0]) {
+        case Blocked:
+            toIEW->FLB = fromIEW->iewInfo[0].BLB || localLB;
+            toIEW->frontEndMiss = fromDecode->frontEndMiss;
+            toDecode->renameInfo[0].BLB = fromIEW->iewInfo[0].BLB || localLB;
+            break;
+
+        case Running:
+        case Idle:
+        case Unblocking:
+            toIEW->FLB = fromDecode->FLB || localLB;
+            toIEW->frontEndMiss = fromDecode->frontEndMiss;
+            toDecode->renameInfo[0].BLB = localLB;
+            break;
+
+        case StartSquash:
+        case Squashing:
+            toIEW->FLB = false;
+            toIEW->frontEndMiss = true;
+            toDecode->renameInfo[0].BLB = false;
+            break;
+
+        case SerializeStall:
+            toIEW->FLB = false;
+            toIEW->frontEndMiss = true; // 这里是1或者0有待进一步思考
+            toDecode->renameInfo[0].BLB = false;
+            break;
+    }
 }
 
 template<class Impl>
@@ -524,10 +554,8 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     if (renameStatus[tid] == Blocked) {
         ++renameBlockCycles;
         if (LPTcauseStall) {
-            DPRINTF(FmtSlot, "Send miss rectification to IEW stage: %i\n",
-                    numLPTcause);
             DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
-            toIEW->hptMissToWait = numLPTcause;
+            toIEW->LPTBlockRename = true;
         }
     } else if (renameStatus[tid] == Squashing) {
         LPTcauseStall = false;
@@ -580,7 +608,6 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             assert(renameStatus[0] == Blocked || blockThisCycle);
             assert(!LPTBlockHPT);
             DPRINTF(FmtSlot, "LPT cause IEW stall, which blocked rename stage.\n");
-            DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
 
         } else if (LPTBlockHPT) {
             assert(renameStatus[0] == Blocked || blockThisCycle);
