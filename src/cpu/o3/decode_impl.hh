@@ -590,6 +590,29 @@ DefaultDecode<Impl>::tick()
 
         cpu->activityThisCycle();
     }
+
+    switch(decodeStatus[0]) {
+        case(Blocked):
+            toRename->FLB = fromRename->renameInfo[0].BLB;
+            toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toFetch->decodeInfo[0].BLB = fromRename->renameInfo[0].BLB;
+            break;
+
+        case(StartSquash):
+        case(Squashing):
+            toRename->FLB = false;
+            toRename->frontEndMiss = true;
+            toFetch->decodeInfo[0].BLB = false;
+            break;
+
+        case(Running):
+        case(Idle):
+        case(Unblocking):
+            toRename->FLB = fromFetch->FLB;
+            toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toFetch->decodeInfo[0].BLB = false;
+            break;
+    }
 }
 
 template<class Impl>

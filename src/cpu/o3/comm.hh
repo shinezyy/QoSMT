@@ -67,6 +67,7 @@ struct DefaultFetchDefaultDecode {
     Fault fetchFault;
     InstSeqNum fetchFaultSN;
     bool clearFetchFault;
+
     bool frontEndMiss;
 
     bool FLB; /** Forward LPT Block HPT  to decode*/
@@ -81,6 +82,8 @@ struct DefaultDecodeDefaultRename {
 
     DynInstPtr insts[Impl::MaxWidth];
 
+    bool frontEndMiss;
+
     bool FLB; /** Forward LPT Block HPT  to rename*/
 };
 
@@ -94,6 +97,8 @@ struct DefaultRenameDefaultIEW {
     int hptMissToWait;
 
     DynInstPtr insts[Impl::MaxWidth];
+
+    bool frontEndMiss;
 
     bool FLB; /** Forward LPT Block HPT  to IEW*/
 };
