@@ -68,6 +68,8 @@ struct DefaultFetchDefaultDecode {
     InstSeqNum fetchFaultSN;
     bool clearFetchFault;
     bool frontEndMiss;
+
+    bool FLB; /** Forward LPT Block HPT  to decode*/
 };
 
 /** Struct that defines the information passed from decode to rename. */
@@ -78,6 +80,8 @@ struct DefaultDecodeDefaultRename {
     int size;
 
     DynInstPtr insts[Impl::MaxWidth];
+
+    bool FLB; /** Forward LPT Block HPT  to rename*/
 };
 
 /** Struct that defines the information passed from rename to IEW. */
@@ -90,6 +94,8 @@ struct DefaultRenameDefaultIEW {
     int hptMissToWait;
 
     DynInstPtr insts[Impl::MaxWidth];
+
+    bool FLB; /** Forward LPT Block HPT  to IEW*/
 };
 
 /** Struct that defines the information passed from IEW to commit. */
@@ -136,11 +142,14 @@ struct TimeBufStruct {
         bool predIncorrect;
         bool branchMispredict;
         bool branchTaken;
+
+        bool BLB; /** Backward LPT Block HPT  to fetch*/
     };
 
     decodeComm decodeInfo[Impl::MaxThreads];
 
     struct renameComm {
+        bool BLB; /** Backward LPT Block HPT  to decode*/
     };
 
     renameComm renameInfo[Impl::MaxThreads];
@@ -171,7 +180,7 @@ struct TimeBufStruct {
         unsigned busyLQEntries;
         unsigned busySQEntries;
 
-        bool LPTcauseStall;
+        bool BLB; /** Backward LPT Block HPT  to rename*/
     };
 
     iewComm iewInfo[Impl::MaxThreads];
