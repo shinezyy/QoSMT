@@ -553,16 +553,16 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
 
     if (renameStatus[tid] == Blocked) {
         ++renameBlockCycles;
-        if (LPTcauseStall) {
+        if (fromIEW->iewInfo[0].BLB) {
             DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
             toIEW->LPTBlockRename = true;
         }
     } else if (renameStatus[tid] == Squashing) {
-        LPTcauseStall = false;
+        localLB = false;
 
         ++renameSquashCycles;
     } else if (renameStatus[tid] == SerializeStall) {
-        LPTcauseStall = false;
+        localLB = false;
         ++renameSerializeStallCycles;
         // If we are currently in SerializeStall and resumeSerialize
         // was set, then that means that we are resuming serializing
@@ -573,7 +573,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             toDecode->renameUnblock[tid] = false;
         }
     } else if (renameStatus[tid] == Unblocking) {
-        LPTcauseStall = false;
+        localLB = false;
         if (resumeUnblocking) {
             block(tid);
             resumeUnblocking = false;
@@ -583,13 +583,12 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
 
     if (renameStatus[tid] == Running ||
         renameStatus[tid] == Idle) {
-        LPTcauseStall = false;
+        localLB = false;
         DPRINTF(Rename, "[tid:%u]: Not blocked, so attempting to run "
                 "stage.\n", tid);
 
         renameInsts(tid);
     } else if (renameStatus[tid] == Unblocking) {
-        LPTcauseStall = false;
         renameInsts(tid);
 
         if (validInsts()) {
@@ -604,7 +603,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     }
 
     if (tid == 0) {
-        if (LPTcauseStall) {
+        if (fromIEW->iewInfo[0].BLB) {
             assert(renameStatus[0] == Blocked || blockThisCycle);
             assert(!LPTBlockHPT);
             DPRINTF(FmtSlot, "LPT cause IEW stall, which blocked rename stage.\n");
@@ -1443,10 +1442,6 @@ DefaultRename<Impl>::readStallSignals(ThreadID tid)
 {
     if (fromIEW->iewBlock[tid]) {
         stalls[tid].iew = true;
-
-        if (tid == 0) {
-            stalls[0].LPTcauseIEWStall = fromIEW->iewInfo[0].LPTcauseStall;
-        }
     }
 
     if (fromIEW->iewUnblock[tid]) {
@@ -1466,8 +1461,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         DPRINTF(Rename,"[tid:%i]: Stall from IEW stage detected.\n", tid);
         ret_val = true;
 
-        if (tid == 0 && stalls[tid].LPTcauseIEWStall) {
-            LPTcauseStall = true;
+        if (tid == 0 && fromIEW->iewInfo[0].BLB) {
             unsigned numAvailInsts = 0;
             switch (renameStatus[tid]) {
                 case Running:
@@ -1492,7 +1486,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            LPTcauseStall = calcOwnROBEntries(LPT) > 0;
+            localLB = calcOwnROBEntries(LPT) > 0;
             numLPTcause = calcOwnROBEntries(LPT);
 
             DPRINTF(FmtSlot, "HPT stall because no ROB.\n");
@@ -1503,7 +1497,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            LPTcauseStall = calcOwnIQEntries(LPT) > 0;
+            localLB = calcOwnIQEntries(LPT) > 0;
             numLPTcause = calcOwnIQEntries(LPT);
 
             DPRINTF(FmtSlot, "HPT stall because no IQ.\n");
@@ -1514,7 +1508,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            LPTcauseStall = (calcOwnLQEntries(LPT) > 0) && (calcOwnSQEntries(LPT) > 0);
+            localLB = (calcOwnLQEntries(LPT) > 0) && (calcOwnSQEntries(LPT) > 0);
             numLPTcause = std::min(calcOwnLQEntries(LPT), calcOwnSQEntries(LPT));
 
             DPRINTF(FmtSlot, "HPT stall because no LSQ.\n");

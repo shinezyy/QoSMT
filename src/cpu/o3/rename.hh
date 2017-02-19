@@ -589,7 +589,7 @@ class DefaultRename
 
   private:
 
-    bool LPTcauseStall; // LPT导致rename阶段直接变为blocked，不进入renameInsts函数
+    bool localLB; // 在rename前检查出LSQ、IQ或ROB没有空闲项，且LPT占据了一些项
     unsigned numLPTcause;
 
     bool LPTBlockHPT; //在renameInsts函数中，发现LPT占据buffer导致指令不能全部rename
