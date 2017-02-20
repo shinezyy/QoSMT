@@ -44,6 +44,7 @@
 #define __CPU_O3_IEW_HH__
 
 #include <vector>
+#include <algorithm>
 #include <queue>
 #include <set>
 
@@ -546,9 +547,15 @@ class DefaultIEW
     unsigned hptInitDispatchWidth;
 
   private:
-    bool LPTcauseStall;
+    bool LBlocal; /**LPT Block HPT in Dispatch*/
 
     bool HPTfrontEndMiss;
+
+    bool LBLC; /**LPT Block HPT in last cycle*/
+
+    int HPTPerfPred;
+
+    std::vector<int> dispatched;
 };
 
 #endif // __CPU_O3_IEW_HH__

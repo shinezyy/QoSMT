@@ -420,8 +420,6 @@ DefaultRename<Impl>::tick()
 
     toIEW->hptMissToWait = 0;
 
-    toIEW->LPTBlockRename = false;
-
     toIEWIndex = 0;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
@@ -555,12 +553,11 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
         ++renameBlockCycles;
         if (fromIEW->iewInfo[0].BLB) {
             DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
-            toIEW->LPTBlockRename = true;
         }
     } else if (renameStatus[tid] == Squashing) {
         localLB = false;
-
         ++renameSquashCycles;
+
     } else if (renameStatus[tid] == SerializeStall) {
         localLB = false;
         ++renameSerializeStallCycles;
@@ -600,26 +597,6 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
         // If we switched over to blocking, then there's a potential for
         // an overall status change.
         status_change = unblock(tid) || status_change || blockThisCycle;
-    }
-
-    if (tid == 0) {
-        if (fromIEW->iewInfo[0].BLB) {
-            assert(renameStatus[0] == Blocked || blockThisCycle);
-            assert(!LPTBlockHPT);
-            DPRINTF(FmtSlot, "LPT cause IEW stall, which blocked rename stage.\n");
-
-        } else if (LPTBlockHPT) {
-            assert(renameStatus[0] == Blocked || blockThisCycle);
-            DPRINTF(FmtSlot, "LPT occupied some entries of buffers, which prevent "
-                    "HPT from rename all available insts.\n");
-            DPRINTF(FmtSlot, "Miss to waits is %d.\n", toIEW->hptMissToWait);
-
-        } else if (renameStatus[0] == Blocked || renameStatus[0] == SerializeStall) {
-            DPRINTF(FmtSlot, "HPT blocked, but LPT is not responsible for it.\n");
-
-        } else {
-            DPRINTF(FmtSlot, "HPT No block this cycle.\n");
-        }
     }
 }
 

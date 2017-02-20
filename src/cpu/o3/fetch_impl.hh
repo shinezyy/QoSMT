@@ -441,7 +441,6 @@ DefaultFetch<Impl>::processCacheCompletion(PacketPtr pkt)
     switchToActive();
 
     // Only switch to IcacheAccessComplete if we're not stalled as well.
-    case(Squashing)
     if (checkStall(tid)) {
         fetchStatus[tid] = Blocked;
     } else {
