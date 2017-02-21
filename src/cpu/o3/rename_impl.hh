@@ -77,7 +77,8 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
       availableInstCount(0),
-      LPTBlockHPT(false)
+      LPTBlockHPT(false),
+      BLBlocal(false)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -368,6 +369,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
     if (renameStatus[tid] == Blocked ||
         renameStatus[tid] == Unblocking) {
         toDecode->renameUnblock[tid] = 1;
+        BLBlocal = tid == 0 ? false : BLBlocal;
 
         resumeSerialize = false;
         serializeInst[tid] = NULL;
@@ -379,6 +381,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
         } else {
             resumeSerialize = false;
             toDecode->renameUnblock[tid] = 1;
+            BLBlocal = tid == 0 ? false : BLBlocal;
 
             serializeInst[tid] = NULL;
         }
@@ -555,11 +558,11 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
         }
     } else if (renameStatus[tid] == Squashing) {
-        localLB = false;
+        localLB = tid == 0 ? false : localLB;
         ++renameSquashCycles;
 
     } else if (renameStatus[tid] == SerializeStall) {
-        localLB = false;
+        localLB = tid == 0 ? false : localLB;
         ++renameSerializeStallCycles;
         // If we are currently in SerializeStall and resumeSerialize
         // was set, then that means that we are resuming serializing
@@ -570,8 +573,9 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             toDecode->renameUnblock[tid] = false;
         }
     } else if (renameStatus[tid] == Unblocking) {
-        localLB = false;
+        localLB = tid == 0 ? false : localLB;
         if (resumeUnblocking) {
+            assert(0);
             block(tid);
             resumeUnblocking = false;
             toDecode->renameUnblock[tid] = false;
@@ -580,7 +584,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
 
     if (renameStatus[tid] == Running ||
         renameStatus[tid] == Idle) {
-        localLB = false;
+        localLB = tid == 0 ? false : localLB;
         DPRINTF(Rename, "[tid:%u]: Not blocked, so attempting to run "
                 "stage.\n", tid);
 
@@ -1057,6 +1061,7 @@ DefaultRename<Impl>::block(ThreadID tid)
         // but now we're have unblocking status. We need to tell earlier
         // stages to block.
         if (resumeUnblocking || renameStatus[tid] != Unblocking) {
+            asset(0);
             toDecode->renameBlock[tid] = true;
             toDecode->renameUnblock[tid] = false;
             wroteToTimeBuffer = true;
@@ -1067,6 +1072,10 @@ DefaultRename<Impl>::block(ThreadID tid)
         if (renameStatus[tid] != SerializeStall) {
             // Set status to Blocked.
             renameStatus[tid] = Blocked;
+
+            BLBlocal = tid == 0 ?
+                fromIEW->iewInfo[0].BLB || LBlocal || bandwidthLB : BLBlocal;
+
             DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
             return true;
         } else {
@@ -1091,6 +1100,7 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         DPRINTF(Rename, "[tid:%u]: Done unblocking.\n", tid);
 
         toDecode->renameUnblock[tid] = true;
+        BLBlocal = tid == 0 ? false : BLBlocal;
         wroteToTimeBuffer = true;
 
         DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to Running.\n", tid);
@@ -1485,7 +1495,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            localLB = (calcOwnLQEntries(LPT) > 0) && (calcOwnSQEntries(LPT) > 0);
+            localLB = (calcOwnLQEntries(LPT) > 0) || (calcOwnSQEntries(LPT) > 0);
             numLPTcause = std::min(calcOwnLQEntries(LPT), calcOwnSQEntries(LPT));
 
             DPRINTF(FmtSlot, "HPT stall because no LSQ.\n");
@@ -1600,6 +1610,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                     " SerializeStall.\n", tid);
             return true;
         } else if (resumeUnblocking) {
+            asset(0);
             DPRINTF(Rename, "[tid:%u]: Done squashing, switching to unblocking.\n",
                     tid);
             renameStatus[tid] = Unblocking;

@@ -593,6 +593,7 @@ class DefaultRename
     unsigned numLPTcause;
 
     bool LPTBlockHPT; //在renameInsts函数中，发现LPT占据buffer导致指令不能全部rename
+    bool BLBlocal; //For Unblocking
 };
 
 #endif // __CPU_O3_RENAME_HH__
