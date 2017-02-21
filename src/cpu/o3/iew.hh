@@ -556,6 +556,8 @@ class DefaultIEW
     int HPTPerfPred;
 
     std::vector<int> dispatched;
+
+    bool BLBlocal; //For Unblocking
 };
 
 #endif // __CPU_O3_IEW_HH__

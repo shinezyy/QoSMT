@@ -602,7 +602,7 @@ DefaultDecode<Impl>::tick()
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toRenameNum[tid]) {
-            DPRINTF(InstPass, "T [%i] send %i insts to Rename\n", tid,
+            DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid,
                     toRenameNum[tid]);
         }
     }
@@ -617,11 +617,11 @@ DefaultDecode<Impl>::tick()
                 if (fromRename->renameInfo[0].BLB) {
                     DPRINTF(LB, "Echo LB to Rename\n");
                 } else {
-                    DPRINTF(LB, "Forward FLB from Fetch to Rename");
+                    DPRINTF(LB, "Forward FLB from Fetch to Rename\n");
                 }
             }
             if (toFetch->decodeInfo[0].BLB) {
-                DPRINTF(LB, "Forward BLB from Rename to Fetch");
+                DPRINTF(LB, "Forward BLB from Rename to Fetch\n");
             }
             break;
 
@@ -640,7 +640,7 @@ DefaultDecode<Impl>::tick()
             assert(!fromRename->renameInfo[0].BLB);
             toFetch->decodeInfo[0].BLB = false;
             if (toRename->FLB) {
-                DPRINTF(LB, "Forward FLB from Fetch to Rename");
+                DPRINTF(LB, "Forward FLB from Fetch to Rename\n");
             }
             break;
 
@@ -651,10 +651,10 @@ DefaultDecode<Impl>::tick()
             toFetch->decodeInfo[0].BLB = BLBlocal;
 
             if (toRename->FLB) {
-                DPRINTF(LB, "Forward FLB from Fetch to Rename");
+                DPRINTF(LB, "Forward FLB from Fetch to Rename\n");
             }
             if (BLBlocal) {
-                DPRINTF(LB, "Send BLB to Rename because of BLBlocal");
+                DPRINTF(LB, "Send BLB to Fetch because of BLBlocal\n");
             }
             break;
     }

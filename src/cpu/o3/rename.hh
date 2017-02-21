@@ -589,10 +589,11 @@ class DefaultRename
 
   private:
 
-    bool localLB; // 在rename前检查出LSQ、IQ或ROB没有空闲项，且LPT占据了一些项
+    bool LB_all; // 在rename前检查出LSQ、IQ或ROB没有空闲项，且LPT占据了一些项
+    bool LB_part; // LPT阻塞了部分HPT的指令
+    bool LBLC;
     unsigned numLPTcause;
 
-    bool LPTBlockHPT; //在renameInsts函数中，发现LPT占据buffer导致指令不能全部rename
     bool BLBlocal; //For Unblocking
 };
 

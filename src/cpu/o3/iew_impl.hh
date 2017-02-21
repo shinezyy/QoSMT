@@ -86,7 +86,8 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       hptInitDispatchWidth(params->hptInitDispatchWidth),
       LBlocal(false),
       LBLC(false),
-      dispatched(params->numThreads, 0)
+      dispatched(params->numThreads, 0),
+      BLBlocal(false)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -518,6 +519,8 @@ DefaultIEW<Impl>::squash(ThreadID tid)
     ldstQueue.squash(fromCommit->commitInfo[tid].doneSeqNum, tid);
     updatedQueues = true;
 
+    BLBlocal = tid == 0 ? false : BLBlocal;
+
     // Clear the skid buffer in case it has any data in it.
     DPRINTF(IEW, "[tid:%i]: Removing skidbuffer instructions until [sn:%i].\n",
             tid, fromCommit->commitInfo[tid].doneSeqNum);
@@ -610,7 +613,7 @@ DefaultIEW<Impl>::block(ThreadID tid)
         if (tid == 0) {
             recordMiss(dispatchWidths[0] - dispatched[0], tid);
         } else {
-            recordMiss(dispatchWidths[0], tid);
+            recordMiss(dispatchWidths[tid], tid);
         }
     }
 
@@ -619,6 +622,7 @@ DefaultIEW<Impl>::block(ThreadID tid)
     skidInsert(tid);
 
     dispatchStatus[tid] = Blocked;
+    BLBlocal = tid == 0 ? LBlocal : BLBlocal;
 }
 
 template<class Impl>
@@ -632,6 +636,7 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
     // Also switch status to running.
     if (skidBuffer[tid].empty()) {
         toRename->iewUnblock[tid] = true;
+        BLBlocal = tid == 0 ? false : BLBlocal;
         wroteToTimeBuffer = true;
         DPRINTF(IEW, "[tid:%i]: Done unblocking.\n",tid);
         dispatchStatus[tid] = Running;
@@ -1676,9 +1681,9 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
-    toRename->iewInfo[0].BLB = LBlocal;
+    toRename->iewInfo[0].BLB = LBlocal || BLBlocal;
 
-    if (LBlocal) {
+    if (toRename->iewInfo[0].BLB) {
         DPRINTF(FmtSlot, "Send LPT cause HPT Stall backward to rename.\n");
     }
 
@@ -1777,6 +1782,7 @@ DefaultIEW<Impl>::tick()
         DPRINTF(Activity, "Activity this cycle.\n");
         cpu->activityThisCycle();
     }
+
 }
 
 template <class Impl>
@@ -1906,17 +1912,24 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
         case StartSquash:
             fmt->incMissDirect(hpt, wastedSlot, false);
             break;
+
         case Blocked: // 这里如何考虑front end miss还是一个问题
-            if (LBlocal || LBLC) {
+            if (fromRename->frontEndMiss) {
+                fmt->incMissDirect(hpt, wastedSlot, false);
+            } else if (LBlocal || LBLC) {
                 if (insts_can_dis[hpt]) {
                     fmt->incWaitSlot(PerThreadHead[hpt], hpt, wastedSlot);
                 } else {
                     fmt->incWaitDirect(hpt, wastedSlot);
                 }
+            } else if(fromRename->FLB) {
+                /** What shoud we do here?! */
+                fmt->incMissDirect(hpt, wastedSlot, false);
             } else {
                 fmt->incMissDirect(hpt, wastedSlot, false);
             }
             break;
+
         case Running:
         case Idle:
         case Unblocking:
@@ -1926,7 +1939,7 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
 
                 } else if (LBLC || fromRename->FLB || LBlocal) {
                     int shouldDis = wastedSlot;
-                    if (LBlocal) {
+                    if (fromRename->MTWValid || LBlocal) {
                         shouldDis = std::min(fromRename->hptMissToWait +
                                 insts_can_dis[hpt], wastedSlot);
                     }
@@ -1944,14 +1957,14 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
                 if (fromRename->frontEndMiss) {
                     fmt->incMissDirect(hpt, wastedSlot, false);
 
-                } else if (LBLC || fromRename->FLB) {
+                } else if (LBLC || (fromRename->FLB && !fromRename->MTWValid)) {
                     if (insts_can_dis[hpt]) {
                         fmt->incWaitSlot(PerThreadHead[hpt], hpt, wastedSlot);
                     } else {
                         fmt->incWaitDirect(hpt, wastedSlot);
                     }
 
-                } else if (LBlocal) {
+                } else if (LBlocal || (fromRename->FLB && fromRename->MTWValid)) {
                     int shouldDis = std::min(fromRename->hptMissToWait +
                             insts_can_dis[hpt], wastedSlot);
 

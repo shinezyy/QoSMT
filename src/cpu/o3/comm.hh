@@ -101,6 +101,8 @@ struct DefaultRenameDefaultIEW {
     bool frontEndMiss;
 
     bool FLB; /** Forward LPT Block HPT  to IEW*/
+
+    bool MTWValid; /** Value of Miss to Wait is meaningful. */
 };
 
 /** Struct that defines the information passed from IEW to commit. */

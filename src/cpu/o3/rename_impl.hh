@@ -58,6 +58,8 @@
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
 #include "debug/FmtSlot2.hh"
+#include "debug/LB.hh"
+#include "debug/InstPass.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 
@@ -77,7 +79,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
       availableInstCount(0),
-      LPTBlockHPT(false),
       BLBlocal(false)
 {
     if (renameWidth > Impl::MaxWidth)
@@ -422,8 +423,15 @@ DefaultRename<Impl>::tick()
     bool status_change = false;
 
     toIEW->hptMissToWait = 0;
+    toIEW->MTWValid = false;
 
     toIEWIndex = 0;
+
+    LBLC = LB_all || LB_part;
+
+    LB_all = false;
+    LB_part = false;
+    numLPTcause = 0;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
 
@@ -481,19 +489,79 @@ DefaultRename<Impl>::tick()
 
     increaseFreeEntries();
 
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        if (toIEWNum[tid]) {
+            DPRINTF(InstPass, "T[%i] sned %i insts to IEW\n", tid, toIEWNum[tid]);
+        }
+    }
+
     switch(renameStatus[0]) {
         case Blocked:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
-            toIEW->FLB = fromIEW->iewInfo[0].BLB || localLB || fromDecode->FLB;
-            toDecode->renameInfo[0].BLB = fromIEW->iewInfo[0].BLB || localLB;
+
+            toIEW->FLB =
+                fromIEW->iewInfo[0].BLB || LB_all || fromDecode->FLB || LB_part;
+
+            toDecode->renameInfo[0].BLB =
+                fromIEW->iewInfo[0].BLB || LB_all || LB_part || BLBlocal;
+
+            if (toIEW->FLB) {
+                if (fromIEW->iewInfo[0].BLB) {
+                    DPRINTF(LB, "Echo LB to IEW\n");
+                } else if (LB_all || LB_part) {
+                    DPRINTF(LB, "Send FLB to IEW because of local detection\n");
+                    if (LB_part) {
+                        DPRINTF(LB, "But only part of insts are blocked by LPT\n");
+                        toIEW->MTWValid = true;
+                        toIEW->hptMissToWait = numLPTcause;
+                        DPRINTF(LB, "Miss to Wait is %i\n", toIEW->hptMissToWait);
+                    }
+                } else {
+                    DPRINTF(LB, "Forward FLB from Decode to IEW\n");
+                }
+            }
+            if (toDecode->renameInfo[0].BLB) {
+                if (LB_all || LB_part) {
+                    DPRINTF(LB, "Send FLB to Decode because of local detection\n");
+                } else {
+                    DPRINTF(LB, "Forward BLB from IEW to Decode\n");
+                }
+            }
+
+
             break;
 
         case Running:
         case Idle:
+            toIEW->frontEndMiss = fromDecode->frontEndMiss;
+            toIEW->FLB = fromDecode->FLB;
+            assert(!fromIEW->iewInfo[0].BLB);
+            assert(!(LB_all || LB_part));
+            toDecode->renameInfo[0].BLB = false;
+            if (toIEW->FLB) {
+                DPRINTF(LB, "Forward FLB from Decode to IEW\n");
+            }
+            break;
+
         case Unblocking:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
-            toIEW->FLB = fromDecode->FLB || localLB;
-            toDecode->renameInfo[0].BLB = localLB;
+            toIEW->FLB = fromDecode->FLB;
+            assert(!fromIEW->iewInfo[0].BLB);
+            assert(!(LB_all || LB_part));
+            toDecode->renameInfo[0].BLB = BLBlocal;
+            if (toIEW->FLB) {
+                DPRINTF(LB, "Forward FLB from Decode to IEW\n");
+            }
+            if (BLBlocal) {
+                DPRINTF(LB, "Send BLB to Decode becaues of BLBlocal\n");
+            }
+            if (toIEWNum[0] < renameWidths[0] && LBLC) {
+                DPRINTF(LB, "LPT blocked HPT in last cycle, leads to bandwidth waste,"
+                        "in this cycle\n");
+                toIEW->MTWValid = true;
+                toIEW->hptMissToWait = renameWidths[0] - toIEWNum[0];
+                DPRINTF(LB, "Miss to Wait is %i\n", toIEW->hptMissToWait);
+            }
             break;
 
         case StartSquash:
@@ -501,12 +569,14 @@ DefaultRename<Impl>::tick()
             toIEW->frontEndMiss = true;
             toIEW->FLB = false;
             toDecode->renameInfo[0].BLB = false;
+            DPRINTF(LB, "No BLB or FLB because of Squashing\n");
             break;
 
         case SerializeStall:
             toIEW->frontEndMiss = true; // 这里是1或者0有待进一步思考
             toIEW->FLB = false;
             toDecode->renameInfo[0].BLB = false;
+            DPRINTF(LB, "No BLB or FLB because of SerializeStall\n");
             break;
     }
 }
@@ -550,19 +620,15 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
         }
     }
 
-    LPTBlockHPT = false;
-
     if (renameStatus[tid] == Blocked) {
         ++renameBlockCycles;
         if (fromIEW->iewInfo[0].BLB) {
             DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
         }
     } else if (renameStatus[tid] == Squashing) {
-        localLB = tid == 0 ? false : localLB;
         ++renameSquashCycles;
 
     } else if (renameStatus[tid] == SerializeStall) {
-        localLB = tid == 0 ? false : localLB;
         ++renameSerializeStallCycles;
         // If we are currently in SerializeStall and resumeSerialize
         // was set, then that means that we are resuming serializing
@@ -573,7 +639,6 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
             toDecode->renameUnblock[tid] = false;
         }
     } else if (renameStatus[tid] == Unblocking) {
-        localLB = tid == 0 ? false : localLB;
         if (resumeUnblocking) {
             assert(0);
             block(tid);
@@ -584,7 +649,6 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
 
     if (renameStatus[tid] == Running ||
         renameStatus[tid] == Idle) {
-        localLB = tid == 0 ? false : localLB;
         DPRINTF(Rename, "[tid:%u]: Not blocked, so attempting to run "
                 "stage.\n", tid);
 
@@ -684,14 +748,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(source, tid);
 
         if (tid == 0) {
-            LPTBlockHPT = true;
+            LB_part = true;
             if (source == IQ && calcOwnIQEntries(1)) {
                 // 如果空闲项足够，那么矫正值为0
                 numLPTcause = std::min(calcOwnIQEntries(1), IQcause);
             } else if (source == ROB && calcOwnROBEntries(1)) {
                 numLPTcause = std::min(calcOwnROBEntries(1), ROBcause);
             } else {
-                LPTBlockHPT = false;
+                LB_part = false;
             }
         }
         return;
@@ -709,7 +773,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(source, tid);
 
         if (tid == 0) {
-            LPTBlockHPT = true;
+            LB_part = true;
             if (source == IQ && calcOwnIQEntries(1)) {
                 //numLPTcause会在后续计算中被用到
                 numLPTcause = std::min(calcOwnIQEntries(1), IQcause);
@@ -717,7 +781,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 numLPTcause = std::min(calcOwnROBEntries(1), ROBcause);
             } else {
                 // 否则LPT不对HPT的阻塞负责
-                LPTBlockHPT = false;
+                LB_part = false;
             }
         }
     }
@@ -889,19 +953,18 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     if (tid == 0 && insts_available) {
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
         if (source == LQ && calcOwnLQEntries(1)) {
-            LPTBlockHPT = true;
-            toIEW->hptMissToWait = insts_available + numLPTcause;
+            LB_part = true;
+            numLPTcause = insts_available + numLPTcause;
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " %i because of LQ, %i because of IQ or ROB\n",
-                    toIEW->hptMissToWait, insts_available, numLPTcause);
+                    numLPTcause, insts_available, numLPTcause);
         } else if (source == SQ && calcOwnSQEntries(1)) {
-            LPTBlockHPT = true;
-            toIEW->hptMissToWait = insts_available + numLPTcause;
+            LB_part = true;
+            numLPTcause = insts_available + numLPTcause;
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " %i because of SQ, %i because of IQ or ROB\n",
-                    toIEW->hptMissToWait, insts_available, numLPTcause);
-        } else if (LPTBlockHPT ) {
-            toIEW->hptMissToWait = numLPTcause;
+                    numLPTcause, insts_available, numLPTcause);
+        } else if (LB_part) {
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of IQ or ROB\n", insts_available);
         }
@@ -919,16 +982,12 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // If so then block.
     if (insts_available) {
         blockThisCycle = true;
-    } else {
-        LPTBlockHPT = false;
     }
 
     if (blockThisCycle) {
         block(tid);
         toDecode->renameUnblock[tid] = false;
     }
-    DPRINTF(FmtSlot2, "[Thread %i] Rename send %i insts to dispatch\n",
-            tid, renamed_insts);
 }
 
 template<class Impl>
@@ -1061,7 +1120,6 @@ DefaultRename<Impl>::block(ThreadID tid)
         // but now we're have unblocking status. We need to tell earlier
         // stages to block.
         if (resumeUnblocking || renameStatus[tid] != Unblocking) {
-            asset(0);
             toDecode->renameBlock[tid] = true;
             toDecode->renameUnblock[tid] = false;
             wroteToTimeBuffer = true;
@@ -1074,7 +1132,7 @@ DefaultRename<Impl>::block(ThreadID tid)
             renameStatus[tid] = Blocked;
 
             BLBlocal = tid == 0 ?
-                fromIEW->iewInfo[0].BLB || LBlocal || bandwidthLB : BLBlocal;
+                fromIEW->iewInfo[0].BLB || LB_all || LB_part : BLBlocal;
 
             DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
             return true;
@@ -1105,7 +1163,6 @@ DefaultRename<Impl>::unblock(ThreadID tid)
 
         DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to Running.\n", tid);
         renameStatus[tid] = Running;
-        LPTBlockHPT = false;
 
         return true;
     }
@@ -1473,7 +1530,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            localLB = calcOwnROBEntries(LPT) > 0;
+            LB_all = calcOwnROBEntries(LPT) > 0;
             numLPTcause = calcOwnROBEntries(LPT);
 
             DPRINTF(FmtSlot, "HPT stall because no ROB.\n");
@@ -1484,7 +1541,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            localLB = calcOwnIQEntries(LPT) > 0;
+            LB_all = calcOwnIQEntries(LPT) > 0;
             numLPTcause = calcOwnIQEntries(LPT);
 
             DPRINTF(FmtSlot, "HPT stall because no IQ.\n");
@@ -1495,7 +1552,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            localLB = (calcOwnLQEntries(LPT) > 0) || (calcOwnSQEntries(LPT) > 0);
+            LB_all = (calcOwnLQEntries(LPT) > 0) || (calcOwnSQEntries(LPT) > 0);
             numLPTcause = std::min(calcOwnLQEntries(LPT), calcOwnSQEntries(LPT));
 
             DPRINTF(FmtSlot, "HPT stall because no LSQ.\n");
@@ -1610,7 +1667,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                     " SerializeStall.\n", tid);
             return true;
         } else if (resumeUnblocking) {
-            asset(0);
+            assert(0);
             DPRINTF(Rename, "[tid:%u]: Done squashing, switching to unblocking.\n",
                     tid);
             renameStatus[tid] = Unblocking;
