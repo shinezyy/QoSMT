@@ -158,20 +158,29 @@ DefaultIEW<Impl>::regStats()
     ldstQueue.regStats();
 
     iewIdleCycles
+        .init(numThreads)
         .name(name() + ".iewIdleCycles")
         .desc("Number of cycles IEW is idle");
 
     iewSquashCycles
+        .init(numThreads)
         .name(name() + ".iewSquashCycles")
         .desc("Number of cycles IEW is squashing");
 
     iewBlockCycles
+        .init(numThreads)
         .name(name() + ".iewBlockCycles")
         .desc("Number of cycles IEW is blocking");
 
     iewUnblockCycles
+        .init(numThreads)
         .name(name() + ".iewUnblockCycles")
         .desc("Number of cycles IEW is unblocking");
+
+    iewRunCycles
+        .init(numThreads)
+        .name(name() + ".iewRunCycles")
+        .desc("Number of cycles IEW is Running");
 
     iewDispatchedInsts
         .name(name() + ".iewDispatchedInsts")
@@ -1009,12 +1018,12 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     }
 
     if (dispatchStatus[tid] == Blocked) {
-        ++iewBlockCycles;
+        ++iewBlockCycles[tid];
         DPRINTF(FmtSlot, "Recording miss slots when T[%d] is blocked.\n", tid);
         recordMiss(dispatchWidths[tid], tid);
 
     } else if (dispatchStatus[tid] == Squashing) {
-        ++iewSquashCycles;
+        ++iewSquashCycles[tid];
         DPRINTF(FmtSlot, "Recording miss slots when T[%d] is squashing.\n", tid);
         recordMiss(dispatchWidths[tid], tid);
     }
@@ -1027,6 +1036,9 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
                 "dispatch.\n", tid);
 
         dispatchInsts(tid);
+
+        ++iewRunCycles[tid];
+
     } else if (dispatchStatus[tid] == Unblocking) {
         // Make sure that the skid buffer has something in it if the
         // status is unblocking.
@@ -1037,7 +1049,7 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
         // the rest of unblocking.
         dispatchInsts(tid);
 
-        ++iewUnblockCycles;
+        ++iewUnblockCycles[tid];
 
         if (validInstsFromRename()) {
             // Add the current inputs to the skid buffer so they can be

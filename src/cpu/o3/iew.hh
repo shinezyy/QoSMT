@@ -432,13 +432,15 @@ class DefaultIEW
     unsigned skidBufferMax;
 
     /** Stat for total number of idle cycles. */
-    Stats::Scalar iewIdleCycles;
+    Stats::Vector iewIdleCycles;
     /** Stat for total number of squashing cycles. */
-    Stats::Scalar iewSquashCycles;
+    Stats::Vector iewSquashCycles;
     /** Stat for total number of blocking cycles. */
-    Stats::Scalar iewBlockCycles;
+    Stats::Vector iewBlockCycles;
     /** Stat for total number of unblocking cycles. */
-    Stats::Scalar iewUnblockCycles;
+    Stats::Vector iewUnblockCycles;
+    /** Stat for total number of running cycles. */
+    Stats::Vector iewRunCycles;
     /** Stat for total number of instructions dispatched. */
     Stats::Scalar iewDispatchedInsts;
     /** Stat for total number of squashed instructions dispatch skips. */
