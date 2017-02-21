@@ -480,29 +480,29 @@ DefaultRename<Impl>::tick()
 
     switch(renameStatus[0]) {
         case Blocked:
-            toIEW->FLB = fromIEW->iewInfo[0].BLB || localLB;
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
+            toIEW->FLB = fromIEW->iewInfo[0].BLB || localLB || fromDecode->FLB;
             toDecode->renameInfo[0].BLB = fromIEW->iewInfo[0].BLB || localLB;
             break;
 
         case Running:
         case Idle:
         case Unblocking:
-            toIEW->FLB = fromDecode->FLB || localLB;
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
+            toIEW->FLB = fromDecode->FLB || localLB;
             toDecode->renameInfo[0].BLB = localLB;
             break;
 
         case StartSquash:
         case Squashing:
-            toIEW->FLB = false;
             toIEW->frontEndMiss = true;
+            toIEW->FLB = false;
             toDecode->renameInfo[0].BLB = false;
             break;
 
         case SerializeStall:
-            toIEW->FLB = false;
             toIEW->frontEndMiss = true; // 这里是1或者0有待进一步思考
+            toIEW->FLB = false;
             toDecode->renameInfo[0].BLB = false;
             break;
     }

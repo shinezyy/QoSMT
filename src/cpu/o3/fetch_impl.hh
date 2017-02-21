@@ -1028,7 +1028,7 @@ DefaultFetch<Impl>::tick()
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (numInsts[tid]) {
-            DPRINTF(InstPass, "T[%i] Pass %i insts to Decode\n", tid, numInsts[tid]);
+            DPRINTF(InstPass, "T[%i] send %i insts to Decode\n", tid, numInsts[tid]);
         }
     }
 
@@ -1037,7 +1037,7 @@ DefaultFetch<Impl>::tick()
         case(Blocked): /** 传下去就行了*/
             toDecode->FLB = fromDecode->decodeInfo[0].BLB;
             if (toDecode->FLB) {
-                DPRINTF(LB, "Forward BLB to Decode\n");
+                DPRINTF(LB, "Echo LB to Decode\n");
             }
             break;
         case(IcacheAccessComplete):

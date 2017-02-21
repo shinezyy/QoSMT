@@ -54,6 +54,8 @@
 #include "debug/Decode.hh"
 #include "debug/O3PipeView.hh"
 #include "debug/FmtSlot2.hh"
+#include "debug/LB.hh"
+#include "debug/InstPass.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/full_system.hh"
 
@@ -71,7 +73,8 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
       decodeWidth(params->decodeWidth),
       decodeWidths(params->numThreads, params->decodeWidth / params->numThreads),
       toRenameNum(params->numThreads, 0),
-      numThreads(params->numThreads)
+      numThreads(params->numThreads),
+      BLBlocal(false)
 {
     if (decodeWidth > Impl::MaxWidth)
         fatal("decodeWidth (%d) is larger than compiled limit (%d),\n"
@@ -263,6 +266,8 @@ DefaultDecode<Impl>::block(ThreadID tid)
         // Set the status to Blocked.
         decodeStatus[tid] = Blocked;
 
+        BLBlocal = tid == 0 ? fromRename->renameInfo[0].BLB : BLBlocal;
+
         if (toFetch->decodeUnblock[tid]) {
             toFetch->decodeUnblock[tid] = false;
         } else {
@@ -284,6 +289,7 @@ DefaultDecode<Impl>::unblock(ThreadID tid)
     if (skidBuffer[tid].empty()) {
         DPRINTF(Decode, "[tid:%u]: Done unblocking.\n", tid);
         toFetch->decodeUnblock[tid] = true;
+        BLBlocal = tid == 0 ? false : BLBlocal;
         wroteToTimeBuffer = true;
 
         decodeStatus[tid] = Running;
@@ -320,6 +326,7 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
     // Might have to tell fetch to unblock.
     if (decodeStatus[tid] == Blocked ||
         decodeStatus[tid] == Unblocking) {
+        BLBlocal = tid == 0 ? false : BLBlocal;
         toFetch->decodeUnblock[tid] = 1;
     }
 
@@ -362,11 +369,13 @@ DefaultDecode<Impl>::squash(ThreadID tid)
             // to a syscall in the same cycle.  This would cause both signals
             // to be high.  This shouldn't happen in full system.
             // @todo: Determine if this still happens.
-            if (toFetch->decodeBlock[tid])
+            if (toFetch->decodeBlock[tid]) {
                 toFetch->decodeBlock[tid] = 0;
-            else
+            } else {
                 toFetch->decodeUnblock[tid] = 1;
+            }
         }
+        BLBlocal = tid == 0 ? false : BLBlocal;
     }
 
     // Set status to squashing.
@@ -591,26 +600,62 @@ DefaultDecode<Impl>::tick()
         cpu->activityThisCycle();
     }
 
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        if (toRenameNum[tid]) {
+            DPRINTF(InstPass, "T [%i] send %i insts to Rename\n", tid,
+                    toRenameNum[tid]);
+        }
+    }
+
     switch(decodeStatus[0]) {
         case(Blocked):
-            toRename->FLB = fromRename->renameInfo[0].BLB;
             toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toRename->FLB = fromRename->renameInfo[0].BLB || fromFetch->FLB;
             toFetch->decodeInfo[0].BLB = fromRename->renameInfo[0].BLB;
+
+            if (toRename->FLB) {
+                if (fromRename->renameInfo[0].BLB) {
+                    DPRINTF(LB, "Echo LB to Rename\n");
+                } else {
+                    DPRINTF(LB, "Forward FLB from Fetch to Rename");
+                }
+            }
+            if (toFetch->decodeInfo[0].BLB) {
+                DPRINTF(LB, "Forward BLB from Rename to Fetch");
+            }
             break;
 
         case(StartSquash):
         case(Squashing):
-            toRename->FLB = false;
             toRename->frontEndMiss = true;
+            toRename->FLB = false;
             toFetch->decodeInfo[0].BLB = false;
+            DPRINTF(LB, "No BLB or FLB because of Squashign\n");
             break;
 
         case(Running):
         case(Idle):
-        case(Unblocking):
-            toRename->FLB = fromFetch->FLB;
             toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toRename->FLB = fromFetch->FLB;
+            assert(!fromRename->renameInfo[0].BLB);
             toFetch->decodeInfo[0].BLB = false;
+            if (toRename->FLB) {
+                DPRINTF(LB, "Forward FLB from Fetch to Rename");
+            }
+            break;
+
+        case(Unblocking):
+            toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toRename->FLB = fromFetch->FLB;
+            assert(!fromRename->renameInfo[0].BLB);
+            toFetch->decodeInfo[0].BLB = BLBlocal;
+
+            if (toRename->FLB) {
+                DPRINTF(LB, "Forward FLB from Fetch to Rename");
+            }
+            if (BLBlocal) {
+                DPRINTF(LB, "Send BLB to Rename because of BLBlocal");
+            }
             break;
     }
 }
@@ -660,8 +705,6 @@ DefaultDecode<Impl>::decode(bool &status_change, ThreadID tid)
         status_change = unblock(tid) || status_change;
     }
 
-    DPRINTF(FmtSlot2, "[Thread %i] Number of insts send to rename this cycles is %i\n",
-            tid, toRenameNum[tid]);
 }
 
 template <class Impl>

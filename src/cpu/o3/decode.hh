@@ -323,6 +323,8 @@ class DefaultDecode
     Stats::Scalar decodeDecodedInsts;
     /** Stat for total number of squashed instructions. */
     Stats::Scalar decodeSquashedInsts;
+
+    bool BLBlocal; //用于Unblocking时的后向LB
 };
 
 #endif // __CPU_O3_DECODE_HH__
