@@ -68,6 +68,8 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtSlot2.hh"
+#include "debug/LB.hh"
+#include "debug/InstPass.hh"
 #include "mem/packet.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/byteswap.hh"
@@ -1022,24 +1024,40 @@ DefaultFetch<Impl>::tick()
         cpu->activityThisCycle();
     }
 
-    // Reset the number of the instruction we've fetched.
-    numInst = 0;
-    std::fill(numInsts.begin(), numInsts.end(), 0);
+    // Print Inst Trace
+
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        if (numInsts[tid]) {
+            DPRINTF(InstPass, "T[%i] Pass %i insts to Decode\n", tid, numInsts[tid]);
+        }
+    }
 
     // Pass status to IEW for PTA
     switch(fetchStatus[0]) {
         case(Blocked): /** 传下去就行了*/
             toDecode->FLB = fromDecode->decodeInfo[0].BLB;
+            if (toDecode->FLB) {
+                DPRINTF(LB, "Forward BLB to Decode\n");
+            }
+            break;
+        case(IcacheAccessComplete):
         case(Idle):
         case(Running):
             toDecode->frontEndMiss = false;
             toDecode->FLB = false;
+            DPRINTF(LB, "No FLB, because no Block\n");
             break;
         default: /** Icache miss and branch misPred are both front end miss*/
             toDecode->frontEndMiss = true;
             toDecode->FLB = false;
+            if (!fromDecode->decodeInfo[0].BLB) {
+                DPRINTF(LB, "Dismiss BLB because Squashing or Miss\n");
+            }
             break;
     }
+    // Reset the number of the instruction we've fetched.
+    numInst = 0;
+    std::fill(numInsts.begin(), numInsts.end(), 0);
 }
 
 template <class Impl>
