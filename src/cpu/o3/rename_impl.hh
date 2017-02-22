@@ -106,26 +106,32 @@ void
 DefaultRename<Impl>::regStats()
 {
     renameSquashCycles
+        .init(numThreads)
         .name(name() + ".SquashCycles")
         .desc("Number of cycles rename is squashing")
         .prereq(renameSquashCycles);
     renameIdleCycles
+        .init(numThreads)
         .name(name() + ".IdleCycles")
         .desc("Number of cycles rename is idle")
         .prereq(renameIdleCycles);
     renameBlockCycles
+        .init(numThreads)
         .name(name() + ".BlockCycles")
         .desc("Number of cycles rename is blocking")
         .prereq(renameBlockCycles);
     renameSerializeStallCycles
+        .init(numThreads)
         .name(name() + ".serializeStallCycles")
         .desc("count of cycles rename stalled for serializing inst")
         .flags(Stats::total);
     renameRunCycles
+        .init(numThreads)
         .name(name() + ".RunCycles")
         .desc("Number of cycles rename is running")
         .prereq(renameIdleCycles);
     renameUnblockCycles
+        .init(numThreads)
         .name(name() + ".UnblockCycles")
         .desc("Number of cycles rename is unblocking")
         .prereq(renameUnblockCycles);
@@ -621,15 +627,15 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     }
 
     if (renameStatus[tid] == Blocked) {
-        ++renameBlockCycles;
+        ++renameBlockCycles[tid];
         if (fromIEW->iewInfo[0].BLB) {
             DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
         }
     } else if (renameStatus[tid] == Squashing) {
-        ++renameSquashCycles;
+        ++renameSquashCycles[tid];
 
     } else if (renameStatus[tid] == SerializeStall) {
-        ++renameSerializeStallCycles;
+        ++renameSerializeStallCycles[tid];
         // If we are currently in SerializeStall and resumeSerialize
         // was set, then that means that we are resuming serializing
         // this cycle.  Tell the previous stages to block.
@@ -700,12 +706,12 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     if (insts_available == 0) {
         DPRINTF(FmtSlot2, "[tid:%u]: Nothing to do, breaking out early.\n", tid);
         // Should I change status to idle?
-        ++renameIdleCycles;
+        ++renameIdleCycles[tid];
         return;
     } else if (renameStatus[tid] == Unblocking) {
-        ++renameUnblockCycles;
+        ++renameUnblockCycles[tid];
     } else if (renameStatus[tid] == Running) {
-        ++renameRunCycles;
+        ++renameRunCycles[tid];
     }
 
     DynInstPtr inst;

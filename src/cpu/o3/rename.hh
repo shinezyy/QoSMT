@@ -502,17 +502,17 @@ class DefaultRename
     inline void incrFullStat(const FullSource &source, ThreadID tid);
 
     /** Stat for total number of cycles spent squashing. */
-    Stats::Scalar renameSquashCycles;
+    Stats::Vector renameSquashCycles;
     /** Stat for total number of cycles spent idle. */
-    Stats::Scalar renameIdleCycles;
+    Stats::Vector renameIdleCycles;
     /** Stat for total number of cycles spent blocking. */
-    Stats::Scalar renameBlockCycles;
+    Stats::Vector renameBlockCycles;
     /** Stat for total number of cycles spent stalling for a serializing inst. */
-    Stats::Scalar renameSerializeStallCycles;
+    Stats::Vector renameSerializeStallCycles;
     /** Stat for total number of cycles spent running normally. */
-    Stats::Scalar renameRunCycles;
+    Stats::Vector renameRunCycles;
     /** Stat for total number of cycles spent unblocking. */
-    Stats::Scalar renameUnblockCycles;
+    Stats::Vector renameUnblockCycles;
     /** Stat for total number of renamed instructions. */
     Stats::Scalar renameRenamedInsts;
     /** Stat for total number of squashed instructions that rename discards. */
