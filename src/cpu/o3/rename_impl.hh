@@ -109,32 +109,32 @@ DefaultRename<Impl>::regStats()
         .init(numThreads)
         .name(name() + ".SquashCycles")
         .desc("Number of cycles rename is squashing")
-        .prereq(renameSquashCycles);
+        ;
     renameIdleCycles
         .init(numThreads)
         .name(name() + ".IdleCycles")
         .desc("Number of cycles rename is idle")
-        .prereq(renameIdleCycles);
+        ;
     renameBlockCycles
         .init(numThreads)
         .name(name() + ".BlockCycles")
         .desc("Number of cycles rename is blocking")
-        .prereq(renameBlockCycles);
+        ;
     renameSerializeStallCycles
         .init(numThreads)
         .name(name() + ".serializeStallCycles")
         .desc("count of cycles rename stalled for serializing inst")
-        .flags(Stats::total);
+        ;
     renameRunCycles
         .init(numThreads)
         .name(name() + ".RunCycles")
         .desc("Number of cycles rename is running")
-        .prereq(renameIdleCycles);
+        ;
     renameUnblockCycles
         .init(numThreads)
         .name(name() + ".UnblockCycles")
         .desc("Number of cycles rename is unblocking")
-        .prereq(renameUnblockCycles);
+        ;
     renameRenamedInsts
         .name(name() + ".RenamedInsts")
         .desc("Number of instructions processed by rename")
@@ -430,6 +430,10 @@ DefaultRename<Impl>::tick()
 
     toIEW->hptMissToWait = 0;
     toIEW->MTWValid = false;
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        toIEW->serialize[tid] = false;
+        toIEW->unSerialize[tid] = false;
+    }
 
     toIEWIndex = 0;
 
@@ -912,6 +916,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // Change status over to SerializeStall so that other stages know
             // what this is blocked on.
             renameStatus[tid] = SerializeStall;
+            toIEW->serialize[tid] = true;
             DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to SerializeStall\n",
                     tid);
 
@@ -1569,6 +1574,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
     } else if (renameStatus[tid] == SerializeStall &&
                (!emptyROB[tid] || instsInProgress[tid])) {
+        toIEW->serialize[tid] = true;
         DPRINTF(Rename,"[tid:%i]: Stall: Serialize stall and ROB is not "
                 "empty.\n",
                 tid);

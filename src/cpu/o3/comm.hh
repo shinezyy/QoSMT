@@ -103,6 +103,10 @@ struct DefaultRenameDefaultIEW {
     bool FLB; /** Forward LPT Block HPT  to IEW*/
 
     bool MTWValid; /** Value of Miss to Wait is meaningful. */
+
+    bool serialize[Impl::MaxWidth]; // waiting ROB empty
+
+    bool unSerialize[Impl::MaxWidth];
 };
 
 /** Struct that defines the information passed from IEW to commit. */
@@ -122,6 +126,10 @@ struct DefaultIEWDefaultCommit {
     bool branchMispredict[Impl::MaxThreads];
     bool branchTaken[Impl::MaxThreads];
     bool includeSquashInst[Impl::MaxThreads];
+
+    bool serialize[Impl::MaxWidth];
+
+    bool unSerialize[Impl::MaxWidth];
 };
 
 template<class Impl>

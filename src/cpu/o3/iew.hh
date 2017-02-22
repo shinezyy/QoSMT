@@ -560,6 +560,8 @@ class DefaultIEW
     std::vector<int> dispatched;
 
     bool BLBlocal; //For Unblocking
+
+    bool missRecorded;
 };
 
 #endif // __CPU_O3_IEW_HH__

@@ -618,14 +618,6 @@ DefaultIEW<Impl>::block(ThreadID tid)
         wroteToTimeBuffer = true;
     }
 
-    if (dispatched[0] < dispatchWidth) { // HPT没有占有全部分发宽度
-        if (tid == 0) {
-            recordMiss(dispatchWidths[0] - dispatched[0], tid);
-        } else {
-            recordMiss(dispatchWidths[tid], tid);
-        }
-    }
-
     // Add the current inputs to the skid buffer so they can be
     // reprocessed when this stage unblocks.
     skidInsert(tid);
@@ -893,6 +885,13 @@ DefaultIEW<Impl>::checkSignalsAndUpdate(ThreadID tid)
     if (checkStall(tid)) {
         // 可能因为rob squash或者IQ full
         block(tid); //如果是HPT被block，那么后面不可能再dispatch
+
+        if (tid == 0) {
+            recordMiss(dispatchWidths[0], tid);
+        } else {
+            recordMiss(dispatchWidths[tid], tid);
+        }
+
         dispatchStatus[tid] = Blocked;
         return;
     }
@@ -1071,6 +1070,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         dispatchStatus[tid] == Unblocking ?
         skidBuffer[tid] : insts[tid];
 
+    missRecorded = false;
+
     int insts_to_add = insts_to_dispatch.size();
 
     DynInstPtr inst;
@@ -1135,6 +1136,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             // Call function to start blocking.
             block(tid);
+            //call recordMiss
+            recordMiss(dispatchWidths[tid] - dispatched[tid], tid);
 
             // Set unblock to false. Special case where we are using
             // skidbuffer (unblocking) instructions but then we still
@@ -1165,6 +1168,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             // Call function to start blocking.
             block(tid);
+            //call recordMiss
+            recordMiss(dispatchWidths[tid] - dispatched[tid], tid);
 
             // Set unblock to false. Special case where we are using
             // skidbuffer (unblocking) instructions but then we still
@@ -1323,6 +1328,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         }
 
         block(tid);
+
         toRename->iewUnblock[tid] = false;
     }
 
@@ -1338,6 +1344,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         updatedQueues = true;
     }
 
+    missRecorded = false;
 }
 
 template <class Impl>
@@ -1918,6 +1925,11 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
     /** Tid 浪费了wastedSlot*/
     ThreadID hpt = 0; // Only care T[0]
 
+    if (missRecorded) {
+        return;
+    }
+    missRecorded = true;
+
     switch(dispatchStatus[hpt]) {
         case Squashing:
         case StartSquash:
@@ -1991,6 +2003,7 @@ DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
             }
             break;
     }
+
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         DPRINTF(FmtSlot, "T[%i]  IQ: %i, LQ: %i, SQ: %i\n", tid,
                 instQueue.numBusyEntries(tid), ldstQueue.numLoads(tid),
