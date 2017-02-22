@@ -1020,7 +1020,6 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     if (dispatchStatus[tid] == Blocked) {
         ++iewBlockCycles[tid];
         DPRINTF(FmtSlot, "Recording miss slots when T[%d] is blocked.\n", tid);
-        recordMiss(dispatchWidths[tid], tid);
 
     } else if (dispatchStatus[tid] == Squashing) {
         ++iewSquashCycles[tid];
