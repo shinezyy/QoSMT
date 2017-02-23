@@ -48,6 +48,7 @@
 
 #include "base/statistics.hh"
 #include "cpu/timebuf.hh"
+#include "cpu/o3/slot_counter.hh"
 
 struct DerivO3CPUParams;
 
@@ -59,7 +60,7 @@ struct DerivO3CPUParams;
  * not do much other than check any PC-relative branches.
  */
 template<class Impl>
-class DefaultDecode
+class DefaultDecode : public SlotCounter<Impl>
 {
   private:
     // Typedefs from the Impl.
@@ -324,7 +325,18 @@ class DefaultDecode
     /** Stat for total number of squashed instructions. */
     Stats::Scalar decodeSquashedInsts;
 
+  private:
+
     bool BLBlocal; //用于Unblocking时的后向LB
+
+  public:
+
+    void passLB(ThreadID tid);
+
+    DynInstPtr& getHeadInst(ThreadID tid) {
+        assert(toRenameNum[tid] > 0);
+        return toRename->insts[0];
+    }
 };
 
 #endif // __CPU_O3_DECODE_HH__

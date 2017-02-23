@@ -65,7 +65,8 @@ using std::list;
 
 template<class Impl>
 DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
-    : cpu(_cpu),
+    : SlotCounter<Impl>(params),
+      cpu(_cpu),
       renameToDecodeDelay(params->renameToDecodeDelay),
       iewToDecodeDelay(params->iewToDecodeDelay),
       commitToDecodeDelay(params->commitToDecodeDelay),
@@ -600,64 +601,13 @@ DefaultDecode<Impl>::tick()
         cpu->activityThisCycle();
     }
 
+    passLB(0);
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toRenameNum[tid]) {
-            DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid,
-                    toRenameNum[tid]);
+            DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid, toRenameNum[tid]);
         }
     }
 
-    switch(decodeStatus[0]) {
-        case(Blocked):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toRename->FLB = fromRename->renameInfo[0].BLB || fromFetch->FLB;
-            toFetch->decodeInfo[0].BLB = fromRename->renameInfo[0].BLB;
-
-            if (toRename->FLB) {
-                if (fromRename->renameInfo[0].BLB) {
-                    DPRINTF(LB, "Echo LB to Rename\n");
-                } else {
-                    DPRINTF(LB, "Forward FLB from Fetch to Rename\n");
-                }
-            }
-            if (toFetch->decodeInfo[0].BLB) {
-                DPRINTF(LB, "Forward BLB from Rename to Fetch\n");
-            }
-            break;
-
-        case(StartSquash):
-        case(Squashing):
-            toRename->frontEndMiss = true;
-            toRename->FLB = false;
-            toFetch->decodeInfo[0].BLB = false;
-            DPRINTF(LB, "No BLB or FLB because of Squashign\n");
-            break;
-
-        case(Running):
-        case(Idle):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toRename->FLB = fromFetch->FLB;
-            assert(!fromRename->renameInfo[0].BLB);
-            toFetch->decodeInfo[0].BLB = false;
-            if (toRename->FLB) {
-                DPRINTF(LB, "Forward FLB from Fetch to Rename\n");
-            }
-            break;
-
-        case(Unblocking):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toRename->FLB = fromFetch->FLB;
-            assert(!fromRename->renameInfo[0].BLB);
-            toFetch->decodeInfo[0].BLB = BLBlocal;
-
-            if (toRename->FLB) {
-                DPRINTF(LB, "Forward FLB from Fetch to Rename\n");
-            }
-            if (BLBlocal) {
-                DPRINTF(LB, "Send BLB to Fetch because of BLBlocal\n");
-            }
-            break;
-    }
 }
 
 template<class Impl>
@@ -831,6 +781,59 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
     // tracking.
     if (toRenameIndex) {
         wroteToTimeBuffer = true;
+    }
+}
+
+template <class Impl>
+void
+DefaultDecode<Impl>::passLB(ThreadID tid)
+{
+    switch(decodeStatus[tid]) {
+        case(Blocked):
+            toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toFetch->decodeInfo[tid].BLB = fromRename->renameInfo[tid].BLB;
+            if (toFetch->decodeInfo[tid].BLB) {
+                DPRINTF(LB, "Forward BLB from Rename to Fetch\n");
+            }
+
+            this->sumLocalSlots(tid, !fromFetch->frontEndMiss &&
+                    fromRename->renameInfo[tid].BLB, decodeWidths[tid]);
+            break;
+
+        case(StartSquash):
+        case(Squashing):
+            toRename->frontEndMiss = true;
+            toFetch->decodeInfo[tid].BLB = false;
+            DPRINTF(LB, "No BLB because of Squashign\n");
+
+            this->sumLocalSlots(tid, false, decodeWidths[tid]);
+            break;
+
+        case(Running):
+        case(Idle):
+            toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toFetch->decodeInfo[tid].BLB = false;
+
+            assert(!fromRename->renameInfo[tid].BLB);
+
+            if (toRenameNum[tid]) {
+                this->assignSlots(tid, getHeadInst(tid));
+            }
+            break;
+
+        case(Unblocking):
+            toRename->frontEndMiss = fromFetch->frontEndMiss;
+            toFetch->decodeInfo[tid].BLB = BLBlocal;
+
+            assert(!fromRename->renameInfo[tid].BLB);
+
+            if (BLBlocal) {
+                DPRINTF(LB, "Send BLB to Fetch because of BLBlocal\n");
+            }
+            if (toRenameNum[tid]) {
+                this->assignSlots(tid, getHeadInst(tid));
+            }
+            break;
     }
 }
 
