@@ -1804,17 +1804,21 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
     // Pass status to IEW for PTA
     switch(fetchStatus[tid]) {
         case(Blocked): /** 传下去就行了*/
+            toDecode->frontEndMiss = false;
+
             this->sumLocalSlots(tid, fromDecode->decodeInfo[tid].BLB,
                     fetchWidths[tid]);
             break;
         case(IcacheAccessComplete):
-        case(Idle):
         case(Running):
             toDecode->frontEndMiss = false;
+
             this->assignSlots(tid, getHeadInst(tid));
             break;
+        // This should be miss ? case(Idle):
         default: /** Icache miss and branch misPred are both front end miss*/
             toDecode->frontEndMiss = true;
+
             this->sumLocalSlots(tid, false, fetchWidths[tid]);
             break;
     }

@@ -70,7 +70,7 @@ struct DefaultFetchDefaultDecode {
 
     bool frontEndMiss;
 
-    bool FLB; /** Forward LPT Block HPT  to decode*/
+    /** bool FLB; Forward LPT Block HPT  to decode*/
 };
 
 /** Struct that defines the information passed from decode to rename. */
@@ -84,7 +84,7 @@ struct DefaultDecodeDefaultRename {
 
     bool frontEndMiss;
 
-    bool FLB; /** Forward LPT Block HPT  to rename*/
+    /** bool FLB; Forward LPT Block HPT  to rename*/
 };
 
 /** Struct that defines the information passed from rename to IEW. */
@@ -100,7 +100,7 @@ struct DefaultRenameDefaultIEW {
 
     bool frontEndMiss;
 
-    bool FLB; /** Forward LPT Block HPT  to IEW*/
+    /** bool FLB; Forward LPT Block HPT  to IEW*/
 
     bool MTWValid; /** Value of Miss to Wait is meaningful. */
 
