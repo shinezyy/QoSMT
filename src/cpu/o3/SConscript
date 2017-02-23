@@ -62,6 +62,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     Source('fmt.cc')
     Source('voc.cc')
     Source('bmt.cc')
+    Source('slot_counter.cc')
 
     DebugFlag('CommitRate')
     DebugFlag('IEW')
