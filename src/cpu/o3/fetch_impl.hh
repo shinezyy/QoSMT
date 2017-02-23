@@ -82,7 +82,8 @@ using namespace std;
 
 template<class Impl>
 DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
-    : denominator(1024),
+    : SlotCounter<Impl>(params),
+      denominator(1024),
       cpu(_cpu),
       numInsts(params->numThreads, 0),
       decodeToFetchDelay(params->decodeToFetchDelay),
@@ -1032,29 +1033,8 @@ DefaultFetch<Impl>::tick()
         }
     }
 
-    // Pass status to IEW for PTA
-    switch(fetchStatus[0]) {
-        case(Blocked): /** 传下去就行了*/
-            toDecode->FLB = fromDecode->decodeInfo[0].BLB;
-            if (toDecode->FLB) {
-                DPRINTF(LB, "Echo LB to Decode\n");
-            }
-            break;
-        case(IcacheAccessComplete):
-        case(Idle):
-        case(Running):
-            toDecode->frontEndMiss = false;
-            toDecode->FLB = false;
-            DPRINTF(LB, "No FLB, because no Block\n");
-            break;
-        default: /** Icache miss and branch misPred are both front end miss*/
-            toDecode->frontEndMiss = true;
-            toDecode->FLB = false;
-            if (!fromDecode->decodeInfo[0].BLB) {
-                DPRINTF(LB, "Dismiss BLB because Squashing or Miss\n");
-            }
-            break;
-    }
+    passLB(0);
+
     // Reset the number of the instruction we've fetched.
     numInst = 0;
     std::fill(numInsts.begin(), numInsts.end(), 0);
@@ -1817,5 +1797,27 @@ DefaultFetch<Impl>::updateFetchWidth()
     fetchWidthUpToDate = true;
 }
 
+template <class Impl>
+void
+DefaultFetch<Impl>::passLB(ThreadID tid)
+{
+    // Pass status to IEW for PTA
+    switch(fetchStatus[tid]) {
+        case(Blocked): /** 传下去就行了*/
+            this->sumLocalSlots(tid, fromDecode->decodeInfo[tid].BLB,
+                    fetchWidths[tid]);
+            break;
+        case(IcacheAccessComplete):
+        case(Idle):
+        case(Running):
+            toDecode->frontEndMiss = false;
+            this->assignSlots(tid, getHeadInst(tid));
+            break;
+        default: /** Icache miss and branch misPred are both front end miss*/
+            toDecode->frontEndMiss = true;
+            this->sumLocalSlots(tid, false, fetchWidths[tid]);
+            break;
+    }
+}
 
 #endif//__CPU_O3_FETCH_IMPL_HH__

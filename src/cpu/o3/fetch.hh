@@ -56,6 +56,7 @@
 #include "cpu/translation.hh"
 #include "cpu/o3/inst_queue.hh"
 #include "cpu/o3/iew.hh"
+#include "cpu/o3/slot_counter.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 #include "sim/eventq.hh"
@@ -72,7 +73,7 @@ struct DerivO3CPUParams;
  * the CPU when it is active and inactive.
  */
 template <class Impl>
-class DefaultFetch
+class DefaultFetch : public SlotCounter<Impl>
 {
   public:
     /** Typedefs from Impl. */
@@ -622,6 +623,14 @@ class DefaultFetch
         fmt = _fmt;
     }
 
+  public:
+
+    void passLB(ThreadID tid);
+
+    DynInstPtr& getHeadInst(ThreadID tid) {
+        assert(toDecode->size > 0);
+        return toDecode->insts[0];
+    }
 };
 
 #endif //__CPU_O3_FETCH_HH__
