@@ -136,6 +136,10 @@ BaseO3DynInst<Impl>::initVars()
 
     // For PTA:
     everMispredicted = false;
+
+    priorWaitSlots = 0;
+
+    priorMissSlots = 0;
 }
 
 template <class Impl>
