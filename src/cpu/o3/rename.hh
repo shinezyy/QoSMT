@@ -50,6 +50,7 @@
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
 #include "cpu/timebuf.hh"
+#include "cpu/o3/slot_counter.hh"
 
 struct DerivO3CPUParams;
 
@@ -66,7 +67,7 @@ struct DerivO3CPUParams;
  * and there are no instructions in flight to the ROB.
  */
 template<class Impl>
-class DefaultRename
+class DefaultRename : public SlotCounter<Impl>
 {
   public:
     // Typedefs from the Impl.
@@ -595,6 +596,20 @@ class DefaultRename
     unsigned numLPTcause;
 
     bool BLBlocal; //For Unblocking
+
+    void passLB(ThreadID tid);
+
+    std::vector<bool> counted;
+
+    DynInstPtr& getHeadInst(ThreadID tid) {
+        for (int i = 0; i < Impl::MaxWidth; i++) {
+            assert(toIEW->insts[i]);
+            if (toIEW->insts[i] && toIEW->insts[i]->threadNumber == tid) {
+                return toIEW->insts[i];
+            }
+        }
+        assert(0);
+    }
 };
 
 #endif // __CPU_O3_RENAME_HH__

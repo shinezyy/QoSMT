@@ -334,8 +334,13 @@ class DefaultDecode : public SlotCounter<Impl>
     void passLB(ThreadID tid);
 
     DynInstPtr& getHeadInst(ThreadID tid) {
-        assert(toRenameNum[tid] > 0);
-        return toRename->insts[0];
+        for (int i = 0; i < Impl::MaxWidth; i++) {
+            assert(toRename->insts[i]);
+            if (toRename->insts[i] && toRename->insts[i]->threadNumber == tid) {
+                return toRename->insts[i];
+            }
+        }
+        assert(0);
     }
 };
 

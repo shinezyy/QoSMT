@@ -628,8 +628,13 @@ class DefaultFetch : public SlotCounter<Impl>
     void passLB(ThreadID tid);
 
     DynInstPtr& getHeadInst(ThreadID tid) {
-        assert(toDecode->size > 0);
-        return toDecode->insts[0];
+        for (int i = 0; i < Impl::MaxWidth; i++) {
+            assert(toDecode->insts[i]);
+            if (toDecode->insts[i] && toDecode->insts[i]->threadNumber == tid) {
+                return toDecode->insts[i];
+            }
+        }
+        assert(0);
     }
 };
 
