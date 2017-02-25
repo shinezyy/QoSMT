@@ -341,6 +341,8 @@ class DefaultDecode : public SlotCounter<Impl>
             }
         }
         assert(0);
+        //触发段错误
+        return toRename->insts[~0];
     }
 };
 

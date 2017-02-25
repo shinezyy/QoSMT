@@ -635,6 +635,7 @@ class DefaultFetch : public SlotCounter<Impl>
             }
         }
         assert(0);
+        return toDecode->insts[~0];
     }
 };
 

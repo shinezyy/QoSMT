@@ -94,15 +94,11 @@ struct DefaultRenameDefaultIEW {
 
     int size;
 
-    int hptMissToWait;
-
     DynInstPtr insts[Impl::MaxWidth];
 
     bool frontEndMiss;
 
     /** bool FLB; Forward LPT Block HPT  to IEW*/
-
-    bool MTWValid; /** Value of Miss to Wait is meaningful. */
 
     bool serialize[Impl::MaxWidth]; // waiting ROB empty
 

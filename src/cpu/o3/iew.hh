@@ -52,6 +52,7 @@
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/lsq.hh"
 #include "cpu/o3/scoreboard.hh"
+#include "cpu/o3/slot_counter.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
 #include "sim/probe/probe.hh"
@@ -79,7 +80,7 @@ class FUPool;
  * scoreboard.
  */
 template<class Impl>
-class DefaultIEW
+class DefaultIEW : public SlotCounter<Impl>
 {
   private:
     //Typedefs from Impl
@@ -551,17 +552,30 @@ class DefaultIEW
   private:
     bool LBlocal; /**LPT Block HPT in Dispatch*/
 
-    bool HPTfrontEndMiss;
-
     bool LBLC; /**LPT Block HPT in last cycle*/
-
-    int HPTPerfPred;
 
     std::vector<int> dispatched;
 
+    std::vector<int> dispatchable;
+
     bool BLBlocal; //For Unblocking
 
-    bool missRecorded;
+    std::vector<bool> missRecorded;
+
+    /**本周期dispatch出去的第一条指令*/
+    std::vector<DynInstPtr> headInst;
+
+    DynInstPtr& getHeadInst(ThreadID tid) {
+        assert(headInst[tid]);
+        return headInst[tid];
+    }
+
+    void getDispatchable();
+
+    /** 计算本周期不可避免的miss，注意LBLC */
+    void computeMiss(ThreadID tid);
+
+    std::vector<int> slotsThisCycle;
 };
 
 #endif // __CPU_O3_IEW_HH__

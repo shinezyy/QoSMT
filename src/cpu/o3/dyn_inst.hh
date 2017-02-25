@@ -361,10 +361,10 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     void incWaitSlot(int32_t n)
     {
         priorWaitSlots += n;
-        assert(priorWaitSlots > 0);
+        assert(priorWaitSlots >= 0);
     }
 
-    uint32_t getWaitSlot()
+    int32_t getWaitSlot()
     {
         return priorWaitSlots;
     }
@@ -372,10 +372,10 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     void incMissSlot(int32_t n)
     {
         priorMissSlots += n;
-        assert(priorMissSlots > 0);
+        assert(priorMissSlots >= 0);
     }
 
-    uint32_t getMissSlot()
+    int32_t getMissSlot()
     {
         return priorMissSlots;
     }

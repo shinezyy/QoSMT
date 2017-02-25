@@ -593,7 +593,7 @@ class DefaultRename : public SlotCounter<Impl>
     bool LB_all; // 在rename前检查出LSQ、IQ或ROB没有空闲项，且LPT占据了一些项
     bool LB_part; // LPT阻塞了部分HPT的指令
     bool LBLC;
-    unsigned numLPTcause;
+    int32_t numLPTcause;
 
     bool BLBlocal; //For Unblocking
 
@@ -609,6 +609,7 @@ class DefaultRename : public SlotCounter<Impl>
             }
         }
         assert(0);
+        return toIEW->insts[~0];
     }
 };
 

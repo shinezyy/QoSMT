@@ -991,6 +991,10 @@ DefaultFetch<Impl>::tick()
     for (auto tid : *activeThreads) {
         if (!stalls[tid].decode) {
             available_insts += fetchQueue[tid].size();
+            //将numInsts[tid]的意义变更为实际将会送到decode的指令的数量
+            numInsts[tid] = fetchQueue[tid].size();
+        } else {
+            numInsts[tid] = 0;
         }
     }
 
@@ -1812,8 +1816,9 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
         case(IcacheAccessComplete):
         case(Running):
             toDecode->frontEndMiss = false;
-
-            this->assignSlots(tid, getHeadInst(tid));
+            if (numInsts[tid]) {
+                this->assignSlots(tid, getHeadInst(tid));
+            }
             break;
         // This should be miss ? case(Idle):
         default: /** Icache miss and branch misPred are both front end miss*/

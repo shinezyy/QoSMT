@@ -67,7 +67,8 @@ using namespace std;
 
 template <class Impl>
 DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
-    : cpu(_cpu),
+    : SlotCounter<Impl>(params),
+      cpu(_cpu),
       iewToRenameDelay(params->iewToRenameDelay),
       decodeToRenameDelay(params->decodeToRenameDelay),
       commitToRenameDelay(params->commitToRenameDelay),
@@ -429,8 +430,6 @@ DefaultRename<Impl>::tick()
 
     bool status_change = false;
 
-    toIEW->hptMissToWait = 0;
-    toIEW->MTWValid = false;
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         toIEW->serialize[tid] = false;
         toIEW->unSerialize[tid] = false;
@@ -445,6 +444,7 @@ DefaultRename<Impl>::tick()
     numLPTcause = 0;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
+    std::fill(counted.begin(), counted.end(), false);
 
     sortInsts();
 
@@ -1500,8 +1500,8 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
 
         if (tid == 0) {
             LB_all = (calcOwnLQEntries(LPT) > 0) || (calcOwnSQEntries(LPT) > 0);
-            numLPTcause = std::min(calcOwnLQEntries(LPT), calcOwnSQEntries(LPT),
-                    numLPTcause);
+            numLPTcause = std::min(std::min(calcOwnLQEntries(LPT),
+                        calcOwnSQEntries(LPT)), numLPTcause);
 
             DPRINTF(FmtSlot, "HPT stall because no LSQ.\n");
         }
@@ -1826,7 +1826,7 @@ DefaultRename<Impl>::calcOwnIQEntries(ThreadID tid)
 
 template <class Impl>
 void
-DefaultRename<Impl>::passLB(tid)
+DefaultRename<Impl>::passLB(ThreadID tid)
 {
     switch(renameStatus[0]) {
         case Blocked:

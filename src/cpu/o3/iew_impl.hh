@@ -68,7 +68,8 @@ using namespace std;
 
 template<class Impl>
 DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
-    : issueToExecQueue(params->backComSize, params->forwardComSize),
+    : SlotCounter<Impl>(params),
+      issueToExecQueue(params->backComSize, params->forwardComSize),
       cpu(_cpu),
       instQueue(_cpu, this, params),
       ldstQueue(_cpu, this, params),
@@ -87,7 +88,10 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       LBlocal(false),
       LBLC(false),
       dispatched(params->numThreads, 0),
-      BLBlocal(false)
+      dispatchable(params->numThreads, 0),
+      BLBlocal(false),
+      missRecorded(params->numThreads, false),
+      headInst(params->numThreads, nullptr)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -886,12 +890,6 @@ DefaultIEW<Impl>::checkSignalsAndUpdate(ThreadID tid)
         // 可能因为rob squash或者IQ full
         block(tid); //如果是HPT被block，那么后面不可能再dispatch
 
-        if (tid == 0) {
-            recordMiss(dispatchWidths[0], tid);
-        } else {
-            recordMiss(dispatchWidths[tid], tid);
-        }
-
         dispatchStatus[tid] = Blocked;
         return;
     }
@@ -1003,6 +1001,10 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     DPRINTF(FmtSlot, "Dispatch thread(%d)\n", tid);
 
     for (ThreadID t = 0; t < numThreads; t++) {
+        /**假设tid == 1，tid 0已经dispatch过了，那么
+         *如果T0没有分发完所有的指令，它的状态应该是blocked，
+         *指令在skidBuffer里面
+         */
         if (dispatchStatus[t] == Unblocking || dispatchStatus[t] == Blocked) {
             insts_can_dis[t] = skidBuffer[t].size();
             if (insts_can_dis[t]) {
@@ -1023,7 +1025,6 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
     } else if (dispatchStatus[tid] == Squashing) {
         ++iewSquashCycles[tid];
         DPRINTF(FmtSlot, "Recording miss slots when T[%d] is squashing.\n", tid);
-        recordMiss(dispatchWidths[tid], tid);
     }
 
     // Dispatch should try to dispatch as many instructions as its bandwidth
@@ -1069,8 +1070,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
     std::queue<DynInstPtr> &insts_to_dispatch =
         dispatchStatus[tid] == Unblocking ?
         skidBuffer[tid] : insts[tid];
-
-    missRecorded = false;
 
     int insts_to_add = insts_to_dispatch.size();
 
@@ -1271,26 +1270,31 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
         dispatched[tid]++;
 
+        if (tid == 0 && !headInst[tid]) {
+            headInst[tid] = inst;
+            ThreadID hpt = 0;
+            if (tid == hpt && this->wait[tid]) {
+                fmt->incMissDirect(hpt,
+                        -std::min(inst->getWaitSlot(), this->wait[tid]), false);
+                fmt->incWaitSlot(inst, hpt,
+                        std::min(inst->getWaitSlot(), this->wait[tid]));
+
+                this->wait[tid] = 0;
+            }
+        }
+
         // check other threads' status
         for (ThreadID t = 0; t < 1; t++) {
             if (t == tid) {
                 DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
                 fmt->incBaseSlot(inst, t, 1);
-                HPTPerfPred--;
             } else {
                 if (dispatchStatus[t] == StartSquash ||
-                        dispatchStatus[t] == Squashing) {
+                        dispatchStatus[t] == Squashing ||
+                        fromRename->frontEndMiss) {
                     DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
                             " because it is Squashing.\n", t);
                     fmt->incMissDirect(t, 1, true);
-
-                }else if (LBLC && !fromRename->frontEndMiss) {
-                    fmt->incWaitSlot(PerThreadHead[t], t, 1);
-
-                } else if (fromRename->FLB && !fromRename->frontEndMiss &&
-                        HPTPerfPred > 0) {
-                    fmt->incWaitSlot(PerThreadHead[t], t, 1);
-                    HPTPerfPred--;
 
                 } else if (insts_can_dis[t] > 0 && !(dispatchStatus[t] ==
                             Unblocking && fromRename->frontEndMiss)) {
@@ -1317,25 +1321,25 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         ppDispatch->notify(inst);
     }
 
+    /**
+     * TODO
+     * 处理各个线程未被利用的分发带宽
+     */
     if (!insts_to_dispatch.empty()) {
+        recordMiss(insts_to_dispatch.size(), tid);
+
+        if (tid == 0 && LBlocal) {
+            this->sumLocalSlots(tid, true, insts_to_dispatch.size());
+        } else if (tid != 0 && insts_can_dis[0]) {
+            /**LPT本来还有指令可以发射*/
+            this->sumLocalSlots(tid, true, insts_to_dispatch.size());
+        }
 
         DPRINTF(IEW,"[tid:%i]: Issue: Bandwidth Full. Blocking.\n", tid);
-
-        ThreadID LPT = 1;
-
-        if (tid == 0 && dispatchWidths[LPT]) {
-            LBlocal = true;
-        }
 
         block(tid);
 
         toRename->iewUnblock[tid] = false;
-    }
-
-    if (dis_num_inst < dispatchWidths[tid]){
-        DPRINTF(FmtSlot, "Recording miss slots when T[%d] does not make "
-                "full use of all dispatch slots\n", tid);
-        recordMiss(dispatchWidths[tid] - dis_num_inst, tid);
     }
 
     if (dispatchStatus[tid] == Idle && dis_num_inst) {
@@ -1343,8 +1347,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
         updatedQueues = true;
     }
-
-    missRecorded = false;
 }
 
 template <class Impl>
@@ -1653,8 +1655,10 @@ DefaultIEW<Impl>::tick()
 
     LBLC = LBlocal;
     LBlocal = false; // reset it
-    HPTPerfPred = 8;
+
     std::fill(dispatched.begin(), dispatched.end(), 0);
+    std::fill(headInst.begin(), headInst.end(), nullptr);
+    std::fill(missRecorded.begin(), missRecorded.end(), false);
 
     // Free function units marked as being freed this cycle.
     fuPool->processFreeUnits();
@@ -1671,7 +1675,13 @@ DefaultIEW<Impl>::tick()
 
         DPRINTF(IEW,"Issue: Processing [tid:%i]\n",tid);
 
+        // dispatch LPT时，重新计算HPT的状况
+        getDispatchable();
+
         checkSignalsAndUpdate(tid);
+
+        computeMiss(tid);
+
         dispatch(tid);
     }
 
@@ -1922,139 +1932,79 @@ template<class Impl>
 void
 DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
 {
-    /** Tid 浪费了wastedSlot*/
-    ThreadID hpt = 0; // Only care T[0]
-
-    if (missRecorded) {
-        return;
-    }
-    missRecorded = true;
-
-    switch(dispatchStatus[hpt]) {
-        case Squashing:
-        case StartSquash:
-            fmt->incMissDirect(hpt, wastedSlot, false);
-            break;
-
-        case Blocked: // 这里如何考虑front end miss还是一个问题
-            if (fromRename->frontEndMiss) {
-                fmt->incMissDirect(hpt, wastedSlot, false);
-            } else if (LBlocal || LBLC) {
-                if (insts_can_dis[hpt]) {
-                    fmt->incWaitSlot(PerThreadHead[hpt], hpt, wastedSlot);
-                } else {
-                    fmt->incWaitDirect(hpt, wastedSlot);
-                }
-            } else if(fromRename->FLB) {
-                /** What shoud we do here?! */
-                fmt->incMissDirect(hpt, wastedSlot, false);
-            } else {
-                fmt->incMissDirect(hpt, wastedSlot, false);
-            }
-            break;
-
-        case Running:
-        case Idle:
-        case Unblocking:
-            if (tid == hpt) {
-                if (fromRename->frontEndMiss) {
-                    fmt->incMissDirect(hpt, wastedSlot, false);
-
-                } else if (LBLC || fromRename->FLB || LBlocal) {
-                    int shouldDis = wastedSlot;
-                    if (fromRename->MTWValid || LBlocal) {
-                        shouldDis = std::min(fromRename->hptMissToWait +
-                                insts_can_dis[hpt], wastedSlot);
-                    }
-
-                    if (insts_can_dis[hpt]) {
-                        fmt->incWaitSlot(PerThreadHead[hpt], hpt, shouldDis);
-                    } else {
-                        fmt->incWaitDirect(hpt, shouldDis);
-                    }
-
-                } else {
-                    fmt->incMissDirect(hpt, wastedSlot, false);
-                }
-            } else {
-                if (fromRename->frontEndMiss) {
-                    fmt->incMissDirect(hpt, wastedSlot, false);
-
-                } else if (LBLC || (fromRename->FLB && !fromRename->MTWValid)) {
-                    if (insts_can_dis[hpt]) {
-                        fmt->incWaitSlot(PerThreadHead[hpt], hpt, wastedSlot);
-                    } else {
-                        fmt->incWaitDirect(hpt, wastedSlot);
-                    }
-
-                } else if (LBlocal || (fromRename->FLB && fromRename->MTWValid)) {
-                    int shouldDis = std::min(fromRename->hptMissToWait +
-                            insts_can_dis[hpt], wastedSlot);
-
-                    if (insts_can_dis[hpt]) {
-                        fmt->incWaitSlot(PerThreadHead[hpt], hpt, shouldDis);
-                    } else {
-                        fmt->incWaitDirect(hpt, shouldDis);
-                    }
-
-                } else {
-                    fmt->incMissDirect(hpt, wastedSlot, false);
-                }
-            }
-            break;
-    }
-
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        DPRINTF(FmtSlot, "T[%i]  IQ: %i, LQ: %i, SQ: %i\n", tid,
-                instQueue.numBusyEntries(tid), ldstQueue.numLoads(tid),
-                ldstQueue.numStores(tid)
-               );
+    /** Because of the behavior of incMiss changed
+      * Stat Overlapped is not accurate now
+      */
+    if (tid == 0) {
+        fmt->incMissDirect(0, wastedSlot, false);
+    } else {
+        fmt->incMissDirect(0, wastedSlot, true);
     }
 }
 
-    /*
-{
-    int missRect = fromRename->hptMissToWait;
-    ThreadID hpt = 0; // Only care T[0]
-    assert(missRect >= 0);
-
-    DPRINTF(FmtSlot, "Recording miss of T[%d].\n", tid);
-    DPRINTF(FmtSlot, "Number of wasted slots is %d\n", wastedSlot);
-    DPRINTF(FmtSlot, "Number of missRect is %d\n", missRect);
-
-    int numCanDisp;
-
-    if (tid == 0) {
-        numCanDisp = missRect;
-    } else {
-        numCanDisp = missRect + insts_can_dis[hpt];
-    }
-
-    DPRINTF(FmtSlot, "Number of inst can dis is %d\n", numCanDisp);
-
-    int waits = std::min(numCanDisp, wastedSlot);
-
-    if (waits) {
-        DPRINTF(FmtSlot, "Increment %d wait slot of T[%d] in Record miss.\n",
-                waits, hpt);
-
-        rectifiedWaits[hpt] += waits;
-
-        if (insts_can_dis[hpt]) {
-            fmt->incWaitSlot(PerThreadHead[hpt], hpt, waits);
-
-        } else {
-            fmt->incWaitDirect(hpt, waits);
+template<class Impl>
+void
+DefaultIEW<Impl>::getDispatchable() {
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        switch (dispatchStatus[tid]) {
+            case Running:
+            case Idle:
+                dispatchable[tid] = insts[tid].size();
+                break;
+            case Blocked:
+            case Unblocking:
+                dispatchable[tid] = skidBuffer[tid].size();
+                break;
+            case Squashing:
+            case StartSquash:
+                dispatchable[tid] = 0;
+                break;
         }
     }
+}
 
-    if (wastedSlot - waits) {
-        DPRINTF(FmtSlot, "Increment %d miss slot of T[%d] in Record miss.\n",
-                wastedSlot - waits, hpt);
-        fmt->incMissDirect(hpt, wastedSlot - waits, false);
+template<class Impl>
+void
+DefaultIEW<Impl>::computeMiss(ThreadID tid) {
+    /**在dispatch之前被调用
+     *记录已经确定了的该线程在本周期的wait和miss情况
+     */
+
+    switch (dispatchStatus[tid]) {
+        case Running:
+        case Idle:
+            /**本周期的指令数填不满分发宽度，一定有miss
+             *后面带宽填不满的问题就不要管了
+             */
+            if (dispatchable[tid] < dispatchWidths[tid]) {
+                recordMiss(dispatchWidths[tid] - dispatchable[tid], tid);
+            }
+            break;
+
+        case Blocked:
+            /**block一定导致本周期miss*/
+            recordMiss(dispatchWidths[tid], tid);
+            if (LBlocal) {
+                this->sumLocalSlots(tid, true, dispatchWidths[tid]);
+            }
+            break;
+
+        case Unblocking:
+            /**本周期的指令数填不满分发宽度，一定有miss*/
+            recordMiss(dispatchWidths[tid] - dispatchable[tid], tid);
+            if (LBLC) {
+                this->sumLocalSlots(tid, true,
+                        dispatchWidths[tid] - dispatchable[tid]);
+            }
+            break;
+
+        case Squashing:
+        case StartSquash:
+            /**Squash一定导致本周期miss*/
+            recordMiss(dispatchWidths[tid], tid);
+            break;
     }
 }
 
-*/
 
 #endif//__CPU_O3_IEW_IMPL_IMPL_HH__
