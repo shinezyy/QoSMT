@@ -521,8 +521,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
     Voc *voc;
 
-    DynInstPtr PerThreadHead[Impl::MaxThreads];
-
   public:
 
     int getNumIQFull(ThreadID tid) const;

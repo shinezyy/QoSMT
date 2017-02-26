@@ -1288,8 +1288,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 DPRINTF(FmtSlot, "Increment 1 wait slot of T[%d],"
                         " because thread %d dispatch one instruction\n", hpt, tid);
 
-                fmt->incWaitSlot(PerThreadHead[hpt], hpt, 1);
-                this->sumLocalSlots(hpt, false, -1);
+                this->sumLocalSlots(hpt, true, 1);
+
                 dispatchable[hpt] -= 1;
             } else {
                 DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
@@ -1957,28 +1957,12 @@ DefaultIEW<Impl>::getDispatchable() {
             case Running:
             case Idle:
                 dispatchable[tid] = insts[tid].size();
-                if (dispatchable[tid]) {
-                    PerThreadHead[tid] = insts[tid].front();
-                } else {
-                    /**如果意外使用了无意义的该变量，触发段错误*/
-                    bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
-                }
                 break;
             case Blocked:
                 dispatchable[tid] = skidBuffer[tid].size();
-                if (dispatchable[tid]) {
-                    PerThreadHead[tid] = skidBuffer[tid].front();
-                } else {
-                    bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
-                }
                 break;
             case Unblocking:
                 dispatchable[tid] = skidBuffer[tid].size();
-                if (dispatchable[tid]) {
-                    PerThreadHead[tid] = skidBuffer[tid].front();
-                } else {
-                    bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
-                }
                 /**should dispatch*/
                 if(LBLC) {
                     const int fullDisWidth = 8;
@@ -1988,7 +1972,6 @@ DefaultIEW<Impl>::getDispatchable() {
             case Squashing:
             case StartSquash:
                 dispatchable[tid] = 0;
-                bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
                 break;
         }
     }
