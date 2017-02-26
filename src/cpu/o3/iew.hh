@@ -521,8 +521,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
     Voc *voc;
 
-    int insts_can_dis[Impl::MaxThreads];
-
     DynInstPtr PerThreadHead[Impl::MaxThreads];
 
   public:
@@ -539,7 +537,7 @@ class DefaultIEW : public SlotCounter<Impl>
 
     bool Programmable;
 
-    unsigned dispatchWidths[Impl::MaxThreads];
+    int dispatchWidths[Impl::MaxThreads];
 
     void reassignDispatchWidth(int newWidthVec[], int lenWidthVec);
 
@@ -576,6 +574,8 @@ class DefaultIEW : public SlotCounter<Impl>
     void computeMiss(ThreadID tid);
 
     std::vector<int> slotsThisCycle;
+
+    int numLPTcause;
 };
 
 #endif // __CPU_O3_IEW_HH__

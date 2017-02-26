@@ -1828,14 +1828,14 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
-    switch(renameStatus[0]) {
+    switch(renameStatus[tid]) {
         case Blocked:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
 
             toDecode->renameInfo[tid].BLB =
                 fromIEW->iewInfo[tid].BLB || LB_all || LB_part;
 
-            if (toDecode->renameInfo[0].BLB) {
+            if (toDecode->renameInfo[tid].BLB) {
                 if (LB_all || LB_part) {
                     DPRINTF(LB, "Send BLB to Decode because of local detection\n");
                 } else {
@@ -1847,9 +1847,9 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         case Running:
         case Idle:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
-            assert(!fromIEW->iewInfo[0].BLB);
+            assert(!fromIEW->iewInfo[tid].BLB);
             assert(!(LB_all || LB_part));
-            toDecode->renameInfo[0].BLB = false;
+            toDecode->renameInfo[tid].BLB = false;
             /** 在rename或者decode的running阶段，有可能带宽是没有用满的，
               * 但是没关系，因为如果是wait，下面的指令一定记录了，
               * 如果是miss，我们不用管
@@ -1858,15 +1858,15 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 
         case Unblocking:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
-            assert(!fromIEW->iewInfo[0].BLB);
+            assert(!fromIEW->iewInfo[tid].BLB);
             assert(!(LB_all || LB_part));
             /**如果此前有BLB，那么此时应该让告诉decode：这是LPT的锅*/
-            toDecode->renameInfo[0].BLB = BLBlocal;
+            toDecode->renameInfo[tid].BLB = BLBlocal;
 
             if (BLBlocal) {
                 DPRINTF(LB, "Send BLB to Decode becaues of BLBlocal\n");
             }
-            if (toIEWNum[0] < renameWidths[0] && LBLC) {
+            if (toIEWNum[tid] < renameWidths[tid] && LBLC) {
                 DPRINTF(LB, "LPT blocked HPT in last cycle, leads to bandwidth waste,"
                         "in this cycle\n");
             }
@@ -1875,13 +1875,13 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         case StartSquash:
         case Squashing:
             toIEW->frontEndMiss = true;
-            toDecode->renameInfo[0].BLB = false;
+            toDecode->renameInfo[tid].BLB = false;
             DPRINTF(LB, "No BLB because of Squashing\n");
             break;
 
         case SerializeStall:
-            toIEW->frontEndMiss = true; // 这里是1或者0有待进一步思考
-            toDecode->renameInfo[0].BLB = false;
+            toIEW->frontEndMiss = true; // 这里是1或者tid有待进一步思考
+            toDecode->renameInfo[tid].BLB = false;
             DPRINTF(LB, "No BLB because of SerializeStall\n");
             break;
     }

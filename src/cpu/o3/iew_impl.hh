@@ -86,7 +86,6 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       Programmable(params->iewProgrammable),
       hptInitDispatchWidth(params->hptInitDispatchWidth),
       LBlocal(false),
-      LBLC(false),
       dispatched(params->numThreads, 0),
       dispatchable(params->numThreads, 0),
       BLBlocal(false),
@@ -119,7 +118,6 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         dispatchStatus[tid] = Running;
         fetchRedirect[tid] = false;
-        tempWaitSlots[tid] = 0;
         dispatchWidths[tid] = dispatchWidth/numThreads;
     }
 
@@ -845,6 +843,7 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
     } else if (instQueue.isFull(tid)) {
         if (tid == 0 && instQueue.numBusyEntries(1) > 0) {
             LBlocal = true;
+            numLPTcause = instQueue.numBusyEntries(1);
         }
         DPRINTF(IEW,"[tid:%i]: Stall: IQ  is full.\n",tid);
         ret_val = true;
@@ -1000,24 +999,6 @@ DefaultIEW<Impl>::dispatch(ThreadID tid)
 
     DPRINTF(FmtSlot, "Dispatch thread(%d)\n", tid);
 
-    for (ThreadID t = 0; t < numThreads; t++) {
-        /**假设tid == 1，tid 0已经dispatch过了，那么
-         *如果T0没有分发完所有的指令，它的状态应该是blocked，
-         *指令在skidBuffer里面
-         */
-        if (dispatchStatus[t] == Unblocking || dispatchStatus[t] == Blocked) {
-            insts_can_dis[t] = skidBuffer[t].size();
-            if (insts_can_dis[t]) {
-                PerThreadHead[t] = skidBuffer[t].front();
-            }
-        } else {
-            insts_can_dis[t] = insts[t].size();
-            if (insts_can_dis[t]) {
-                PerThreadHead[t] = insts[t].front();
-            }
-        }
-    }
-
     if (dispatchStatus[tid] == Blocked) {
         ++iewBlockCycles[tid];
         DPRINTF(FmtSlot, "Recording miss slots when T[%d] is blocked.\n", tid);
@@ -1077,6 +1058,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
     bool add_to_iq = false;
     int dis_num_inst = 0;
 
+    const ThreadID hpt = 0;
+
     // Loop through the instructions, putting them in the instruction
     // queuedis_num_inst
     for ( ; dis_num_inst < insts_to_add &&
@@ -1129,8 +1112,10 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         if (instQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i]: Issue: IQ has become full.\n", tid);
 
-            if (tid == 0 && instQueue.numBusyEntries(LPT) > 0) {
+            if (tid == hpt && instQueue.numBusyEntries(LPT) > 0) {
                 LBlocal = true;
+                numLPTcause = std::min((int) instQueue.numBusyEntries(LPT),
+                        dispatchable[hpt] );
             }
 
             // Call function to start blocking.
@@ -1155,11 +1140,15 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: %s has become full.\n",tid,
                     inst->isLoad() ? "LQ" : "SQ");
 
-            if (tid == 0) {
+            if (tid == hpt) {
                 if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
                     LBlocal = true;
+                    numLPTcause = std::min((int) ldstQueue.numLoads(LPT),
+                            dispatchable[hpt]);
                 } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
                     LBlocal = true;
+                    numLPTcause = std::min((int) ldstQueue.numStores(LPT),
+                            dispatchable[hpt]);
                 }
             }
 
@@ -1266,7 +1255,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
         dispatched[tid]++;
 
-        const ThreadID hpt = 0;
         if (tid == hpt && !headInst[tid]) {
             headInst[tid] = inst;
             /** Do correction. */
@@ -1285,6 +1273,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         if (hpt == tid) {
             DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
             fmt->incBaseSlot(inst, hpt, 1);
+            dispatchable[hpt]--;
+            //checked above
         } else {
             this->sumLocalSlots(hpt, false, 1);
             if (dispatchStatus[hpt] == StartSquash ||
@@ -1294,16 +1284,13 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                         " because it is Squashing.\n", hpt);
                 fmt->incMissDirect(hpt, 1, true);
 
-            } else if (insts_can_dis[hpt] > 0 && !(dispatchStatus[hpt] ==
-                        Unblocking && fromRename->frontEndMiss)) {
+            } else if (dispatchable[hpt] > 0) {
                 DPRINTF(FmtSlot, "Increment 1 wait slot of T[%d],"
                         " because thread %d dispatch one instruction\n", hpt, tid);
+
                 fmt->incWaitSlot(PerThreadHead[hpt], hpt, 1);
                 this->sumLocalSlots(hpt, false, -1);
-                insts_can_dis[hpt] -= 1;
-                // 必须保证减的是另一个线程的insts_can_dis
-                tempWaitSlots[hpt] += 1;
-
+                dispatchable[hpt] -= 1;
             } else {
                 DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
                         " because it has no instruction to dispatch.\n", hpt);
@@ -1319,22 +1306,42 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         ppDispatch->notify(inst);
     }
 
-    /**
-     * TODO
-     * 处理各个线程未被利用的分发带宽
-     */
-    if (!insts_to_dispatch.empty()) {
-        if (0 == tid) {
-            recordMiss(insts_to_dispatch.size(), tid);
-            this->sumLocalSlots(tid, false, insts_to_dispatch.size());
+    if (dispatchable[hpt] > 0) {
+        recordMiss(insts_to_dispatch.size(), tid);
+        this->sumLocalSlots(tid, false, insts_to_dispatch.size());
 
-            if (tid == 0 && LBlocal) {
-                this->sumLocalSlots(tid, true, insts_to_dispatch.size());
-            } else if (tid != 0 && insts_can_dis[0]) {
-                /**LPT本来还有指令可以发射*/
-                this->sumLocalSlots(tid, true, insts_to_dispatch.size());
+        if (hpt == tid) {
+            //checked above
+            if (LBlocal && !fromRename->frontEndMiss) {
+                this->sumLocalSlots(tid, true, numLPTcause);
+                dispatchable[hpt] -= numLPTcause;
+            }
+            if (dispatchStatus[hpt] == Unblocking && !fromRename->frontEndMiss
+                    && LBLC && dispatchable[hpt] > 0) {
+                this->sumLocalSlots(tid, true, dispatchable[hpt]);
+                dispatchable[hpt] = -1;
+            }
+        } else if (tid != hpt && !fromRename->frontEndMiss) {
+            /**LPT本来还有指令可以发射*/
+            this->sumLocalSlots(tid, true, insts_to_dispatch.size());
+
+            int wasted = insts_to_dispatch.size();
+
+
+            if (dispatchStatus[hpt] == Running ||
+                    dispatchStatus[hpt] == Unblocking) {
+                this->sumLocalSlots(hpt, true, std::min(dispatchable[hpt], wasted) );
+                dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
+            }
+            if (dispatchStatus[hpt] == Blocked && LBlocal) {
+                this->sumLocalSlots(hpt, true, wasted);
+                dispatchable[hpt] -= wasted;
             }
         }
+    }
+
+    if (!insts_to_dispatch.empty()) {
+
 
         DPRINTF(IEW,"[tid:%i]: Issue: Bandwidth Full. Blocking.\n", tid);
 
@@ -1656,6 +1663,7 @@ DefaultIEW<Impl>::tick()
 
     LBLC = LBlocal;
     LBlocal = false; // reset it
+    numLPTcause = -1; // -1表示无意义
 
     std::fill(dispatched.begin(), dispatched.end(), 0);
     std::fill(headInst.begin(), headInst.end(), nullptr);
@@ -1671,13 +1679,11 @@ DefaultIEW<Impl>::tick()
     ldstQueue.updateMaxEntries();
 
     // Check stall and squash signals, dispatch any instructions.
+    getDispatchable();
     while (threads != end) {
         ThreadID tid = *threads++;
 
         DPRINTF(IEW,"Issue: Processing [tid:%i]\n",tid);
-
-        // dispatch LPT时，重新计算HPT的状况
-        getDispatchable();
 
         checkSignalsAndUpdate(tid);
 
@@ -1951,14 +1957,38 @@ DefaultIEW<Impl>::getDispatchable() {
             case Running:
             case Idle:
                 dispatchable[tid] = insts[tid].size();
+                if (dispatchable[tid]) {
+                    PerThreadHead[tid] = insts[tid].front();
+                } else {
+                    /**如果意外使用了无意义的该变量，触发段错误*/
+                    bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
+                }
                 break;
             case Blocked:
+                dispatchable[tid] = skidBuffer[tid].size();
+                if (dispatchable[tid]) {
+                    PerThreadHead[tid] = skidBuffer[tid].front();
+                } else {
+                    bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
+                }
+                break;
             case Unblocking:
                 dispatchable[tid] = skidBuffer[tid].size();
+                if (dispatchable[tid]) {
+                    PerThreadHead[tid] = skidBuffer[tid].front();
+                } else {
+                    bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
+                }
+                /**should dispatch*/
+                if(LBLC) {
+                    const int fullDisWidth = 8;
+                    dispatchable[tid] = fullDisWidth;
+                }
                 break;
             case Squashing:
             case StartSquash:
                 dispatchable[tid] = 0;
+                bzero((char *) &PerThreadHead[tid], sizeof(DynInstPtr));
                 break;
         }
     }
@@ -1976,44 +2006,32 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
     switch (dispatchStatus[tid]) {
         case Running:
         case Idle:
-            /**本周期的指令数填不满分发宽度，一定有miss
-             *后面带宽填不满的问题就不要管了
-             */
+        case Unblocking:
             if (dispatchable[tid] < dispatchWidths[tid]) {
-                recordMiss(dispatchWidths[tid] - dispatchable[tid], tid);
-                this->sumLocalSlots(hpt, false,
-                        dispatchWidths[tid] - dispatchable[tid]);
+                int wasted = dispatchWidths[tid] - dispatchable[tid];
+                recordMiss(wasted, tid);
+                this->sumLocalSlots(hpt, false, wasted);
 
-                if (tid == hpt && dispatchable[hpt] > 0) {
-                    this->sumLocalSlots(hpt, true,
-                            dispatchWidths[tid] - dispatchable[tid]);
+                if (tid != hpt && dispatchable[hpt] > 0 && !fromRename->frontEndMiss) {
+                    if (dispatchStatus[hpt] == Running ||
+                            dispatchStatus[hpt] == Unblocking) {
+                        this->sumLocalSlots(hpt, true, std::min(dispatchable[hpt],
+                                    wasted) );
+                        dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
+                    }
+                    if (dispatchStatus[hpt] == Blocked && LBlocal) {
+                        this->sumLocalSlots(hpt, true, wasted);
+                        dispatchable[hpt] -= wasted;
+                    }
                 }
             }
             break;
 
         case Blocked:
-            /**block一定导致本周期miss*/
-            recordMiss(dispatchWidths[tid], tid);
-            this->sumLocalSlots(hpt, false, dispatchWidths[tid]);
-
-            if (LBlocal) {
+            /**block一定导致本周期miss */
+            if (hpt == tid && LBlocal && !fromRename->frontEndMiss) {
                 this->sumLocalSlots(hpt, true, dispatchWidths[tid]);
             }
-            break;
-
-        case Unblocking:
-            /**本周期的指令数填不满分发宽度，一定有miss*/
-            if (dispatchable[tid] < dispatchWidths[tid]) {
-                recordMiss(dispatchWidths[tid] - dispatchable[tid], tid);
-                this->sumLocalSlots(hpt, false,
-                        dispatchWidths[tid] - dispatchable[tid]);
-
-                if (tid == hpt && LBLC) {
-                    this->sumLocalSlots(tid, true,
-                            dispatchWidths[tid] - dispatchable[tid]);
-                }
-            }
-            break;
 
         case Squashing:
         case StartSquash:
@@ -2021,9 +2039,22 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
             recordMiss(dispatchWidths[tid], tid);
             this->sumLocalSlots(hpt, false, dispatchWidths[tid]);
 
-            if (hpt != tid && LBlocal) {
-                this->sumLocalSlots(hpt, true, dispatchWidths[tid]);
+            if (tid != hpt && dispatchable[hpt] > 0 && !fromRename->frontEndMiss) {
+                if (dispatchStatus[hpt] == Running ||
+                        dispatchStatus[hpt] == Unblocking) {
+                    this->sumLocalSlots(hpt, true, std::min(dispatchable[hpt],
+                                dispatchWidths[tid]) );
+                    dispatchable[hpt] -= std::min(dispatchable[hpt],
+                            dispatchWidths[tid]);
+                }
+                if (dispatchStatus[hpt] == Blocked && LBlocal) {
+                    this->sumLocalSlots(hpt, true, dispatchWidths[tid]);
+                    dispatchable[hpt] -= dispatchWidths[tid];
+                }
             }
+            break;
+
+        default:
             break;
     }
 }
