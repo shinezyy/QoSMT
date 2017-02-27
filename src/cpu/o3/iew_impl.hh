@@ -62,6 +62,7 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
+#include "debug/FmtSlot2.hh"
 #include "params/DerivO3CPU.hh"
 
 using namespace std;
@@ -1680,10 +1681,10 @@ DefaultIEW<Impl>::tick()
 
     // Check stall and squash signals, dispatch any instructions.
     getDispatchable();
-    while (threads != end) {
-        ThreadID tid = *threads++;
 
-        DPRINTF(IEW,"Issue: Processing [tid:%i]\n",tid);
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+
+        DPRINTF(FmtSlot2, "Dispatch: Processing [tid:%i]\n",tid);
 
         checkSignalsAndUpdate(tid);
 
@@ -1716,7 +1717,8 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
-    toRename->iewInfo[0].BLB = LBlocal || BLBlocal;
+    toRename->iewInfo[0].BLB = LBlocal || (BLBlocal &&
+            dispatchStatus[0] == Unblocking);
 
     if (toRename->iewInfo[0].BLB) {
         DPRINTF(FmtSlot, "Send LPT cause HPT Stall backward to rename.\n");
@@ -1957,21 +1959,30 @@ DefaultIEW<Impl>::getDispatchable() {
             case Running:
             case Idle:
                 dispatchable[tid] = insts[tid].size();
+                DPRINTF(FmtSlot2, "T[%i][Running] has %i insts to dispatch\n",
+                        tid, dispatchable[tid]);
                 break;
             case Blocked:
                 dispatchable[tid] = skidBuffer[tid].size();
+                DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to dispatch\n",
+                        tid, dispatchable[tid]);
                 break;
             case Unblocking:
                 dispatchable[tid] = skidBuffer[tid].size();
+                DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to dispatch\n",
+                        tid, dispatchable[tid]);
                 /**should dispatch*/
                 if(LBLC) {
                     const int fullDisWidth = 8;
                     dispatchable[tid] = fullDisWidth;
+                    DPRINTF(FmtSlot2, "T[%i] has %i insts should dispatch\n",
+                            tid, dispatchable[tid]);
                 }
                 break;
             case Squashing:
             case StartSquash:
                 dispatchable[tid] = 0;
+                DPRINTF(FmtSlot2, "T[%i][Squash] has no insts to dispatch\n", tid);
                 break;
         }
     }
@@ -2007,6 +2018,8 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
                         dispatchable[hpt] -= wasted;
                     }
                 }
+                DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
+                        tid, wasted);
             }
             break;
 
@@ -2035,6 +2048,9 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
                     dispatchable[hpt] -= dispatchWidths[tid];
                 }
             }
+
+            DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
+                    tid, dispatchWidths[tid]);
             break;
 
         default:

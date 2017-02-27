@@ -991,11 +991,8 @@ DefaultFetch<Impl>::tick()
     for (auto tid : *activeThreads) {
         if (!stalls[tid].decode) {
             available_insts += fetchQueue[tid].size();
-            //将numInsts[tid]的意义变更为实际将会送到decode的指令的数量
-            numInsts[tid] = fetchQueue[tid].size();
-        } else {
-            numInsts[tid] = 0;
         }
+        numInsts[tid] = 0;
     }
 
     // Pick a random thread to start trying to grab instructions from
@@ -1014,6 +1011,7 @@ DefaultFetch<Impl>::tick()
             wroteToTimeBuffer = true;
             fetchQueue[tid].pop_front();
             insts_to_decode_all++;
+            numInsts[tid]++;
             available_insts--;
         }
 
@@ -1021,6 +1019,10 @@ DefaultFetch<Impl>::tick()
         // Wrap around if at end of active threads list
         if (tid_itr == activeThreads->end())
             tid_itr = activeThreads->begin();
+
+        if (numInsts[tid] >= fetchWidths[tid]) {
+            break;
+        }
     }
 
     // If there was activity this cycle, inform the CPU of it.

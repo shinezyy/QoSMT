@@ -452,10 +452,9 @@ DefaultRename<Impl>::tick()
     list<ThreadID>::iterator end = activeThreads->end();
 
     // Check stall and squash signals.
-    while (threads != end) {
-        ThreadID tid = *threads++;
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
 
-        DPRINTF(Rename, "Processing [tid:%i]\n", tid);
+        DPRINTF(FmtSlot2, "Processing [tid:%i]\n", tid);
 
         status_change = checkSignalsAndUpdate(tid) || status_change;
 

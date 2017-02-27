@@ -4,6 +4,7 @@
 
 #include <cstdint>
 #include <vector>
+#include <string>
 
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
@@ -31,6 +32,8 @@ class SlotCounter
     void sumLocalSlots(ThreadID tid, bool isWait, int32_t num);
 
     void assignSlots(ThreadID tid, DynInstPtr& inst);
+
+    virtual std::string name() const = 0;
 
 };
 
