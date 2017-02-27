@@ -91,5 +91,4 @@ $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --l2_size=4MB\
     --l2_assoc=16\
     $smt\
-    | tee -a $SCRIPT_OUT\
     > nohup.$benchmark 2>&1 &
