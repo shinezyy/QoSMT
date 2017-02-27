@@ -618,6 +618,7 @@ template <class Impl>
 void
 DefaultRename<Impl>::renameInsts(ThreadID tid)
 {
+    LB_part = tid == 0 ? false : LB_part;
     // Instructions can be either in the skid buffer or the queue of
     // instructions coming from decode, depending on the status.
     int insts_available = renameStatus[tid] == Unblocking ?
@@ -1075,7 +1076,7 @@ DefaultRename<Impl>::block(ThreadID tid)
             renameStatus[tid] = Blocked;
 
             BLBlocal = tid == 0 ?
-                fromIEW->iewInfo[0].BLB || LB_all || LB_part : BLBlocal;
+                fromIEW->iewInfo[0].BLB || LB_all : BLBlocal;
 
             DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
             return true;
@@ -1460,7 +1461,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
                 break;
         }
         numLPTcause = std::min(numAvailInsts, renameWidths[tid]);
-        DPRINTF(FmtSlot, "T[0]: %i insts in skidbuffer, %i insts from decode\n",
+        DPRINTF(FmtSlot2, "T[0]: %i insts in skidbuffer, %i insts from decode\n",
                 skidBuffer[tid].size(), insts[tid].size());
     }
 
@@ -1469,6 +1470,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
         if (tid == 0) {
             LB_all = fromIEW->iewInfo[0].BLB;
+            DPRINTF(FmtSlot2, "HPT stall from IEW stage detected.\n", tid);
         }
 
     } else if (calcFreeROBEntries(tid) <= 0) {
@@ -1476,33 +1478,41 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == 0) {
-            LB_all = calcOwnROBEntries(LPT) > 0;
+            /**即使没有LPT， HPT一样会stall*/
+            LB_all = calcOwnROBEntries(LPT) >= renameWidths[0];
+            LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnROBEntries(LPT), numLPTcause);
 
-            DPRINTF(FmtSlot, "HPT stall because no ROB.\n");
+            DPRINTF(FmtSlot2, "HPT stall because no ROB.\n");
         }
 
     } else if (calcFreeIQEntries(tid) <= 0) {
+        /**为什么这里要检测？可不可以不检测？*/
         DPRINTF(Rename,"[tid:%i]: Stall: IQ has 0 free entries.\n", tid);
         ret_val = true;
 
         if (tid == 0) {
-            LB_all = calcOwnIQEntries(LPT) > 0;
+            LB_all = calcOwnIQEntries(LPT) >= renameWidths[0];
+            LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnIQEntries(LPT), numLPTcause);
 
-            DPRINTF(FmtSlot, "HPT stall because no IQ.\n");
+            DPRINTF(FmtSlot2, "HPT stall because no IQ.\n");
         }
 
     } else if (calcFreeLQEntries(tid) <= 0 && calcFreeSQEntries(tid) <= 0) {
+        /**为什么这里要检测？可不可以不检测？*/
         DPRINTF(Rename,"[tid:%i]: Stall: LSQ has 0 free entries.\n", tid);
         ret_val = true;
 
         if (tid == 0) {
-            LB_all = (calcOwnLQEntries(LPT) > 0) || (calcOwnSQEntries(LPT) > 0);
+            LB_all = (calcOwnLQEntries(LPT) > renameWidths[0]) ||
+                (calcOwnSQEntries(LPT) > renameWidths[0]);
+            LB_part = !LB_all && ((calcOwnLQEntries(LPT) > 0) ||
+                (calcOwnSQEntries(LPT) > 0));
             numLPTcause = std::min(std::min(calcOwnLQEntries(LPT),
                         calcOwnSQEntries(LPT)), numLPTcause);
 
-            DPRINTF(FmtSlot, "HPT stall because no LSQ.\n");
+            DPRINTF(FmtSlot2, "HPT stall because no LSQ.\n");
         }
 
     } else if (renameMap[tid]->numFreeEntries() <= 0) {
@@ -1517,7 +1527,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
     }
 
-    if (tid == 0 && LB_all) {
+    if (tid == 0 && (LB_all || LB_part)) {
         counted[0] = true;
         if (LBLC) {
             /** 上个周期被LPT阻塞了，导致一队指令被拆散，导致
@@ -1832,10 +1842,11 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
 
             toDecode->renameInfo[tid].BLB =
-                fromIEW->iewInfo[tid].BLB || LB_all || LB_part;
+                fromIEW->iewInfo[tid].BLB || LB_all;
+            /**如果LB_part，那么这个周期没有LPT也会阻塞，肯定会阻塞上一个stage*/
 
             if (toDecode->renameInfo[tid].BLB) {
-                if (LB_all || LB_part) {
+                if (LB_all) {
                     DPRINTF(LB, "Send BLB to Decode because of local detection\n");
                 } else {
                     DPRINTF(LB, "Forward BLB from IEW to Decode\n");
