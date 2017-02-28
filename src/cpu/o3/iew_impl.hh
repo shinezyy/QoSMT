@@ -86,7 +86,6 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       numIQFull(params->numThreads),
       Programmable(params->iewProgrammable),
       hptInitDispatchWidth(params->hptInitDispatchWidth),
-      LBlocal(false),
       dispatched(params->numThreads, 0),
       dispatchable(params->numThreads, 0),
       BLBlocal(false),
@@ -626,7 +625,7 @@ DefaultIEW<Impl>::block(ThreadID tid)
     skidInsert(tid);
 
     dispatchStatus[tid] = Blocked;
-    BLBlocal = tid == 0 ? LBlocal : BLBlocal;
+    BLBlocal = tid == 0 ? LB_all : BLBlocal;
 }
 
 template<class Impl>
@@ -847,9 +846,13 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
         DPRINTF(IEW,"[tid:%i]: Stall from Commit stage detected.\n",tid);
         ret_val = true;
     } else if (instQueue.isFull(tid)) {
-        if (tid == 0 && instQueue.numBusyEntries(1) > 0) {
-            LBlocal = true;
-            numLPTcause = instQueue.numBusyEntries(1);
+        if (tid == 0) {
+            LB_all = instQueue.numBusyEntries(1) >= dispatchWidth;
+            LB_part = !LB_all && instQueue.numBusyEntries(1) > 0;
+            /**TODO检查后面用到这个numLPTcause的情况，
+             * 以确定应该使用dispatchWidth，还是dispatchWidths
+             */
+            numLPTcause = std::min(instQueue.numBusyEntries(1), dispatchWidth);
         }
         DPRINTF(IEW,"[tid:%i]: Stall: IQ  is full.\n",tid);
         ret_val = true;
@@ -1119,7 +1122,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: IQ has become full.\n", tid);
 
             if (tid == hpt && instQueue.numBusyEntries(LPT) > 0) {
-                LBlocal = true;
+                LB_all = instQueue.numBusyEntries(LPT) > dispatchable[hpt];
+                LB_part = !LB_all;
                 numLPTcause = std::min((int) instQueue.numBusyEntries(LPT),
                         dispatchable[hpt] );
             }
@@ -1148,11 +1152,11 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             if (tid == hpt) {
                 if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
-                    LBlocal = true;
+                    LB_all = true;
                     numLPTcause = std::min((int) ldstQueue.numLoads(LPT),
                             dispatchable[hpt]);
                 } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
-                    LBlocal = true;
+                    LB_all = true;
                     numLPTcause = std::min((int) ldstQueue.numStores(LPT),
                             dispatchable[hpt]);
                 }
@@ -1318,7 +1322,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
         if (hpt == tid) {
             //checked above
-            if (LBlocal && !fromRename->frontEndMiss) {
+            if ((LB_all || LB_part) && !fromRename->frontEndMiss) {
                 this->sumLocalSlots(tid, true, numLPTcause);
                 dispatchable[hpt] -= numLPTcause;
             }
@@ -1339,7 +1343,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 this->sumLocalSlots(hpt, true, std::min(dispatchable[hpt], wasted) );
                 dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
             }
-            if (dispatchStatus[hpt] == Blocked && LBlocal) {
+            if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part) ) {
                 this->sumLocalSlots(hpt, true, wasted);
                 dispatchable[hpt] -= wasted;
             }
@@ -1667,8 +1671,10 @@ DefaultIEW<Impl>::tick()
 
     sortInsts();
 
-    LBLC = LBlocal;
-    LBlocal = false; // reset it
+    LBLC = LB_all || LB_part;
+
+    LB_all = false; // reset it
+    LB_part = false; // reset it
     numLPTcause = -1; // -1表示无意义
 
     std::fill(dispatched.begin(), dispatched.end(), 0);
@@ -1722,7 +1728,7 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
-    toRename->iewInfo[0].BLB = LBlocal || (BLBlocal &&
+    toRename->iewInfo[0].BLB = LB_all || (LBLC &&
             dispatchStatus[0] == Unblocking);
 
     if (toRename->iewInfo[0].BLB) {
@@ -2018,7 +2024,7 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
                                     wasted) );
                         dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
                     }
-                    if (dispatchStatus[hpt] == Blocked && LBlocal) {
+                    if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part)) {
                         this->sumLocalSlots(hpt, true, wasted);
                         dispatchable[hpt] -= wasted;
                     }
@@ -2030,7 +2036,7 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
 
         case Blocked:
             /**block一定导致本周期miss */
-            if (hpt == tid && LBlocal && !fromRename->frontEndMiss) {
+            if (hpt == tid && (LB_all || LB_part) && !fromRename->frontEndMiss) {
                 this->sumLocalSlots(hpt, true, dispatchWidths[tid]);
             }
 
@@ -2048,7 +2054,7 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
                     dispatchable[hpt] -= std::min(dispatchable[hpt],
                             dispatchWidths[tid]);
                 }
-                if (dispatchStatus[hpt] == Blocked && LBlocal) {
+                if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part)) {
                     this->sumLocalSlots(hpt, true, dispatchWidths[tid]);
                     dispatchable[hpt] -= dispatchWidths[tid];
                 }
