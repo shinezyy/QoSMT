@@ -608,7 +608,7 @@ class DefaultRename : public SlotCounter<Impl>
                 return toIEW->insts[i];
             }
         }
-        assert(0);
+        panic("T[%i]: No available insts to next stage!\n", tid);
         return toIEW->insts[~0];
     }
 };

@@ -338,8 +338,7 @@ class DefaultDecode : public SlotCounter<Impl>
                 return toRename->insts[i];
             }
         }
-        assert(0);
-        //触发段错误
+        panic("T[%i]: No available insts to next stage!\n", tid);
         return toRename->insts[~0];
     }
 };

@@ -634,7 +634,7 @@ class DefaultFetch : public SlotCounter<Impl>
                 return toDecode->insts[i];
             }
         }
-        assert(0);
+        panic("T[%i]: No available insts to next stage!\n", tid);
         return toDecode->insts[~0];
     }
 };
