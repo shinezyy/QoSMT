@@ -418,6 +418,11 @@ DefaultDecode<Impl>::skidInsert(ThreadID tid)
 
         assert(tid == inst->threadNumber);
 
+        /**这条指令即将被阻塞，说明它提前到达此阶段也无法提前被处理*/
+        if (inst->getWaitSlot() > 0 && !skidBuffer[tid].empty()) {
+            this->reshape(inst);
+        }
+
         skidBuffer[tid].push(inst);
 
         DPRINTF(Decode,"Inserting [tid:%d][sn:%lli] PC: %s into decode skidBuffer %i\n",

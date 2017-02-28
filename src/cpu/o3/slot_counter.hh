@@ -35,6 +35,10 @@ class SlotCounter
 
     virtual std::string name() const = 0;
 
+    void reshape(DynInstPtr& inst) {
+        inst->incWaitSlot(-inst->getWaitSlot());
+        inst->incMissSlot(-inst->getMissSlot());
+    }
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__

@@ -329,8 +329,6 @@ class DefaultDecode : public SlotCounter<Impl>
 
     bool BLBlocal; //用于Unblocking时的后向LB
 
-  public:
-
     void passLB(ThreadID tid);
 
     DynInstPtr& getHeadInst(ThreadID tid) {

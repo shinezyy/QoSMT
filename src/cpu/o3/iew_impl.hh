@@ -740,6 +740,11 @@ DefaultIEW<Impl>::skidInsert(ThreadID tid)
                 "dispatch skidBuffer %i\n",tid, inst->seqNum,
                 inst->pcState(),tid);
 
+        /**这条指令即将被阻塞，说明它提前到达此阶段也无法提前被处理*/
+        if (inst->getWaitSlot() > 0 && !skidBuffer[tid].empty()) {
+            this->reshape(inst);
+        }
+
         skidBuffer[tid].push(inst);
     }
 
