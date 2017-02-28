@@ -12,6 +12,9 @@
 
 struct DerivO3CPUParams;
 
+ThreadID HPT = 0,
+         LPT = 1;
+
 template <class Impl>
 class SlotCounter
 {
@@ -24,6 +27,8 @@ class SlotCounter
     protected:
 
     int width;
+
+    ThreadID numThreads;
 
     std::vector<int32_t> wait, miss;
 
@@ -41,6 +46,7 @@ class SlotCounter
         inst->incWaitSlot(-inst->getWaitSlot());
         inst->incMissSlot(-inst->getMissSlot());
     }
+
 
     enum SlotsUse {
         /** Doesn't have enough insts because of

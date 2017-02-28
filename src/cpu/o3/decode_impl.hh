@@ -606,11 +606,22 @@ DefaultDecode<Impl>::tick()
         cpu->activityThisCycle();
     }
 
-    passLB(0);
+    passLB(HPT);
+
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toRenameNum[tid]) {
             DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid, toRenameNum[tid]);
         }
+    }
+
+    this->sumLocalSlots(HPT);
+
+    if (this->checkSlots(HPT)) {
+        this->sumLocalSlots(HPT);
+    }
+
+    if (toRenameNum[HPT]) {
+        this->assigSlots(HPT, getHeadInst(HPT));
     }
 
 }
@@ -801,8 +812,14 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
                 DPRINTF(LB, "Forward BLB from Rename to Fetch\n");
             }
 
-            this->incLocalSlots(tid, !fromFetch->frontEndMiss &&
-                    fromRename->renameInfo[tid].BLB, decodeWidths[tid]);
+            if (fromFetch->frontEndMiss) {
+                this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
+            } else if (fromRename->renameInfo[tid].BLB){
+                this->incLocalSlots(tid, LaterWait, decodeWidths[tid]);
+            } else {
+                this->incLocalSlots(tid, LaterMiss, decodeWidths[tid]);
+            }
+
             break;
 
         case(StartSquash):
@@ -811,7 +828,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             toFetch->decodeInfo[tid].BLB = false;
             DPRINTF(LB, "No BLB because of Squashign\n");
 
-            this->incLocalSlots(tid, false, decodeWidths[tid]);
+            this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
             break;
 
         case(Running):
@@ -822,8 +839,12 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             assert(!fromRename->renameInfo[tid].BLB);
 
             if (toRenameNum[tid]) {
-                this->assignSlots(tid, getHeadInst(tid));
+                this->incLocalSlots(tid, Base, numInsts[tid]);
+                this->incLocalSlots(tid, InstMiss, decodeWidths[tid] - numInsts[tid]);
+            } else {
+                this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
             }
+
             break;
 
         case(Unblocking):
@@ -832,11 +853,15 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
 
             assert(!fromRename->renameInfo[tid].BLB);
 
+            if (toRenameNum[tid]) {
+                this->incLocalSlots(tid, Base, numInsts[tid]);
+                this->incLocalSlots(tid, InstMiss, decodeWidths[tid] - numInsts[tid]);
+            } else {
+                this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
+            }
+
             if (BLBlocal) {
                 DPRINTF(LB, "Send BLB to Fetch because of BLBlocal\n");
-            }
-            if (toRenameNum[tid]) {
-                this->assignSlots(tid, getHeadInst(tid));
             }
             break;
     }
