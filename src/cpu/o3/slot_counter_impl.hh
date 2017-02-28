@@ -2,6 +2,7 @@
 #define __CPU_O3_SLOTCOUNTER_IMPL_HH__
 
 #include <cinttypes>
+#include <algorithm>
 
 #include "cpu/o3/comm.hh"
 #include "debug/LB.hh"
@@ -11,23 +12,24 @@
 using namespace std;
 
     template<class Impl>
-SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params)
-    : wait(params->numThreads, 0),
-    miss(params->numThreads, 0)
+SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
+    : width((int) _width),
+    numThreads(params->numThreads),
+    wait(params->numThreads, 0),
+    miss(params->numThreads, 0),
+    perCycleSlots(params->numThreads, vector<int> ((int) NumUse, 0))
 {
 }
 
 template <class Impl>
 void
-SlotCounter<Impl>::sumLocalSlots(ThreadID tid, bool isWait, int32_t num)
+SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
 {
-    if (isWait) {
-        wait[tid] += num;
-    } else {
-        miss[tid] += num;
-    }
-    DPRINTF(LB, "T[%u]: Adding %i %s slots locally\n", tid, num,
-            isWait ? "wait" : "miss");
+    perCycleSlots[su] += num;
+    slots[su] += num;
+
+    DPRINTF(LB, "T[%i]: Adding %i %s slots locally\n", tid, num,
+            getSlotUseStr(su));
 }
 
 template <class Impl>
@@ -41,5 +43,87 @@ SlotCounter<Impl>::assignSlots(ThreadID tid, DynInstPtr& inst)
     DPRINTF(LB, "T[%u]: Assigning %i wait slots, %i miss slots "
             "to Inst[%llu]\n", tid, wait[tid], miss[tid], inst->seqNum);
 }
+
+template <class Impl>
+bool
+SlotCounter<Impl>::checkSlots(ThreadID tid)
+{
+    if (std::accumulate(perCycleSlots[tid].begin(),
+                perCycleSlots[tid].end(), 0) == width) {
+        return true;
+    } else {
+        DPRINTF(LB, "Cycle slot checking not satisified!\n");
+        int it = 0; // avoid to use [] unnecessarily
+        for (auto slot : perCycleSlots[tid]) {
+            if (slot) {
+                DPRINTFR(LB, "%s: %d | ", getSlotUseStr(it), slot);
+            }
+            it++;
+        }
+        DPRINTFR(LB, "\n");
+        panic("Cycle slot checking not satisified!\n");
+        return false;
+    }
+}
+
+template <class Impl>
+void
+SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
+{
+    miss[tid] += perCycleSlots[tid][InstMiss];
+    miss[tid] += perCycleSlots[tid][EntryMiss];
+    miss[tid] += perCycleSlots[tid][ComputeEntryMiss];
+    miss[tid] += perCycleSlots[tid][LaterMiss];
+
+    wait[tid] += perCycleSlots[tid][EarlierWait];
+    wait[tid] += perCycleSlots[tid][WidthWait];
+    wait[tid] += perCycleSlots[tid][EntryWait];
+    wait[tid] += perCycleSlots[tid][ComputeEntryWait];
+    wait[tid] += perCycleSlots[tid][LaterWait];
+
+    std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(0), 0);
+}
+
+template <class Impl>
+void
+SlotCounter<Impl>::regStats()
+{
+    using namespace Stats;
+
+    for(int su = 0; su < NumUse; ++su) {
+        const string suStr = getSlotUseStr(su);
+        slots[su]
+            .name(name() + "." + suStr + "_Slots")
+            .desc("number of " + suStr + " Slots")
+            .flags(total)
+            ;
+    }
+
+    waitSlots
+        .name(name() + ".local_wait_slots")
+        .desc("number of HPT wait slots in " + name())
+        ;
+
+    waitSlots = slots[EarlierWait] +
+        slots[WidthWait] + slots[EntryWait] +
+        slots[ComputeEntryWait] + slots[LaterWait];
+
+    missSlots
+        .name(name() + ".local_miss_slots")
+        .desc("number of HPT miss slots in " + name())
+        ;
+
+    missSlots = slots[InstMiss] + slots[EntryMiss] +
+        slots[ComputeEntryMiss] + slots[LaterMiss];
+
+    baseSlots
+        .name(name() + ".local_base_slots")
+        .desc("number of HPT base slots in " + name())
+        ;
+
+    baseSlot = slots[Base];
+}
+
+
 
 #endif  //  __CPU_O3_SLOTCOUNTER_IMPL_HH__

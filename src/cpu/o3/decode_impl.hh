@@ -65,7 +65,7 @@ using std::list;
 
 template<class Impl>
 DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
-    : SlotCounter<Impl>(params),
+    : SlotCounter<Impl>(params, params->decodeWidth / params->numThreads),
       cpu(_cpu),
       renameToDecodeDelay(params->renameToDecodeDelay),
       iewToDecodeDelay(params->iewToDecodeDelay),

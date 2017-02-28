@@ -67,7 +67,7 @@ using namespace std;
 
 template <class Impl>
 DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
-    : SlotCounter<Impl>(params),
+    : SlotCounter<Impl>(params, params->renameWidth / params->numThreads),
       cpu(_cpu),
       iewToRenameDelay(params->iewToRenameDelay),
       decodeToRenameDelay(params->decodeToRenameDelay),

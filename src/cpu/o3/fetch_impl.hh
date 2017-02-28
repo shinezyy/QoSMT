@@ -82,7 +82,7 @@ using namespace std;
 
 template<class Impl>
 DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
-    : SlotCounter<Impl>(params),
+    : SlotCounter<Impl>(params, params->fetchWidth / params->numThreads),
       denominator(1024),
       cpu(_cpu),
       numInsts(params->numThreads, 0),
