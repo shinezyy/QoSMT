@@ -1039,7 +1039,14 @@ DefaultFetch<Impl>::tick()
         }
     }
 
-    passLB(0);
+    passLB(HPT);
+
+    if (this->checkSlots(HPT)) {
+        sumLocalSlots(HPT);
+    }
+    if (numInsts[HPT]) {
+        this->assignSlots(HPT, getHeadInst(HPT));
+    }
 
     // Reset the number of the instruction we've fetched.
     numInst = 0;
@@ -1812,21 +1819,28 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
         case(Blocked): /** 传下去就行了*/
             toDecode->frontEndMiss = false;
 
-            this->incLocalSlots(tid, fromDecode->decodeInfo[tid].BLB,
-                    fetchWidths[tid]);
+            if (fromDecode->decodeInfo[tid].BLB) {
+                this->incLocalSlots(tid, LaterWait, fetchWidths[tid]);
+            } else {
+                this->incLocalSlots(tid, LaterMiss, fetchWidths[tid]);
+            }
             break;
         case(IcacheAccessComplete):
         case(Running):
-            toDecode->frontEndMiss = false;
             if (numInsts[tid]) {
-                this->assignSlots(tid, getHeadInst(tid));
+                toDecode->frontEndMiss = false;
+                this->incLocalSlots(tid, Base, numInsts[tid]);
+                this->incLocalSlots(tid, InstMiss, fetchWidths[tid] - numInsts[tid]);
+            } else {
+                toDecode->frontEndMiss = true;
+                this->incLocalSlots(tid, InstMiss, fetchWidths[tid]);
             }
             break;
         // This should be miss ? case(Idle):
         default: /** Icache miss and branch misPred are both front end miss*/
             toDecode->frontEndMiss = true;
 
-            this->incLocalSlots(tid, false, fetchWidths[tid]);
+            this->incLocalSlots(tid, InstMiss, fetchWidths[tid]);
             break;
     }
 }
