@@ -1286,7 +1286,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             dispatchable[hpt]--;
             //checked above
         } else {
-            this->sumLocalSlots(hpt, false, 1);
+            this->incLocalSlots(hpt, false, 1);
             if (dispatchStatus[hpt] == StartSquash ||
                     dispatchStatus[hpt] == Squashing ||
                     fromRename->frontEndMiss) {
@@ -1298,7 +1298,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 DPRINTF(FmtSlot, "Increment 1 wait slot of T[%d],"
                         " because thread %d dispatch one instruction\n", hpt, tid);
 
-                this->sumLocalSlots(hpt, true, 1);
+                this->incLocalSlots(hpt, true, 1);
 
                 dispatchable[hpt] -= 1;
             } else {
@@ -1318,33 +1318,33 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
     if (dispatchable[hpt] > 0) {
         recordMiss(insts_to_dispatch.size(), tid);
-        this->sumLocalSlots(tid, false, insts_to_dispatch.size());
+        this->incLocalSlots(tid, false, insts_to_dispatch.size());
 
         if (hpt == tid) {
             //checked above
             if ((LB_all || LB_part) && !fromRename->frontEndMiss) {
-                this->sumLocalSlots(tid, true, numLPTcause);
+                this->incLocalSlots(tid, true, numLPTcause);
                 dispatchable[hpt] -= numLPTcause;
             }
             if (dispatchStatus[hpt] == Unblocking && !fromRename->frontEndMiss
                     && LBLC && dispatchable[hpt] > 0) {
-                this->sumLocalSlots(tid, true, dispatchable[hpt]);
+                this->incLocalSlots(tid, true, dispatchable[hpt]);
                 dispatchable[hpt] = -1;
             }
         } else if (tid != hpt && !fromRename->frontEndMiss) {
             /**LPT本来还有指令可以发射*/
-            this->sumLocalSlots(tid, true, insts_to_dispatch.size());
+            this->incLocalSlots(tid, true, insts_to_dispatch.size());
 
             int wasted = insts_to_dispatch.size();
 
 
             if (dispatchStatus[hpt] == Running ||
                     dispatchStatus[hpt] == Unblocking) {
-                this->sumLocalSlots(hpt, true, std::min(dispatchable[hpt], wasted) );
+                this->incLocalSlots(hpt, true, std::min(dispatchable[hpt], wasted) );
                 dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
             }
             if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part) ) {
-                this->sumLocalSlots(hpt, true, wasted);
+                this->incLocalSlots(hpt, true, wasted);
                 dispatchable[hpt] -= wasted;
             }
         }
@@ -2015,17 +2015,17 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
             if (dispatchable[tid] < dispatchWidths[tid]) {
                 int wasted = dispatchWidths[tid] - dispatchable[tid];
                 recordMiss(wasted, tid);
-                this->sumLocalSlots(hpt, false, wasted);
+                this->incLocalSlots(hpt, false, wasted);
 
                 if (tid != hpt && dispatchable[hpt] > 0 && !fromRename->frontEndMiss) {
                     if (dispatchStatus[hpt] == Running ||
                             dispatchStatus[hpt] == Unblocking) {
-                        this->sumLocalSlots(hpt, true, std::min(dispatchable[hpt],
+                        this->incLocalSlots(hpt, true, std::min(dispatchable[hpt],
                                     wasted) );
                         dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
                     }
                     if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part)) {
-                        this->sumLocalSlots(hpt, true, wasted);
+                        this->incLocalSlots(hpt, true, wasted);
                         dispatchable[hpt] -= wasted;
                     }
                 }
@@ -2037,25 +2037,25 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
         case Blocked:
             /**block一定导致本周期miss */
             if (hpt == tid && (LB_all || LB_part) && !fromRename->frontEndMiss) {
-                this->sumLocalSlots(hpt, true, dispatchWidths[tid]);
+                this->incLocalSlots(hpt, true, dispatchWidths[tid]);
             }
 
         case Squashing:
         case StartSquash:
             /**Squash一定导致本周期miss*/
             recordMiss(dispatchWidths[tid], tid);
-            this->sumLocalSlots(hpt, false, dispatchWidths[tid]);
+            this->incLocalSlots(hpt, false, dispatchWidths[tid]);
 
             if (tid != hpt && dispatchable[hpt] > 0 && !fromRename->frontEndMiss) {
                 if (dispatchStatus[hpt] == Running ||
                         dispatchStatus[hpt] == Unblocking) {
-                    this->sumLocalSlots(hpt, true, std::min(dispatchable[hpt],
+                    this->incLocalSlots(hpt, true, std::min(dispatchable[hpt],
                                 dispatchWidths[tid]) );
                     dispatchable[hpt] -= std::min(dispatchable[hpt],
                             dispatchWidths[tid]);
                 }
                 if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part)) {
-                    this->sumLocalSlots(hpt, true, dispatchWidths[tid]);
+                    this->incLocalSlots(hpt, true, dispatchWidths[tid]);
                     dispatchable[hpt] -= dispatchWidths[tid];
                 }
             }

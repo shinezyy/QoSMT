@@ -694,7 +694,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         if(LB_part) {
             counted[tid] = true;
-            this->sumLocalSlots(tid, true, numLPTcause);
+            this->incLocalSlots(tid, true, numLPTcause);
         }
         return;
 
@@ -911,7 +911,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     if(LB_part) {
         assert(!counted[tid]);
         counted[tid] = true;
-        this->sumLocalSlots(tid, true, numLPTcause);
+        this->incLocalSlots(tid, true, numLPTcause);
     }
 
     instsInProgress[tid] += renamed_insts;
@@ -1538,15 +1538,15 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             /** 上个周期被LPT阻塞了，导致一队指令被拆散，导致
              * 本周期可用的指令不多，这是LPT的锅
              */
-            this->sumLocalSlots(tid, true, renameWidths[tid]);
+            this->incLocalSlots(tid, true, renameWidths[tid]);
         } else {
             //如果这个周期不阻塞，至少也有renameWidths[tid] - numLPTcause个miss
-            this->sumLocalSlots(tid, true, numLPTcause);
-            this->sumLocalSlots(tid, false, renameWidths[tid] - numLPTcause);
+            this->incLocalSlots(tid, true, numLPTcause);
+            this->incLocalSlots(tid, false, renameWidths[tid] - numLPTcause);
         }
     } else if (tid == 0 && ret_val) {
         counted[0] = true;
-        this->sumLocalSlots(tid, false, renameWidths[tid]);
+        this->incLocalSlots(tid, false, renameWidths[tid]);
     }
 
     return ret_val;

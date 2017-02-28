@@ -801,7 +801,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
                 DPRINTF(LB, "Forward BLB from Rename to Fetch\n");
             }
 
-            this->sumLocalSlots(tid, !fromFetch->frontEndMiss &&
+            this->incLocalSlots(tid, !fromFetch->frontEndMiss &&
                     fromRename->renameInfo[tid].BLB, decodeWidths[tid]);
             break;
 
@@ -811,7 +811,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             toFetch->decodeInfo[tid].BLB = false;
             DPRINTF(LB, "No BLB because of Squashign\n");
 
-            this->sumLocalSlots(tid, false, decodeWidths[tid]);
+            this->incLocalSlots(tid, false, decodeWidths[tid]);
             break;
 
         case(Running):

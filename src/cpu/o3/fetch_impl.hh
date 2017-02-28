@@ -1812,7 +1812,7 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
         case(Blocked): /** 传下去就行了*/
             toDecode->frontEndMiss = false;
 
-            this->sumLocalSlots(tid, fromDecode->decodeInfo[tid].BLB,
+            this->incLocalSlots(tid, fromDecode->decodeInfo[tid].BLB,
                     fetchWidths[tid]);
             break;
         case(IcacheAccessComplete):
@@ -1826,7 +1826,7 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
         default: /** Icache miss and branch misPred are both front end miss*/
             toDecode->frontEndMiss = true;
 
-            this->sumLocalSlots(tid, false, fetchWidths[tid]);
+            this->incLocalSlots(tid, false, fetchWidths[tid]);
             break;
     }
 }
