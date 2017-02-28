@@ -576,20 +576,6 @@ class DefaultIEW : public SlotCounter<Impl>
     std::vector<int> slotsThisCycle;
 
     int numLPTcause;
-
-    enum SlotsUse {
-        /** dispatch insts*/
-        Base,
-
-        /** Doesn't have enough insts because of
-         * front end miss (iTLB miss, icache miss, miss prediction)
-         */
-        Miss
-
-        /** Doesn't have enough insts because of
-         *
-         */
-    };
 };
 
 #endif // __CPU_O3_IEW_HH__

@@ -69,7 +69,7 @@ using namespace std;
 
 template<class Impl>
 DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
-    : SlotCounter<Impl>(params),
+    : SlotCounter<Impl>(params, params->dispatchWidth),
       issueToExecQueue(params->backComSize, params->forwardComSize),
       cpu(_cpu),
       instQueue(_cpu, this, params),
