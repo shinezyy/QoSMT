@@ -1042,7 +1042,7 @@ DefaultFetch<Impl>::tick()
     passLB(HPT);
 
     if (this->checkSlots(HPT)) {
-        sumLocalSlots(HPT);
+        this->sumLocalSlots(HPT);
     }
     if (numInsts[HPT]) {
         this->assignSlots(HPT, getHeadInst(HPT));

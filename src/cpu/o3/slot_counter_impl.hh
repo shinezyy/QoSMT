@@ -11,6 +11,8 @@
 
 using namespace std;
 
+ThreadID HPT = 0, LPT = 1;
+
     template<class Impl>
 SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
     : width((int) _width),
@@ -25,7 +27,7 @@ template <class Impl>
 void
 SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
 {
-    perCycleSlots[su] += num;
+    perCycleSlots[tid][su] += num;
     slots[su] += num;
 
     DPRINTF(LB, "T[%i]: Adding %i %s slots locally\n", tid, num,
@@ -82,7 +84,7 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     wait[tid] += perCycleSlots[tid][LaterWait];
     wait[tid] += perCycleSlots[tid][LBLCWait];
 
-    std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(0), 0);
+    std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), 0);
 }
 
 template <class Impl>
@@ -122,7 +124,7 @@ SlotCounter<Impl>::regStats()
         .desc("number of HPT base slots in " + name())
         ;
 
-    baseSlot = slots[Base];
+    baseSlots = slots[Base];
 }
 
 

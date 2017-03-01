@@ -842,17 +842,38 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
 {
     bool ret_val(false);
 
+    unsigned numAvailInsts = 0;
+    if (tid == HPT) {
+        switch (dispatchStatus[tid]) {
+            //这里的状态是周期开始时的状态
+            case Running:
+            case Idle:
+                numAvailInsts = insts[tid].size();
+                break;
+            case Blocked:
+            case Unblocking:
+                numAvailInsts = skidBuffer[tid].size();
+                break;
+            default:
+                break;
+        }
+        numLPTcause = std::min(numAvailInsts, dispatchWidth);
+        DPRINTF(FmtSlot2, "T[0]: %i insts in skidbuffer, %i insts from Rename\n",
+                skidBuffer[tid].size(), insts[tid].size());
+    }
+
     if (fromCommit->commitInfo[tid].robSquashing) {
         DPRINTF(IEW,"[tid:%i]: Stall from Commit stage detected.\n",tid);
         ret_val = true;
     } else if (instQueue.isFull(tid)) {
-        if (tid == 0) {
-            LB_all = instQueue.numBusyEntries(1) >= dispatchWidth;
-            LB_part = !LB_all && instQueue.numBusyEntries(1) > 0;
+        if (tid == HPT) {
+            LB_all = instQueue.numBusyEntries(LPT) >= numLPTcause;
+            LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
             /**TODO检查后面用到这个numLPTcause的情况，
              * 以确定应该使用dispatchWidth，还是dispatchWidths
              */
-            numLPTcause = std::min(instQueue.numBusyEntries(1), dispatchWidth);
+            numLPTcause = std::min((int) instQueue.numBusyEntries(LPT), numLPTcause);
+            DPRINTF(FmtSlot2, "HPT Stall: IQ  is full.\n",tid);
         }
         DPRINTF(IEW,"[tid:%i]: Stall: IQ  is full.\n",tid);
         ret_val = true;
@@ -1067,8 +1088,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
     bool add_to_iq = false;
     int dis_num_inst = 0;
 
-    const ThreadID hpt = 0;
-
     // Loop through the instructions, putting them in the instruction
     // queuedis_num_inst
     for ( ; dis_num_inst < insts_to_add &&
@@ -1111,21 +1130,20 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             }
 
             toRename->iewInfo[tid].dispatched++;
+            dispatched[tid]++;
 
             continue;
         }
-
-        ThreadID LPT = 1;
 
         // Check for full conditions.
         if (instQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i]: Issue: IQ has become full.\n", tid);
 
-            if (tid == hpt && instQueue.numBusyEntries(LPT) > 0) {
-                LB_all = instQueue.numBusyEntries(LPT) > dispatchable[hpt];
-                LB_part = !LB_all;
+            if (tid == HPT) {
+                LB_all = instQueue.numBusyEntries(LPT) >= dispatchable[HPT];
+                LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
                 numLPTcause = std::min((int) instQueue.numBusyEntries(LPT),
-                        dispatchable[hpt] );
+                        dispatchable[HPT]);
             }
 
             // Call function to start blocking.
@@ -1150,15 +1168,17 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: %s has become full.\n",tid,
                     inst->isLoad() ? "LQ" : "SQ");
 
-            if (tid == hpt) {
+            if (tid == HPT) {
                 if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
                     LB_all = true;
-                    numLPTcause = std::min((int) ldstQueue.numLoads(LPT),
-                            dispatchable[hpt]);
+                    /**这里这样其实是认为HPT剩下指令里面没有Load Store*/
+                    numLPTcause = dispatchable[HPT];
                 } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
                     LB_all = true;
-                    numLPTcause = std::min((int) ldstQueue.numStores(LPT),
-                            dispatchable[hpt]);
+                    numLPTcause = dispatchable[HPT];
+                } else {
+                    LB_all = false;
+                    LB_part = false;
                 }
             }
 
@@ -1265,13 +1285,13 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
         dispatched[tid]++;
 
-        if (tid == hpt && !headInst[tid]) {
+        if (tid == HPT && !headInst[tid]) {
             headInst[tid] = inst;
             /** Do correction. */
-            if (tid == hpt && this->miss[tid]) {
-                fmt->incMissDirect(hpt, -std::min(inst->getWaitSlot() +
+            if (tid == HPT && this->miss[tid]) {
+                fmt->incMissDirect(HPT, -std::min(inst->getWaitSlot() +
                             this->wait[tid], this->miss[tid]), false);
-                fmt->incWaitSlot(inst, hpt, std::min(inst->getWaitSlot() +
+                fmt->incWaitSlot(inst, HPT, std::min(inst->getWaitSlot() +
                             this->wait[tid], this->miss[tid]));
 
                 this->wait[tid] = 0;
@@ -1280,32 +1300,10 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         }
 
         // check other threads' status
-        if (hpt == tid) {
+        if (HPT == tid) {
             DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
-            fmt->incBaseSlot(inst, hpt, 1);
-            dispatchable[hpt]--;
-            //checked above
-        } else {
-            this->incLocalSlots(hpt, false, 1);
-            if (dispatchStatus[hpt] == StartSquash ||
-                    dispatchStatus[hpt] == Squashing ||
-                    fromRename->frontEndMiss) {
-                DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
-                        " because it is Squashing.\n", hpt);
-                fmt->incMissDirect(hpt, 1, true);
-
-            } else if (dispatchable[hpt] > 0) {
-                DPRINTF(FmtSlot, "Increment 1 wait slot of T[%d],"
-                        " because thread %d dispatch one instruction\n", hpt, tid);
-
-                this->incLocalSlots(hpt, true, 1);
-
-                dispatchable[hpt] -= 1;
-            } else {
-                DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d],"
-                        " because it has no instruction to dispatch.\n", hpt);
-                fmt->incMissDirect(hpt, 1, true);
-            }
+            this->incLocalSlots(HPT, Base, 1);
+            dispatchable[HPT]--;
         }
 
         ++iewDispatchedInsts;
@@ -1316,37 +1314,24 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         ppDispatch->notify(inst);
     }
 
-    if (dispatchable[hpt] > 0) {
-        recordMiss(insts_to_dispatch.size(), tid);
-        this->incLocalSlots(tid, false, insts_to_dispatch.size());
+    if (HPT == tid && dispatchable[HPT] > 0) {
 
-        if (hpt == tid) {
-            //checked above
-            if ((LB_all || LB_part) && !fromRename->frontEndMiss) {
-                this->incLocalSlots(tid, true, numLPTcause);
-                dispatchable[hpt] -= numLPTcause;
-            }
-            if (dispatchStatus[hpt] == Unblocking && !fromRename->frontEndMiss
-                    && LBLC && dispatchable[hpt] > 0) {
-                this->incLocalSlots(tid, true, dispatchable[hpt]);
-                dispatchable[hpt] = -1;
-            }
-        } else if (tid != hpt && !fromRename->frontEndMiss) {
-            /**LPT本来还有指令可以发射*/
-            this->incLocalSlots(tid, true, insts_to_dispatch.size());
+        if (fromRename->frontEndMiss) {
+            this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
 
-            int wasted = insts_to_dispatch.size();
+        } else if (LB_all) {
+            this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
 
+        } else if (LB_part) {
+            this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
+            this->incLocalSlots(tid, ComputeEntryMiss,
+                    dispatchable[tid] - numLPTcause);
 
-            if (dispatchStatus[hpt] == Running ||
-                    dispatchStatus[hpt] == Unblocking) {
-                this->incLocalSlots(hpt, true, std::min(dispatchable[hpt], wasted) );
-                dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
-            }
-            if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part) ) {
-                this->incLocalSlots(hpt, true, wasted);
-                dispatchable[hpt] -= wasted;
-            }
+        } else if (dispatched[tid] <= dispatchWidths[tid]){
+            this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
+
+        } else {
+            this->incLocalSlots(tid, WidthWait, dispatchable[tid]);
         }
     }
 
@@ -1974,20 +1959,20 @@ DefaultIEW<Impl>::getDispatchable() {
                         tid, dispatchable[tid]);
                 break;
             case Blocked:
-                dispatchable[tid] = skidBuffer[tid].size();
+                dispatchable[tid] = std::min((int) skidBuffer[tid].size(),
+                        (int) dispatchWidth);
                 DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to dispatch\n",
                         tid, dispatchable[tid]);
                 break;
             case Unblocking:
-                dispatchable[tid] = skidBuffer[tid].size();
+                dispatchable[tid] = std::min((int) skidBuffer[tid].size(),
+                        (int) dispatchWidth);
                 DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to dispatch\n",
                         tid, dispatchable[tid]);
                 /**should dispatch*/
                 if(LBLC) {
-                    const int fullDisWidth = 8;
-                    dispatchable[tid] = fullDisWidth;
-                    DPRINTF(FmtSlot2, "T[%i] has %i insts should dispatch\n",
-                            tid, dispatchable[tid]);
+                    DPRINTF(FmtSlot2, "T[%i] should has %i insts dispatch\n",
+                            tid, dispatchWidth);
                 }
                 break;
             case Squashing:
@@ -2005,30 +1990,23 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
     /**在dispatch之前被调用
      *记录已经确定了的该线程在本周期的wait和miss情况
      */
-
-    const ThreadID hpt = 0;
+    if (tid != HPT) return;
 
     switch (dispatchStatus[tid]) {
         case Running:
         case Idle:
         case Unblocking:
-            if (dispatchable[tid] < dispatchWidths[tid]) {
-                int wasted = dispatchWidths[tid] - dispatchable[tid];
-                recordMiss(wasted, tid);
-                this->incLocalSlots(hpt, false, wasted);
+            if (dispatchable[tid] < dispatchWidth) {
+                int wasted = dispatchWidth - dispatchable[tid];
 
-                if (tid != hpt && dispatchable[hpt] > 0 && !fromRename->frontEndMiss) {
-                    if (dispatchStatus[hpt] == Running ||
-                            dispatchStatus[hpt] == Unblocking) {
-                        this->incLocalSlots(hpt, true, std::min(dispatchable[hpt],
-                                    wasted) );
-                        dispatchable[hpt] -= std::min(dispatchable[hpt], wasted);
-                    }
-                    if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part)) {
-                        this->incLocalSlots(hpt, true, wasted);
-                        dispatchable[hpt] -= wasted;
-                    }
+                if (dispatchStatus[HPT] == Unblocking &&
+                        !fromRename->frontEndMiss && LBLC) {
+                    this->incLocalSlots(HPT, LBLCWait, wasted);
+
+                } else {
+                    this->incLocalSlots(HPT, InstMiss, wasted);
                 }
+
                 DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
                         tid, wasted);
             }
@@ -2036,29 +2014,33 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
 
         case Blocked:
             /**block一定导致本周期miss */
-            if (hpt == tid && (LB_all || LB_part) && !fromRename->frontEndMiss) {
-                this->incLocalSlots(hpt, true, dispatchWidths[tid]);
+            if (fromRename->frontEndMiss) {
+                this->incLocalSlots(HPT, InstMiss, dispatchWidth);
+            } else {
+                if (LB_all) {
+                    this->incLocalSlots(tid, InstMiss,
+                            dispatchWidth - numLPTcause);
+                    this->incLocalSlots(tid, EntryWait, numLPTcause);
+                } else if(LB_part) {
+                    this->incLocalSlots(tid, EntryWait, numLPTcause);
+                    this->incLocalSlots(tid, EntryMiss,
+                            dispatchable[tid] - numLPTcause);
+                    this->incLocalSlots(tid, InstMiss,
+                            dispatchWidth - dispatchable[tid]);
+                } else {
+                    this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
+                    this->incLocalSlots(tid, InstMiss,
+                            dispatchWidth - dispatchable[tid]);
+                }
             }
+
+            break;
 
         case Squashing:
         case StartSquash:
             /**Squash一定导致本周期miss*/
-            recordMiss(dispatchWidths[tid], tid);
-            this->incLocalSlots(hpt, false, dispatchWidths[tid]);
 
-            if (tid != hpt && dispatchable[hpt] > 0 && !fromRename->frontEndMiss) {
-                if (dispatchStatus[hpt] == Running ||
-                        dispatchStatus[hpt] == Unblocking) {
-                    this->incLocalSlots(hpt, true, std::min(dispatchable[hpt],
-                                dispatchWidths[tid]) );
-                    dispatchable[hpt] -= std::min(dispatchable[hpt],
-                            dispatchWidths[tid]);
-                }
-                if (dispatchStatus[hpt] == Blocked && (LB_all || LB_part)) {
-                    this->incLocalSlots(hpt, true, dispatchWidths[tid]);
-                    dispatchable[hpt] -= dispatchWidths[tid];
-                }
-            }
+            this->incLocalSlots(HPT, InstMiss, dispatchWidth);
 
             DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
                     tid, dispatchWidths[tid]);

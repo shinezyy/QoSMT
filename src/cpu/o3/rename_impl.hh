@@ -377,7 +377,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
     if (renameStatus[tid] == Blocked ||
         renameStatus[tid] == Unblocking) {
         toDecode->renameUnblock[tid] = 1;
-        BLBlocal = tid == 0 ? false : BLBlocal;
+        BLBlocal = tid == HPT ? false : BLBlocal;
 
         resumeSerialize = false;
         serializeInst[tid] = NULL;
@@ -389,7 +389,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
         } else {
             resumeSerialize = false;
             toDecode->renameUnblock[tid] = 1;
-            BLBlocal = tid == 0 ? false : BLBlocal;
+            BLBlocal = tid == HPT ? false : BLBlocal;
 
             serializeInst[tid] = NULL;
         }
@@ -620,7 +620,7 @@ template <class Impl>
 void
 DefaultRename<Impl>::renameInsts(ThreadID tid)
 {
-    LB_part = tid == 0 ? false : LB_part;
+    LB_part = tid == HPT ? false : LB_part;
     // Instructions can be either in the skid buffer or the queue of
     // instructions coming from decode, depending on the status.
     int insts_available = renameStatus[tid] == Unblocking ?
@@ -1107,7 +1107,7 @@ DefaultRename<Impl>::block(ThreadID tid)
             // Set status to Blocked.
             renameStatus[tid] = Blocked;
 
-            BLBlocal = tid == 0 ?
+            BLBlocal = tid == HPT ?
                 fromIEW->iewInfo[0].BLB || LB_all : BLBlocal;
 
             DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
@@ -1134,7 +1134,7 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         DPRINTF(Rename, "[tid:%u]: Done unblocking.\n", tid);
 
         toDecode->renameUnblock[tid] = true;
-        BLBlocal = tid == 0 ? false : BLBlocal;
+        BLBlocal = tid == HPT ? false : BLBlocal;
         wroteToTimeBuffer = true;
 
         DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to Running.\n", tid);
@@ -1477,7 +1477,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
     bool ret_val = false;
 
     unsigned numAvailInsts = 0;
-    if (tid == 0) {
+    if (tid == HPT) {
         switch (renameStatus[tid]) {
             //这里的状态是周期开始时的状态
             case Running:
@@ -1499,7 +1499,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
     if (stalls[tid].iew) {
         DPRINTF(Rename,"[tid:%i]: Stall from IEW stage detected.\n", tid);
         ret_val = true;
-        if (tid == 0) {
+        if (tid == HPT) {
             LB_all = fromIEW->iewInfo[0].BLB;
             DPRINTF(FmtSlot2, "HPT stall from IEW stage detected.\n", tid);
         }
@@ -1508,9 +1508,9 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         DPRINTF(Rename,"[tid:%i]: Stall: ROB has 0 free entries.\n", tid);
         ret_val = true;
 
-        if (tid == 0) {
+        if (tid == HPT) {
             /**即使没有LPT， HPT一样会stall*/
-            LB_all = calcOwnROBEntries(LPT) >= renameWidths[0];
+            LB_all = calcOwnROBEntries(LPT) >= renameWidths[HPT];
             LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnROBEntries(LPT), numLPTcause);
 
@@ -1522,7 +1522,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         DPRINTF(Rename,"[tid:%i]: Stall: IQ has 0 free entries.\n", tid);
         ret_val = true;
 
-        if (tid == 0) {
+        if (tid == HPT) {
             LB_all = calcOwnIQEntries(LPT) >= renameWidths[0];
             LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnIQEntries(LPT), numLPTcause);
@@ -1535,7 +1535,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         DPRINTF(Rename,"[tid:%i]: Stall: LSQ has 0 free entries.\n", tid);
         ret_val = true;
 
-        if (tid == 0) {
+        if (tid == HPT) {
             LB_all = (calcOwnLQEntries(LPT) > renameWidths[0]) ||
                 (calcOwnSQEntries(LPT) > renameWidths[0]);
             LB_part = !LB_all && ((calcOwnLQEntries(LPT) > 0) ||
@@ -1918,23 +1918,23 @@ DefaultRename<Impl>::getRenamable() {
         switch (renameStatus[tid]) {
             case Running:
             case Idle:
-                renameble[tid] = insts[tid].size();
+                renamable[tid] = insts[tid].size();
                 DPRINTF(FmtSlot2, "T[%i][Running] has %i insts to rename\n",
-                        tid, renameble[tid]);
+                        tid, renamable[tid]);
                 break;
 
             case Blocked:
-                renameble[tid] = skidBuffer[tid].size();
+                renamable[tid] = skidBuffer[tid].size();
                 DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to rename\n",
-                        tid, renameble[tid]);
+                        tid, renamable[tid]);
                 break;
 
             case Unblocking:
-                renameble[tid] = skidBuffer[tid].size();
+                renamable[tid] = skidBuffer[tid].size();
                 DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to rename\n",
-                        tid, renameble[tid]);
+                        tid, renamable[tid]);
                 /**should rename*/
-                if(!fromRename->frontEndMiss && LBLC) {
+                if(!fromDecode->frontEndMiss && LBLC) {
                     DPRINTF(FmtSlot2, "T[%i] has %i insts should rename\n",
                             tid, renameWidths[tid]);
                 }
@@ -1942,14 +1942,14 @@ DefaultRename<Impl>::getRenamable() {
 
             case Squashing:
             case StartSquash:
-                renameble[tid] = 0;
+                renamable[tid] = 0;
                 DPRINTF(FmtSlot2, "T[%i][Squash] has no insts to rename\n", tid);
                 break;
 
             case SerializeStall:
-                renameble[tid] = skidBuffer[tid].size();
+                renamable[tid] = skidBuffer[tid].size();
                 DPRINTF(FmtSlot2, "T[%i][Serialize Blocked] has %i insts to rename\n",
-                        tid, renameble[tid]);
+                        tid, renamable[tid]);
                 break;
         }
     }
@@ -1975,7 +1975,8 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
 
         case Unblocking:
             if (renamable[tid] < renameWidths[tid]) {
-                if (fromRename->frontEndMiss || !LBLC) {
+                int wasted = renameWidths[tid] - renamable[tid];
+                if (fromDecode->frontEndMiss || !LBLC) {
                     this->incLocalSlots(HPT, InstMiss, wasted);
                 } else {
                     this->incLocalSlots(HPT, LBLCWait, wasted);
@@ -1985,22 +1986,29 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
 
         case Blocked:
             /**block一定导致本周期miss */
-            if (fromRename->frontEndMiss) {
+            if (fromDecode->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, renameWidths[tid]);
             } else {
                 if (fromIEW->iewInfo[0].BLB) {
-                    this->incLocalSlots(HPT, LaterWait, renameWidths[tid]);
+                    this->incLocalSlots(HPT, InstMiss,
+                            renameWidths[tid] - numLPTcause);
+                    this->incLocalSlots(HPT, LaterWait, numLPTcause);
                 } else if (LB_all) {
-                    this->incLocalSlots(HPT, EntryWait, renameWidths[tid]);
+                    this->incLocalSlots(HPT, InstMiss,
+                            renameWidths[tid] - numLPTcause);
+                    this->incLocalSlots(HPT, EntryWait, numLPTcause);
                 } else if (LB_part) {
                     this->incLocalSlots(HPT, ComputeEntryWait, numLPTcause);
                     this->incLocalSlots(HPT, ComputeEntryMiss,
-                            renameWidths[tid] - numLPTcause);
+                            renamable[HPT] - numLPTcause);
+                    this->incLocalSlots(HPT, InstMiss,
+                            renameWidths[HPT] - renamable[HPT]);
                 } else {
-                    this->incLocalSlots(HPT, EntryMiss, renameWidths[tid]);
+                    this->incLocalSlots(HPT, EntryMiss, renamable[HPT]);
+                    this->incLocalSlots(HPT, InstMiss,
+                            renameWidths[HPT] - renamable[HPT]);
                 }
             }
-                    //checked
             break;
 
         case Squashing:

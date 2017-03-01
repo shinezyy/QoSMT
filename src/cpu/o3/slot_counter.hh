@@ -12,8 +12,66 @@
 
 struct DerivO3CPUParams;
 
-ThreadID HPT = 0,
-         LPT = 1;
+extern ThreadID HPT, LPT;
+
+
+enum SlotsUse {
+    /** Doesn't have enough insts because of
+     * front end miss (iTLB miss, icache miss, miss prediction)
+     */
+    InstMiss,
+
+    /** Doesn't have enough insts because of instrutions of HPT
+     * were blocked in earlier stage by LPT
+     */
+    EarlierWait,
+
+    /**
+     * Have insts to process , but other thread occupied some dispatchWidth
+     */
+    WidthWait,
+
+    /**
+     * Have insts to process , but other thread occupied some entries
+     */
+    EntryWait,
+
+    /**
+     * Have insts to process , but there's no enough entries because of itself (HPT)
+     */
+    EntryMiss,
+
+    /**
+     * Have insts to process , but there's no enough entries
+     * partly because of itself (HPT), while also because of LPT
+     * ComputeEntryMiss is because of HPT, ComputeEntryWait is because of LPT
+     */
+    ComputeEntryMiss,
+
+    ComputeEntryWait,
+
+    /** process insts*/
+    Base,
+
+    /**
+     * Have insts to process, but later stage blocked this stage
+     * LaterMiss: because of HPT itself; LaterWait: because of LPT
+     */
+    LaterMiss,
+
+    LaterWait,
+
+    /**
+     * In Unblocking status, if HPT, last cycle, was blocked by LPT,
+     * then insts were brokend down into two chunks, which leads to
+     * miss slots in the 2nd chunk, and should be rectified.
+     */
+    LBLCWait,
+
+    SerializeMiss,
+
+    NumUse
+};
 
 template <class Impl>
 class SlotCounter
@@ -48,62 +106,6 @@ class SlotCounter
     }
 
 
-    enum SlotsUse {
-        /** Doesn't have enough insts because of
-         * front end miss (iTLB miss, icache miss, miss prediction)
-         */
-        InstMiss,
-
-        /** Doesn't have enough insts because of instrutions of HPT
-         * were blocked in earlier stage by LPT
-         */
-        EarlierWait,
-
-        /**
-         * Have insts to process , but other thread occupied some dispatchWidth
-         */
-        WidthWait,
-
-        /**
-         * Have insts to process , but other thread occupied some entries
-         */
-        EntryWait,
-
-        /**
-         * Have insts to process , but there's no enough entries because of itself (HPT)
-         */
-        EntryMiss,
-
-        /**
-         * Have insts to process , but there's no enough entries
-         * partly because of itself (HPT), while also because of LPT
-         * ComputeEntryMiss is because of HPT, ComputeEntryWait is because of LPT
-         */
-        ComputeEntryMiss,
-
-        ComputeEntryWait,
-
-        /** process insts*/
-        Base,
-
-        /**
-         * Have insts to process, but later stage blocked this stage
-         * LaterMiss: because of HPT itself; LaterWait: because of LPT
-         */
-        LaterMiss,
-
-        LaterWait,
-
-        /**
-         * In Unblocking status, if HPT, last cycle, was blocked by LPT,
-         * then insts were brokend down into two chunks, which leads to
-         * miss slots in the 2nd chunk, and should be rectified.
-         */
-        LBLCWait,
-
-        NumUse
-    };
-
     static const char* getSlotUseStr(int index) {
         static const char* slotUseStr[] = {
             "InstMiss",
@@ -117,6 +119,7 @@ class SlotCounter
             "LaterMiss",
             "LaterWait",
             "LBLCWait",
+            "SerializeMiss",
         };
         return slotUseStr[index];
     }
@@ -125,11 +128,13 @@ class SlotCounter
 
     void sumLocalSlots(ThreadID tid);
 
-    Stats::Scalar Slots[NumUse];
+    Stats::Scalar slots[NumUse];
 
     Stats::Formula waitSlots;
 
     Stats::Formula missSlots;
+
+    Stats::Formula baseSlots;
 
     virtual void regStats();
 

@@ -621,7 +621,7 @@ DefaultDecode<Impl>::tick()
     }
 
     if (toRenameNum[HPT]) {
-        this->assigSlots(HPT, getHeadInst(HPT));
+        this->assignSlots(HPT, getHeadInst(HPT));
     }
 
 }
@@ -839,8 +839,9 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             assert(!fromRename->renameInfo[tid].BLB);
 
             if (toRenameNum[tid]) {
-                this->incLocalSlots(tid, Base, numInsts[tid]);
-                this->incLocalSlots(tid, InstMiss, decodeWidths[tid] - numInsts[tid]);
+                this->incLocalSlots(tid, Base, toRenameNum[tid]);
+                this->incLocalSlots(tid, InstMiss,
+                        decodeWidths[tid] - toRenameNum[tid]);
             } else {
                 this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
             }
@@ -854,8 +855,9 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             assert(!fromRename->renameInfo[tid].BLB);
 
             if (toRenameNum[tid]) {
-                this->incLocalSlots(tid, Base, numInsts[tid]);
-                this->incLocalSlots(tid, InstMiss, decodeWidths[tid] - numInsts[tid]);
+                this->incLocalSlots(tid, Base, toRenameNum[tid]);
+                this->incLocalSlots(tid, InstMiss,
+                        decodeWidths[tid] - toRenameNum[tid]);
             } else {
                 this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
             }
