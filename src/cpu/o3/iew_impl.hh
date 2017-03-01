@@ -87,6 +87,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       Programmable(params->iewProgrammable),
       hptInitDispatchWidth(params->hptInitDispatchWidth),
       dispatched(params->numThreads, 0),
+      squashed(params->numThreads, 0),
       dispatchable(params->numThreads, 0),
       BLBlocal(false),
       missRecorded(params->numThreads, false),
@@ -1132,6 +1133,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             toRename->iewInfo[tid].dispatched++;
             dispatched[tid]++;
+            squashed[tid]++;
 
             continue;
         }
@@ -1655,6 +1657,7 @@ DefaultIEW<Impl>::tick()
     numLPTcause = -1; // -1表示无意义
 
     std::fill(dispatched.begin(), dispatched.end(), 0);
+    std::fill(squashed.begin(), squashed.end(), 0);
     std::fill(headInst.begin(), headInst.end(), nullptr);
     std::fill(missRecorded.begin(), missRecorded.end(), false);
 
@@ -1668,16 +1671,17 @@ DefaultIEW<Impl>::tick()
     ldstQueue.updateMaxEntries();
 
     // Check stall and squash signals, dispatch any instructions.
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+
+        DPRINTF(FmtSlot2, "Dispatch: Processing [tid:%i]\n",tid);
+        checkSignalsAndUpdate(tid);
+    }
+
     getDispatchable();
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
 
-        DPRINTF(FmtSlot2, "Dispatch: Processing [tid:%i]\n",tid);
-
-        checkSignalsAndUpdate(tid);
-
         computeMiss(tid);
-
         dispatch(tid);
     }
 
@@ -1686,12 +1690,19 @@ DefaultIEW<Impl>::tick()
     }
 
     fmt->incMissDirect(HPT, this->miss[HPT], false);
-    if (dispatched[HPT] > 0) {
+    this->miss[HPT] = 0;
+    if (dispatched[HPT] > 0 && dispatched[HPT] > squashed[HPT]) {
         /** reshape 保证不会高估wait的数量*/
-        DynInstPtr &inst = this->getHeadInst(HPT);
-        this->assignSlots(HPT, inst);
-        fmt->incMissDirect(HPT, - inst->getWaitSlot(), false);
-        fmt->incWaitSlot(inst, HPT, inst->getWaitSlot());
+        if (dispatchStatus[HPT] != Squashing) {
+            DynInstPtr &inst = this->getHeadInst(HPT);
+            this->assignSlots(HPT, inst);
+            fmt->incMissDirect(HPT, - inst->getWaitSlot(), false);
+            fmt->incWaitSlot(inst, HPT, inst->getWaitSlot());
+        } else {
+            /**错误的等待*/
+            fmt->incMissDirect(HPT, this->wait[HPT], false);
+            this->wait[HPT] = 0;
+        }
     }
 
     if (exeStatus != Squashing) {

@@ -451,17 +451,18 @@ DefaultRename<Impl>::tick()
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
 
-    getRenamable();
-
     // Check stall and squash signals.
     for (ThreadID tid = 0; tid < numThreads; tid++) {
 
         DPRINTF(FmtSlot2, "Processing [tid:%i]\n", tid);
-
         status_change = checkSignalsAndUpdate(tid) || status_change;
+    }
+
+    getRenamable();
+
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
 
         computeMiss(tid);
-
         rename(status_change, tid);
     }
 
@@ -514,7 +515,7 @@ DefaultRename<Impl>::tick()
         }
     }
 
-    passLB(0);
+    passLB(HPT);
 }
 
 template<class Impl>
@@ -745,7 +746,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             }
 
             if (LB_part) {
-                this->incLocalSlots(tid, ComputeEntryWait, shortfall);
+                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
                 this->incLocalSlots(tid, ComputeEntryMiss,
                         shortfall - numLPTcause);
             } else {
@@ -1511,7 +1512,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
         if (tid == HPT) {
             LB_all = fromIEW->iewInfo[0].BLB;
-            DPRINTF(FmtSlot2, "HPT stall from IEW stage detected.\n", tid);
+            DPRINTF(FmtSlot2, "HPT stall from IEW stage detected.\n");
         }
 
     } else if (calcFreeROBEntries(tid) <= 0) {
@@ -1533,7 +1534,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == HPT) {
-            LB_all = calcOwnIQEntries(LPT) >= renameWidths[0];
+            LB_all = calcOwnIQEntries(LPT) >= renameWidths[HPT];
             LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnIQEntries(LPT), numLPTcause);
 
@@ -1546,8 +1547,8 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == HPT) {
-            LB_all = (calcOwnLQEntries(LPT) > renameWidths[0]) ||
-                (calcOwnSQEntries(LPT) > renameWidths[0]);
+            LB_all = (calcOwnLQEntries(LPT) > renameWidths[HPT]) ||
+                (calcOwnSQEntries(LPT) > renameWidths[HPT]);
             LB_part = !LB_all && ((calcOwnLQEntries(LPT) > 0) ||
                 (calcOwnSQEntries(LPT) > 0));
             numLPTcause = std::min(std::min(calcOwnLQEntries(LPT),
@@ -1934,13 +1935,15 @@ DefaultRename<Impl>::getRenamable() {
                 break;
 
             case Blocked:
-                renamable[tid] = skidBuffer[tid].size();
+                renamable[tid] = std::min((int) skidBuffer[tid].size(),
+                        (int) renameWidths[tid]);
                 DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
 
             case Unblocking:
-                renamable[tid] = skidBuffer[tid].size();
+                renamable[tid] = std::min((int) skidBuffer[tid].size(),
+                        (int) renameWidths[tid]);
                 DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to rename\n",
                         tid, renamable[tid]);
                 /**should rename*/
@@ -1957,7 +1960,8 @@ DefaultRename<Impl>::getRenamable() {
                 break;
 
             case SerializeStall:
-                renamable[tid] = skidBuffer[tid].size();
+                renamable[tid] = std::min((int) skidBuffer[tid].size(),
+                        (int) renameWidths[tid]);
                 DPRINTF(FmtSlot2, "T[%i][Serialize Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;

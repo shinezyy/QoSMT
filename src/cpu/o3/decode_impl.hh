@@ -268,7 +268,7 @@ DefaultDecode<Impl>::block(ThreadID tid)
         // Set the status to Blocked.
         decodeStatus[tid] = Blocked;
 
-        BLBlocal = tid == 0 ? fromRename->renameInfo[0].BLB : BLBlocal;
+        BLBlocal = tid == HPT ? fromRename->renameInfo[0].BLB : BLBlocal;
 
         if (toFetch->decodeUnblock[tid]) {
             toFetch->decodeUnblock[tid] = false;
@@ -291,7 +291,7 @@ DefaultDecode<Impl>::unblock(ThreadID tid)
     if (skidBuffer[tid].empty()) {
         DPRINTF(Decode, "[tid:%u]: Done unblocking.\n", tid);
         toFetch->decodeUnblock[tid] = true;
-        BLBlocal = tid == 0 ? false : BLBlocal;
+        BLBlocal = tid == HPT ? false : BLBlocal;
         wroteToTimeBuffer = true;
 
         decodeStatus[tid] = Running;
@@ -328,7 +328,7 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
     // Might have to tell fetch to unblock.
     if (decodeStatus[tid] == Blocked ||
         decodeStatus[tid] == Unblocking) {
-        BLBlocal = tid == 0 ? false : BLBlocal;
+        BLBlocal = tid == HPT ? false : BLBlocal;
         toFetch->decodeUnblock[tid] = 1;
     }
 
@@ -377,7 +377,7 @@ DefaultDecode<Impl>::squash(ThreadID tid)
                 toFetch->decodeUnblock[tid] = 1;
             }
         }
-        BLBlocal = tid == 0 ? false : BLBlocal;
+        BLBlocal = tid == HPT ? false : BLBlocal;
     }
 
     // Set status to squashing.

@@ -117,7 +117,8 @@ SlotCounter<Impl>::regStats()
         ;
 
     missSlots = slots[InstMiss] + slots[EntryMiss] +
-        slots[ComputeEntryMiss] + slots[LaterMiss];
+        slots[ComputeEntryMiss] + slots[LaterMiss] +
+        slots[SerializeMiss];
 
     baseSlots
         .name(name() + ".local_base_slots")

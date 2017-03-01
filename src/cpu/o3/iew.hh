@@ -552,6 +552,8 @@ class DefaultIEW : public SlotCounter<Impl>
 
     std::vector<int> dispatched;
 
+    std::vector<int> squashed;
+
     std::vector<int> dispatchable;
 
     bool BLBlocal; //For Unblocking
