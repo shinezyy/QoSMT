@@ -541,8 +541,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
     int getHPTWidth() {return dispatchWidths[0];};
 
-    void recordMiss(int wastedSlot, ThreadID tid);
-
     unsigned hptInitDispatchWidth;
 
   private:

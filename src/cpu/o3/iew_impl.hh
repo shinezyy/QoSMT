@@ -155,6 +155,7 @@ void
 DefaultIEW<Impl>::regStats()
 {
     using namespace Stats;
+    SlotCounter<Impl>::regStats();
 
     instQueue.regStats();
     ldstQueue.regStats();
@@ -1287,22 +1288,13 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
         if (tid == HPT && !headInst[tid]) {
             headInst[tid] = inst;
-            /** Do correction. */
-            if (tid == HPT && this->miss[tid]) {
-                fmt->incMissDirect(HPT, -std::min(inst->getWaitSlot() +
-                            this->wait[tid], this->miss[tid]), false);
-                fmt->incWaitSlot(inst, HPT, std::min(inst->getWaitSlot() +
-                            this->wait[tid], this->miss[tid]));
-
-                this->wait[tid] = 0;
-                this->miss[tid] = 0;
-            }
         }
 
         // check other threads' status
         if (HPT == tid) {
             DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
             this->incLocalSlots(HPT, Base, 1);
+            fmt->incBaseSlot(inst, HPT, 1);
             dispatchable[HPT]--;
         }
 
@@ -1689,6 +1681,19 @@ DefaultIEW<Impl>::tick()
         dispatch(tid);
     }
 
+    if (this->checkSlots(HPT)) {
+        this->sumLocalSlots(HPT);
+    }
+
+    fmt->incMissDirect(HPT, this->miss[HPT], false);
+    if (dispatched[HPT] > 0) {
+        /** reshape 保证不会高估wait的数量*/
+        DynInstPtr &inst = this->getHeadInst(HPT);
+        this->assignSlots(HPT, inst);
+        fmt->incMissDirect(HPT, - inst->getWaitSlot(), false);
+        fmt->incWaitSlot(inst, HPT, inst->getWaitSlot());
+    }
+
     if (exeStatus != Squashing) {
         executeInsts();
 
@@ -1930,20 +1935,6 @@ DefaultIEW<Impl>::reassignDispatchWidth(int newWidthVec[], int lenWidthVec)
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         dispatchWidths[tid] = newWidthVec[tid];
         toRename->iewInfo[tid].dispatchWidth = dispatchWidths[tid];
-    }
-}
-
-template<class Impl>
-void
-DefaultIEW<Impl>::recordMiss(int wastedSlot, ThreadID tid)
-{
-    /** Because of the behavior of incMiss changed
-      * Stat Overlapped is not accurate now
-      */
-    if (tid == 0) {
-        fmt->incMissDirect(0, wastedSlot, false);
-    } else {
-        fmt->incMissDirect(0, wastedSlot, true);
     }
 }
 

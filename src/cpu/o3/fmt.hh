@@ -112,12 +112,12 @@ class FMT {
     void resolveBranch(bool right, DynInstPtr &bran, ThreadID tid);
 
 
-    void incBaseSlot(DynInstPtr &bran, ThreadID tid, int n);
+    void incBaseSlot(DynInstPtr &inst, ThreadID tid, int n);
 
     //Because miss is always deterministic, so it is not needed
     //void incMissSlot(DynInstPtr &bran, ThreadID tid, int n, bool Overlapped);
 
-    void incWaitSlot(DynInstPtr &bran, ThreadID tid, int n);
+    void incWaitSlot(DynInstPtr &inst, ThreadID tid, int n);
 
 
     /* The following functions are used to add slots to global counter

@@ -193,6 +193,7 @@ template <class Impl>
 void
 DefaultFetch<Impl>::regStats()
 {
+    SlotCounter<Impl>::regStats();
     icacheStallCycles
         .name(name() + ".icacheStallCycles")
         .desc("Number of cycles fetch is stalled on an Icache miss")

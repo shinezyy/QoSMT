@@ -118,6 +118,7 @@ template <class Impl>
 void
 DefaultDecode<Impl>::regStats()
 {
+    SlotCounter<Impl>::regStats();
     decodeIdleCycles
         .name(name() + ".IdleCycles")
         .desc("Number of cycles decode is idle")
@@ -613,8 +614,6 @@ DefaultDecode<Impl>::tick()
             DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid, toRenameNum[tid]);
         }
     }
-
-    this->sumLocalSlots(HPT);
 
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);

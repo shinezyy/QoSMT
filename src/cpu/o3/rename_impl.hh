@@ -80,7 +80,8 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
       availableInstCount(0),
-      BLBlocal(false)
+      BLBlocal(false),
+      renamable(params->numThreads, 0)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -106,6 +107,7 @@ template <class Impl>
 void
 DefaultRename<Impl>::regStats()
 {
+    SlotCounter<Impl>::regStats();
     renameSquashCycles
         .init(numThreads)
         .name(name() + ".SquashCycles")
@@ -500,6 +502,10 @@ DefaultRename<Impl>::tick()
     }
 
     increaseFreeEntries();
+
+    if (this->checkSlots(HPT)) {
+        this->sumLocalSlots(HPT);
+    }
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toIEWNum[tid]) {
@@ -911,6 +917,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         // Increment which instruction we're on.
         ++toIEWIndex;
         ++toIEWNum[tid];
+
+        if (tid == HPT) {
+            this->incLocalSlots(HPT, Base, 1);
+        }
 
         // Decrement how many instructions are available.
         --insts_available;
