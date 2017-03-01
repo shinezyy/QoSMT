@@ -80,6 +80,7 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     wait[tid] += perCycleSlots[tid][EntryWait];
     wait[tid] += perCycleSlots[tid][ComputeEntryWait];
     wait[tid] += perCycleSlots[tid][LaterWait];
+    wait[tid] += perCycleSlots[tid][LBLCWait];
 
     std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(0), 0);
 }
@@ -104,7 +105,7 @@ SlotCounter<Impl>::regStats()
         .desc("number of HPT wait slots in " + name())
         ;
 
-    waitSlots = slots[EarlierWait] +
+    waitSlots = slots[EarlierWait] + slots[LBLCWait] +
         slots[WidthWait] + slots[EntryWait] +
         slots[ComputeEntryWait] + slots[LaterWait];
 

@@ -94,6 +94,13 @@ class SlotCounter
 
         LaterWait,
 
+        /**
+         * In Unblocking status, if HPT, last cycle, was blocked by LPT,
+         * then insts were brokend down into two chunks, which leads to
+         * miss slots in the 2nd chunk, and should be rectified.
+         */
+        LBLCWait,
+
         NumUse
     };
 
@@ -109,6 +116,7 @@ class SlotCounter
             "Base",
             "LaterMiss",
             "LaterWait",
+            "LBLCWait",
         };
         return slotUseStr[index];
     }

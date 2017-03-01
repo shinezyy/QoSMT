@@ -599,8 +599,6 @@ class DefaultRename : public SlotCounter<Impl>
 
     void passLB(ThreadID tid);
 
-    std::vector<bool> counted;
-
     DynInstPtr& getHeadInst(ThreadID tid) {
         for (int i = 0; i < Impl::MaxWidth; i++) {
             assert(toIEW->insts[i]);
@@ -611,6 +609,12 @@ class DefaultRename : public SlotCounter<Impl>
         panic("T[%i]: No available insts to next stage!\n", tid);
         return toIEW->insts[~0];
     }
+
+    std::vector<int> renamable;
+
+    void getRenamable();
+
+    void computeMiss(ThreadID tid);
 };
 
 #endif // __CPU_O3_RENAME_HH__

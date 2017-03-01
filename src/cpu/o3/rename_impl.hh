@@ -80,8 +80,7 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
       availableInstCount(0),
-      BLBlocal(false),
-      counted(params->numThreads, 0)
+      BLBlocal(false)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -444,12 +443,13 @@ DefaultRename<Impl>::tick()
     numLPTcause = 0;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
-    std::fill(counted.begin(), counted.end(), false);
 
     sortInsts();
 
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
+
+    getRenamable();
 
     // Check stall and squash signals.
     for (ThreadID tid = 0; tid < numThreads; tid++) {
@@ -457,6 +457,8 @@ DefaultRename<Impl>::tick()
         DPRINTF(FmtSlot2, "Processing [tid:%i]\n", tid);
 
         status_change = checkSignalsAndUpdate(tid) || status_change;
+
+        computeMiss(tid);
 
         rename(status_change, tid);
     }
@@ -520,7 +522,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     //     continue trying to empty skid buffer
     //     check if stall conditions have passed
 
-    if (tid == 0) {
+    if (tid == HPT) {
         switch(renameStatus[tid]) {
             case Running:
                 DPRINTF(FmtSlot2, "Thread [%i] status now:" "Running\n", tid);
@@ -568,7 +570,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
         }
     } else if (renameStatus[tid] == Unblocking) {
         if (resumeUnblocking) {
-            assert(0);
+            panic("Unexpected branch taken!\n");
             block(tid);
             resumeUnblocking = false;
             toDecode->renameUnblock[tid] = false;
@@ -624,8 +626,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     int insts_available = renameStatus[tid] == Unblocking ?
         skidBuffer[tid].size() : insts[tid].size();
 
-    int shouldAvail = (renameStatus[tid] == Unblocking && LBLC) ?
-        renameWidths[tid] : insts_available;
     // Check the decode queue to see if instructions are available.
     // If there are no available instructions to rename, then do nothing.
     if (insts_available == 0) {
@@ -651,16 +651,17 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // 当ROB或者IQ瓶颈时，造成的无法重命名的指令的数量
 
     FullSource source = ROB;
-
-    assert(!counted[tid]);
+    int shortfall = 0;
 
     if (free_iq_entries < min_free_entries) {
         min_free_entries = free_iq_entries;
         source = IQ;
         // 如果空闲项足够，那么cause设置为0
-        IQcause = std::max(shouldAvail - min_free_entries, 0);
+        IQcause = std::max(renamable[tid] - min_free_entries, 0);
+        shortfall = IQcause;
     } else {
-        ROBcause = std::max(shouldAvail - min_free_entries, 0);
+        ROBcause = std::max(renamable[tid] - min_free_entries, 0);
+        shortfall = ROBcause;
     }
 
 
@@ -680,22 +681,36 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         incrFullStat(source, tid);
 
-        if (tid == 0) {
-            LB_part = true;
-            if (source == IQ && calcOwnIQEntries(1)) {
+        if (tid == HPT) {
+            if (source == IQ && calcOwnIQEntries(LPT)) {
                 // 如果空闲项足够，那么矫正值为0
-                numLPTcause = std::min(calcOwnIQEntries(1), IQcause);
-            } else if (source == ROB && calcOwnROBEntries(1)) {
-                numLPTcause = std::min(calcOwnROBEntries(1), ROBcause);
+                numLPTcause = std::min(calcOwnIQEntries(LPT), shortfall);
+                LB_all = numLPTcause == shortfall;
+                LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
+
+            } else if (source == ROB && calcOwnROBEntries(LPT)) {
+                numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
+                LB_all = numLPTcause == shortfall;
+                LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
+
             } else {
+                LB_all = false;
                 LB_part = false;
             }
+
+            if(LB_all) {
+                this->incLocalSlots(tid, EntryWait, shortfall);
+            } else if (LB_part) {
+                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
+                this->incLocalSlots(tid, ComputeEntryMiss,
+                        shortfall - numLPTcause);
+            } else {
+                this->incLocalSlots(tid, EntryMiss, shortfall);
+            }
+
+            renamable[tid] -= shortfall;
         }
 
-        if(LB_part) {
-            counted[tid] = true;
-            this->incLocalSlots(tid, true, numLPTcause);
-        }
         return;
 
     } else if (min_free_entries < insts_available) {
@@ -710,17 +725,28 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         incrFullStat(source, tid);
 
-        if (tid == 0) {
-            LB_part = true;
-            if (source == IQ && calcOwnIQEntries(1)) {
-                //numLPTcause会在后续计算中被用到
-                numLPTcause = std::min(calcOwnIQEntries(1), IQcause);
-            } else if (source == ROB && calcOwnROBEntries(1)) {
-                numLPTcause = std::min(calcOwnROBEntries(1), ROBcause);
+        if (tid == HPT) {
+            if (source == IQ && calcOwnIQEntries(LPT)) {
+                numLPTcause = std::min(calcOwnIQEntries(LPT), shortfall);
+                LB_part = calcOwnIQEntries(LPT) > 0;
+
+            } else if (source == ROB && calcOwnROBEntries(LPT)) {
+                numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
+                LB_part = calcOwnROBEntries(LPT) > 0;
+
             } else {
-                // 否则LPT不对HPT的阻塞负责
                 LB_part = false;
             }
+
+            if (LB_part) {
+                this->incLocalSlots(tid, ComputeEntryWait, shortfall);
+                this->incLocalSlots(tid, ComputeEntryMiss,
+                        shortfall - numLPTcause);
+            } else {
+                this->incLocalSlots(tid, EntryMiss, shortfall);
+            }
+
+            renamable[tid] -= shortfall;
         }
     }
 
@@ -798,7 +824,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             // Decrement how many instructions are available.
             --insts_available;
-            --shouldAvail;
+            --renamable[tid];
 
             continue;
         }
@@ -888,30 +914,31 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         // Decrement how many instructions are available.
         --insts_available;
-        --shouldAvail;
+        --renamable[tid];
     }
 
-    if (tid == 0 && shouldAvail) {
+    if (tid == HPT && renamable[tid]) {
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
-        if (source == LQ && calcOwnLQEntries(1)) {
+        if (source == LQ && calcOwnLQEntries(LPT)) {
             LB_part = true;
-            numLPTcause = shouldAvail + numLPTcause;
+            numLPTcause = renamable[tid];
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
-                    " %i because of LQ, %i because of IQ or ROB\n",
-                    numLPTcause, shouldAvail , numLPTcause);
-        } else if (source == SQ && calcOwnSQEntries(1)) {
+                    " because of LQ\n", renamable[tid]);
+        } else if (source == SQ && calcOwnSQEntries(LPT)) {
             LB_part = true;
-            numLPTcause = shouldAvail + numLPTcause;
+            numLPTcause = renamable[tid];
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
-                    " %i because of SQ, %i because of IQ or ROB\n",
-                    numLPTcause, shouldAvail, numLPTcause);
+                    " because of SQ\n", renamable[tid]);
+        } else {
+            LB_part = false;
         }
-    }
 
-    if(LB_part) {
-        assert(!counted[tid]);
-        counted[tid] = true;
-        this->incLocalSlots(tid, true, numLPTcause);
+        if(LB_part) {
+            this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
+            this->incLocalSlots(tid, ComputeEntryMiss, renamable[tid] - numLPTcause);
+        } else {
+            this->incLocalSlots(tid, ComputeEntryMiss, renamable[tid]);
+        }
     }
 
     instsInProgress[tid] += renamed_insts;
@@ -1448,7 +1475,6 @@ bool
 DefaultRename<Impl>::checkStall(ThreadID tid)
 {
     bool ret_val = false;
-    ThreadID LPT = 1;
 
     unsigned numAvailInsts = 0;
     if (tid == 0) {
@@ -1530,23 +1556,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
                 "empty.\n",
                 tid);
         ret_val = true;
-    }
-
-    if (tid == 0 && (LB_all || LB_part)) {
-        counted[0] = true;
-        if (LBLC) {
-            /** 上个周期被LPT阻塞了，导致一队指令被拆散，导致
-             * 本周期可用的指令不多，这是LPT的锅
-             */
-            this->incLocalSlots(tid, true, renameWidths[tid]);
-        } else {
-            //如果这个周期不阻塞，至少也有renameWidths[tid] - numLPTcause个miss
-            this->incLocalSlots(tid, true, numLPTcause);
-            this->incLocalSlots(tid, false, renameWidths[tid] - numLPTcause);
-        }
-    } else if (tid == 0 && ret_val) {
-        counted[0] = true;
-        this->incLocalSlots(tid, false, renameWidths[tid]);
     }
 
     return ret_val;
@@ -1898,6 +1907,116 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             toIEW->frontEndMiss = true; // 这里是1或者tid有待进一步思考
             toDecode->renameInfo[tid].BLB = false;
             DPRINTF(LB, "No BLB because of SerializeStall\n");
+            break;
+    }
+}
+
+template <class Impl>
+void
+DefaultRename<Impl>::getRenamable() {
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        switch (renameStatus[tid]) {
+            case Running:
+            case Idle:
+                renameble[tid] = insts[tid].size();
+                DPRINTF(FmtSlot2, "T[%i][Running] has %i insts to rename\n",
+                        tid, renameble[tid]);
+                break;
+
+            case Blocked:
+                renameble[tid] = skidBuffer[tid].size();
+                DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to rename\n",
+                        tid, renameble[tid]);
+                break;
+
+            case Unblocking:
+                renameble[tid] = skidBuffer[tid].size();
+                DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to rename\n",
+                        tid, renameble[tid]);
+                /**should rename*/
+                if(!fromRename->frontEndMiss && LBLC) {
+                    DPRINTF(FmtSlot2, "T[%i] has %i insts should rename\n",
+                            tid, renameWidths[tid]);
+                }
+                break;
+
+            case Squashing:
+            case StartSquash:
+                renameble[tid] = 0;
+                DPRINTF(FmtSlot2, "T[%i][Squash] has no insts to rename\n", tid);
+                break;
+
+            case SerializeStall:
+                renameble[tid] = skidBuffer[tid].size();
+                DPRINTF(FmtSlot2, "T[%i][Serialize Blocked] has %i insts to rename\n",
+                        tid, renameble[tid]);
+                break;
+        }
+    }
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::computeMiss(ThreadID tid)
+{
+    if (tid != HPT) return;
+
+    switch (renameStatus[tid]) {
+        case Running:
+        case Idle:
+            if (renamable[tid] < renameWidths[tid]) {
+                int wasted = renameWidths[tid] - renamable[tid];
+                this->incLocalSlots(HPT, InstMiss, wasted);
+
+                DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
+                        tid, wasted);
+            }
+            break;
+
+        case Unblocking:
+            if (renamable[tid] < renameWidths[tid]) {
+                if (fromRename->frontEndMiss || !LBLC) {
+                    this->incLocalSlots(HPT, InstMiss, wasted);
+                } else {
+                    this->incLocalSlots(HPT, LBLCWait, wasted);
+                }
+            }
+            break;
+
+        case Blocked:
+            /**block一定导致本周期miss */
+            if (fromRename->frontEndMiss) {
+                this->incLocalSlots(HPT, InstMiss, renameWidths[tid]);
+            } else {
+                if (fromIEW->iewInfo[0].BLB) {
+                    this->incLocalSlots(HPT, LaterWait, renameWidths[tid]);
+                } else if (LB_all) {
+                    this->incLocalSlots(HPT, EntryWait, renameWidths[tid]);
+                } else if (LB_part) {
+                    this->incLocalSlots(HPT, ComputeEntryWait, numLPTcause);
+                    this->incLocalSlots(HPT, ComputeEntryMiss,
+                            renameWidths[tid] - numLPTcause);
+                } else {
+                    this->incLocalSlots(HPT, EntryMiss, renameWidths[tid]);
+                }
+            }
+                    //checked
+            break;
+
+        case Squashing:
+        case StartSquash:
+            /**Squash一定导致本周期miss*/
+            this->incLocalSlots(HPT, InstMiss, renameWidths[tid]);
+
+            DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
+                    tid, renameWidths[tid]);
+            break;
+
+        case SerializeStall:
+            this->incLocalSlots(HPT, SerializeMiss, renameWidths[tid]);
+            break;
+
+        default:
             break;
     }
 }
