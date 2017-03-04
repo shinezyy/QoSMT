@@ -1815,9 +1815,13 @@ template <class Impl>
 void
 DefaultFetch<Impl>::passLB(ThreadID tid)
 {
-    // Pass status to IEW for PTA
+    if (fetchQueue[tid].size() == fetchQueueSize) {
+        goto _do_block;
+    }
+
     switch(fetchStatus[tid]) {
         case(Blocked): /** 传下去就行了*/
+_do_block:
             toDecode->frontEndMiss = false;
 
             if (fromDecode->decodeInfo[tid].BLB) {
