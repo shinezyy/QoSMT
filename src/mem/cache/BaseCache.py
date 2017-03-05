@@ -81,3 +81,6 @@ class BaseCache(MemObject):
          "Address range for the CPU-side port (to allow striping)")
 
     system = Param.System(Parent.any, "System we belong to")
+
+    cache_level = Param.Int("The cache level")
+    is_dcache = Param.Bool("Is data cache")

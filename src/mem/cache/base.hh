@@ -612,6 +612,8 @@ class BaseCache : public MemObject
 
     }
 
+    const int cacheLevel;
+
 };
 
 #endif //__BASE_CACHE_HH__

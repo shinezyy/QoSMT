@@ -53,6 +53,7 @@ class L1Cache(BaseCache):
     mshrs = 32
     tgts_per_mshr = 20
     is_top_level = True
+    cache_level = 1
 
 class L2Cache(BaseCache):
     assoc = 8
@@ -61,6 +62,7 @@ class L2Cache(BaseCache):
     mshrs = 64
     tgts_per_mshr = 12
     write_buffers = 8
+    cache_level = 2
 
 class IOCache(BaseCache):
     assoc = 8
