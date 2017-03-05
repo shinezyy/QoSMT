@@ -1316,7 +1316,13 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         if (fromRename->frontEndMiss) {
             this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
 
-        } else if (LB_all) {
+        } else if (LLmiss[HPT]) {
+            this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
+
+        } else if (LLmiss[LPT]) {
+            this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
+
+        }else if (LB_all) {
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
 
         } else if (LB_part) {
@@ -1694,20 +1700,24 @@ DefaultIEW<Impl>::tick()
     }
 
     fmt->incMissDirect(HPT, this->miss[HPT], false);
-    this->miss[HPT] = 0;
     if (dispatched[HPT] > 0 && dispatched[HPT] > squashed[HPT]) {
         /** reshape 保证不会高估wait的数量*/
         if (dispatchStatus[HPT] != Squashing) {
             DynInstPtr &inst = this->getHeadInst(HPT);
+
+            int localMiss = this->miss[HPT];
+
             this->assignSlots(HPT, inst);
-            fmt->incMissDirect(HPT, - inst->getWaitSlot(), false);
-            fmt->incWaitSlot(inst, HPT, inst->getWaitSlot());
+
+            fmt->incMissDirect(HPT, -std::min(inst->getWaitSlot(), localMiss), false);
+            fmt->incWaitSlot(inst, HPT, std::min(inst->getWaitSlot(), localMiss));
         } else {
             /**错误的等待*/
             fmt->incMissDirect(HPT, this->wait[HPT], false);
             this->wait[HPT] = 0;
         }
     }
+    this->miss[HPT] = 0;
 
     if (exeStatus != Squashing) {
         executeInsts();
@@ -2028,10 +2038,17 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
             if (fromRename->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, dispatchWidth);
             } else {
-                if (LB_all) {
+                if (LLmiss[HPT]) {
+                    this->incLocalSlots(tid, EntryMiss, dispatchWidth);
+
+                } else if (LLmiss[LPT]) {
+                    this->incLocalSlots(tid, EntryWait, dispatchWidth);
+
+                } else if (LB_all) {
                     this->incLocalSlots(tid, InstMiss,
                             dispatchWidth - numLPTcause);
                     this->incLocalSlots(tid, EntryWait, numLPTcause);
+
                 } else if(LB_part) {
                     this->incLocalSlots(tid, EntryWait, numLPTcause);
                     this->incLocalSlots(tid, EntryMiss,
