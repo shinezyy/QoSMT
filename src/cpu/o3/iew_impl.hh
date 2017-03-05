@@ -1321,7 +1321,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             this->incLocalSlots(tid, ComputeEntryMiss,
                     dispatchable[tid] - numLPTcause);
 
-        } else if (dispatched[tid] <= dispatchWidths[tid]){
+        } else if (dispatchStatus[tid] == Blocked){
             this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
 
         } else {

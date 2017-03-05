@@ -559,7 +559,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
 
     if (renameStatus[tid] == Blocked) {
         ++renameBlockCycles[tid];
-        if (fromIEW->iewInfo[0].BLB) {
+        if (fromIEW->iewInfo[HPT].BLB) {
             DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
         }
     } else if (renameStatus[tid] == Squashing) {
@@ -1119,7 +1119,7 @@ DefaultRename<Impl>::block(ThreadID tid)
             renameStatus[tid] = Blocked;
 
             BLBlocal = tid == HPT ?
-                fromIEW->iewInfo[0].BLB || LB_all : BLBlocal;
+                fromIEW->iewInfo[0].BLB || LB_all || LB_part : BLBlocal;
 
             DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
             return true;
@@ -1867,11 +1867,11 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
 
             toDecode->renameInfo[tid].BLB =
-                fromIEW->iewInfo[tid].BLB || LB_all;
+                fromIEW->iewInfo[tid].BLB || LB_all || LB_part;
             /**如果LB_part，那么这个周期没有LPT也会阻塞，肯定会阻塞上一个stage*/
 
             if (toDecode->renameInfo[tid].BLB) {
-                if (LB_all) {
+                if (LB_all || LB_part) {
                     DPRINTF(LB, "Send BLB to Decode because of local detection\n");
                 } else {
                     DPRINTF(LB, "Forward BLB from IEW to Decode\n");
