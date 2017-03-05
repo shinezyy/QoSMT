@@ -85,6 +85,9 @@ class LSQUnit {
     typedef typename Impl::CPUPol::LSQ LSQ;
     typedef typename Impl::CPUPol::IssueStruct IssueStruct;
 
+    //typedef typename std::vector<DynInstPtr>::iterator LoadIt;
+    //typedef typename std::vector<SQEntry>::iterator StoreIt;
+
   public:
     /** Constructs an LSQ unit. init() must be called prior to use. */
     LSQUnit();
@@ -558,6 +561,23 @@ class LSQUnit {
     unsigned lqValid, sqValid;
 
     bool isDynamic;
+
+    bool LLMiss(int threshold, InstSeqNum &seq) {
+        if (!loads) {
+            return false;
+        } else {
+            DynInstPtr &inst = loadQueue[loadHead];
+            if (inst->loadStartCycle == 0) {
+                // not started
+                return false;
+            } else if ((int) (cpu->localCycles - inst->loadStartCycle) > threshold) {
+                seq = inst->seqNum;
+                return true;
+            }
+
+        }
+        return false;
+    }
 };
 
 template <class Impl>
@@ -570,6 +590,8 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
     assert(load_inst);
 
     assert(!load_inst->isExecuted());
+
+    load_inst->loadStartCycle = cpu->localCycles;
 
     // Make sure this isn't a strictly ordered load
     // A bit of a hackish way to get strictly ordered accesses to work

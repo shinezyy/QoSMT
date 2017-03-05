@@ -615,6 +615,10 @@ class DefaultRename : public SlotCounter<Impl>
     void getRenamable();
 
     void computeMiss(ThreadID tid);
+
+    std::vector<bool> LLmiss;
+
+    std::vector<uint64_t> LLMInstSeq;
 };
 
 #endif // __CPU_O3_RENAME_HH__

@@ -169,6 +169,9 @@ class DerivO3CPU(BaseCPU):
     iewProgrammable = Param.Bool(False, "Enable programmable dispatch")
     hptInitDispatchWidth = Param.Unsigned(0, "Initial dispatch width of HPT")
 
+    l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
+    l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")
+
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:
             from ArmTLB import ArmTLB

@@ -192,6 +192,10 @@ struct TimeBufStruct {
         unsigned busySQEntries;
 
         bool BLB; /** Backward LPT Block HPT  to rename*/
+
+        bool LLmiss;
+
+        InstSeqNum LLMInstSeq;
     };
 
     iewComm iewInfo[Impl::MaxThreads];

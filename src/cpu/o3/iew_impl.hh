@@ -91,7 +91,10 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       dispatchable(params->numThreads, 0),
       BLBlocal(false),
       missRecorded(params->numThreads, false),
-      headInst(params->numThreads, nullptr)
+      headInst(params->numThreads, nullptr),
+      LLmiss(params->numThreads, false),
+      LLMInstSeq(params->numThreads, 0),
+      l1Lat(params->l1Lat)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -1674,6 +1677,7 @@ DefaultIEW<Impl>::tick()
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
 
         DPRINTF(FmtSlot2, "Dispatch: Processing [tid:%i]\n",tid);
+        LLmiss[tid] = ldstQueue.LLMiss(tid, l1Lat + 1, LLMInstSeq[tid]);
         checkSignalsAndUpdate(tid);
     }
 
@@ -1729,8 +1733,13 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
-    toRename->iewInfo[0].BLB = LB_all || (LBLC &&
-            dispatchStatus[0] == Unblocking);
+    toRename->iewInfo[0].BLB = !LLmiss[HPT] && (LLmiss[LPT] || LB_all || (LBLC &&
+            dispatchStatus[0] == Unblocking));
+
+    for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        toRename->iewInfo[tid].LLmiss = LLmiss[tid];
+        toRename->iewInfo[tid].LLMInstSeq = LLMInstSeq[tid];
+    }
 
     if (toRename->iewInfo[0].BLB) {
         DPRINTF(FmtSlot, "Send LPT cause HPT Stall backward to rename.\n");

@@ -375,6 +375,10 @@ class LSQ {
     int getHPTSQPortion() {return SQPortion[0];}
 
     unsigned sampleCycle, sampleTime, sampleRate;
+
+    bool LLMiss(ThreadID tid, int threshold, InstSeqNum &seq) {
+        return thread[tid].LLMiss(threshold, seq);
+    }
 };
 
 template <class Impl>

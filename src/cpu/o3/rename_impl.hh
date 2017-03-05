@@ -81,7 +81,9 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
                       + params->numPhysCCRegs),
       availableInstCount(0),
       BLBlocal(false),
-      renamable(params->numThreads, 0)
+      renamable(params->numThreads, 0),
+      LLmiss(params->numThreads, false),
+      LLMInstSeq(params->numThreads, 0)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -455,6 +457,8 @@ DefaultRename<Impl>::tick()
     for (ThreadID tid = 0; tid < numThreads; tid++) {
 
         DPRINTF(FmtSlot2, "Processing [tid:%i]\n", tid);
+        LLmiss[tid] = fromIEW->iewInfo[tid].LLmiss;
+        LLMInstSeq[tid] = fromIEW->iewInfo[tid].LLMInstSeq;
         status_change = checkSignalsAndUpdate(tid) || status_change;
     }
 

@@ -140,6 +140,8 @@ BaseO3DynInst<Impl>::initVars()
     priorWaitSlots = 0;
 
     priorMissSlots = 0;
+
+    loadStartCycle = 0;
 }
 
 template <class Impl>
