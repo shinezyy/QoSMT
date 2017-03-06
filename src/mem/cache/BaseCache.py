@@ -84,3 +84,4 @@ class BaseCache(MemObject):
 
     cache_level = Param.Int("The cache level")
     is_dcache = Param.Bool("Is data cache")
+    numThreads = Param.Int("Number of threads")

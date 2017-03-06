@@ -85,7 +85,8 @@ BaseCache::BaseCache(const Params *p)
       missCount(p->max_miss_count),
       addrRanges(p->addr_ranges.begin(), p->addr_ranges.end()),
       system(p->system),
-      cacheLevel(p->cache_level)
+      cacheLevel(p->cache_level),
+      numThreads(p->numThreads)
 {
 }
 
@@ -176,14 +177,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         hits[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_hits")
             .desc("number of " + cstr + " hits")
             .flags(total | nozero | nonan)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            hits[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
 // These macros make it easier to sum the right subset of commands and
@@ -202,9 +200,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandHits = SUM_DEMAND(hits);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandHits.subname(i, system->getMasterName(i));
-    }
 
     overallHits
         .name(name() + ".overall_hits")
@@ -212,9 +207,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallHits = demandHits + SUM_NON_DEMAND(hits);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallHits.subname(i, system->getMasterName(i));
-    }
 
     // Miss statistics
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -222,14 +214,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         misses[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_misses")
             .desc("number of " + cstr + " misses")
             .flags(total | nozero | nonan | display)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            misses[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandMisses
@@ -238,9 +227,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandMisses = SUM_DEMAND(misses);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandMisses.subname(i, system->getMasterName(i));
-    }
 
     overallMisses
         .name(name() + ".overall_misses")
@@ -248,9 +234,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallMisses = demandMisses + SUM_NON_DEMAND(misses);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMisses.subname(i, system->getMasterName(i));
-    }
 
     // Miss latency statistics
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -258,14 +241,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         missLatency[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_miss_latency")
             .desc("number of " + cstr + " miss cycles")
             .flags(total | nozero | nonan)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            missLatency[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandMissLatency
@@ -274,9 +254,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandMissLatency = SUM_DEMAND(missLatency);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandMissLatency.subname(i, system->getMasterName(i));
-    }
 
     overallMissLatency
         .name(name() + ".overall_miss_latency")
@@ -284,9 +261,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallMissLatency = demandMissLatency + SUM_NON_DEMAND(missLatency);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMissLatency.subname(i, system->getMasterName(i));
-    }
 
     // access formulas
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -300,9 +274,6 @@ BaseCache::regStats()
             ;
         accesses[access_idx] = hits[access_idx] + misses[access_idx];
 
-        for (int i = 0; i < system->maxMasters(); i++) {
-            accesses[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandAccesses
@@ -311,9 +282,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandAccesses = demandHits + demandMisses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandAccesses.subname(i, system->getMasterName(i));
-    }
 
     overallAccesses
         .name(name() + ".overall_accesses")
@@ -321,9 +289,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallAccesses = overallHits + overallMisses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallAccesses.subname(i, system->getMasterName(i));
-    }
 
     // miss rate formulas
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -337,9 +302,6 @@ BaseCache::regStats()
             ;
         missRate[access_idx] = misses[access_idx] / accesses[access_idx];
 
-        for (int i = 0; i < system->maxMasters(); i++) {
-            missRate[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandMissRate
@@ -348,9 +310,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandMissRate = demandMisses / demandAccesses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandMissRate.subname(i, system->getMasterName(i));
-    }
 
     overallMissRate
         .name(name() + ".overall_miss_rate")
@@ -358,9 +317,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallMissRate = overallMisses / overallAccesses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMissRate.subname(i, system->getMasterName(i));
-    }
 
     // miss latency formulas
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -375,9 +331,6 @@ BaseCache::regStats()
         avgMissLatency[access_idx] =
             missLatency[access_idx] / misses[access_idx];
 
-        for (int i = 0; i < system->maxMasters(); i++) {
-            avgMissLatency[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandAvgMissLatency
@@ -386,9 +339,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandAvgMissLatency = demandMissLatency / demandMisses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandAvgMissLatency.subname(i, system->getMasterName(i));
-    }
 
     overallAvgMissLatency
         .name(name() + ".overall_avg_miss_latency")
@@ -396,9 +346,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallAvgMissLatency = overallMissLatency / overallMisses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallAvgMissLatency.subname(i, system->getMasterName(i));
-    }
 
     blocked_cycles.init(NUM_BLOCKED_CAUSES);
     blocked_cycles
@@ -437,14 +384,11 @@ BaseCache::regStats()
         ;
 
     writebacks
-        .init(system->maxMasters())
+        .init(numThreads)
         .name(name() + ".writebacks")
         .desc("number of writebacks")
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        writebacks.subname(i, system->getMasterName(i));
-    }
 
     // MSHR statistics
     // MSHR hit statistics
@@ -453,14 +397,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         mshr_hits[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_mshr_hits")
             .desc("number of " + cstr + " MSHR hits")
             .flags(total | nozero | nonan)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            mshr_hits[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandMshrHits
@@ -469,9 +410,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandMshrHits = SUM_DEMAND(mshr_hits);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandMshrHits.subname(i, system->getMasterName(i));
-    }
 
     overallMshrHits
         .name(name() + ".overall_mshr_hits")
@@ -479,9 +417,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallMshrHits = demandMshrHits + SUM_NON_DEMAND(mshr_hits);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMshrHits.subname(i, system->getMasterName(i));
-    }
 
     // MSHR miss statistics
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -489,14 +424,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         mshr_misses[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_mshr_misses")
             .desc("number of " + cstr + " MSHR misses")
             .flags(total | nozero | nonan)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            mshr_misses[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandMshrMisses
@@ -505,9 +437,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandMshrMisses = SUM_DEMAND(mshr_misses);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandMshrMisses.subname(i, system->getMasterName(i));
-    }
 
     overallMshrMisses
         .name(name() + ".overall_mshr_misses")
@@ -515,9 +444,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallMshrMisses = demandMshrMisses + SUM_NON_DEMAND(mshr_misses);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMshrMisses.subname(i, system->getMasterName(i));
-    }
 
     // MSHR miss latency statistics
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -525,14 +451,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         mshr_miss_latency[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_mshr_miss_latency")
             .desc("number of " + cstr + " MSHR miss cycles")
             .flags(total | nozero | nonan)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            mshr_miss_latency[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandMshrMissLatency
@@ -541,9 +464,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandMshrMissLatency = SUM_DEMAND(mshr_miss_latency);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandMshrMissLatency.subname(i, system->getMasterName(i));
-    }
 
     overallMshrMissLatency
         .name(name() + ".overall_mshr_miss_latency")
@@ -552,9 +472,6 @@ BaseCache::regStats()
         ;
     overallMshrMissLatency =
         demandMshrMissLatency + SUM_NON_DEMAND(mshr_miss_latency);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMshrMissLatency.subname(i, system->getMasterName(i));
-    }
 
     // MSHR uncacheable statistics
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -562,14 +479,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         mshr_uncacheable[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_mshr_uncacheable")
             .desc("number of " + cstr + " MSHR uncacheable")
             .flags(total | nozero | nonan)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            mshr_uncacheable[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     overallMshrUncacheable
@@ -579,9 +493,6 @@ BaseCache::regStats()
         ;
     overallMshrUncacheable =
         SUM_DEMAND(mshr_uncacheable) + SUM_NON_DEMAND(mshr_uncacheable);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMshrUncacheable.subname(i, system->getMasterName(i));
-    }
 
     // MSHR miss latency statistics
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -589,14 +500,11 @@ BaseCache::regStats()
         const string &cstr = cmd.toString();
 
         mshr_uncacheable_lat[access_idx]
-            .init(system->maxMasters())
+            .init(numThreads)
             .name(name() + "." + cstr + "_mshr_uncacheable_latency")
             .desc("number of " + cstr + " MSHR uncacheable cycles")
             .flags(total | nozero | nonan)
             ;
-        for (int i = 0; i < system->maxMasters(); i++) {
-            mshr_uncacheable_lat[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     overallMshrUncacheableLatency
@@ -607,9 +515,6 @@ BaseCache::regStats()
     overallMshrUncacheableLatency =
         SUM_DEMAND(mshr_uncacheable_lat) +
         SUM_NON_DEMAND(mshr_uncacheable_lat);
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMshrUncacheableLatency.subname(i, system->getMasterName(i));
-    }
 
 #if 0
     // MSHR access formulas
@@ -656,9 +561,6 @@ BaseCache::regStats()
         mshrMissRate[access_idx] =
             mshr_misses[access_idx] / accesses[access_idx];
 
-        for (int i = 0; i < system->maxMasters(); i++) {
-            mshrMissRate[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandMshrMissRate
@@ -667,9 +569,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandMshrMissRate = demandMshrMisses / demandAccesses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandMshrMissRate.subname(i, system->getMasterName(i));
-    }
 
     overallMshrMissRate
         .name(name() + ".overall_mshr_miss_rate")
@@ -677,9 +576,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallMshrMissRate = overallMshrMisses / overallAccesses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallMshrMissRate.subname(i, system->getMasterName(i));
-    }
 
     // mshrMiss latency formulas
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -694,9 +590,6 @@ BaseCache::regStats()
         avgMshrMissLatency[access_idx] =
             mshr_miss_latency[access_idx] / mshr_misses[access_idx];
 
-        for (int i = 0; i < system->maxMasters(); i++) {
-            avgMshrMissLatency[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     demandAvgMshrMissLatency
@@ -705,9 +598,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     demandAvgMshrMissLatency = demandMshrMissLatency / demandMshrMisses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        demandAvgMshrMissLatency.subname(i, system->getMasterName(i));
-    }
 
     overallAvgMshrMissLatency
         .name(name() + ".overall_avg_mshr_miss_latency")
@@ -715,9 +605,6 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallAvgMshrMissLatency = overallMshrMissLatency / overallMshrMisses;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallAvgMshrMissLatency.subname(i, system->getMasterName(i));
-    }
 
     // mshrUncacheable latency formulas
     for (int access_idx = 0; access_idx < MemCmd::NUM_MEM_CMDS; ++access_idx) {
@@ -732,9 +619,6 @@ BaseCache::regStats()
         avgMshrUncacheableLatency[access_idx] =
             mshr_uncacheable_lat[access_idx] / mshr_uncacheable[access_idx];
 
-        for (int i = 0; i < system->maxMasters(); i++) {
-            avgMshrUncacheableLatency[access_idx].subname(i, system->getMasterName(i));
-        }
     }
 
     overallAvgMshrUncacheableLatency
@@ -743,30 +627,21 @@ BaseCache::regStats()
         .flags(total | nozero | nonan)
         ;
     overallAvgMshrUncacheableLatency = overallMshrUncacheableLatency / overallMshrUncacheable;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        overallAvgMshrUncacheableLatency.subname(i, system->getMasterName(i));
-    }
 
     mshr_cap_events
-        .init(system->maxMasters())
+        .init(numThreads)
         .name(name() + ".mshr_cap_events")
         .desc("number of times MSHR cap was activated")
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        mshr_cap_events.subname(i, system->getMasterName(i));
-    }
 
     //software prefetching stats
     soft_prefetch_mshr_full
-        .init(system->maxMasters())
+        .init(numThreads)
         .name(name() + ".soft_prefetch_mshr_full")
         .desc("number of mshr full events for SW prefetching instrutions")
         .flags(total | nozero | nonan)
         ;
-    for (int i = 0; i < system->maxMasters(); i++) {
-        soft_prefetch_mshr_full.subname(i, system->getMasterName(i));
-    }
 
     mshr_no_allocate_misses
         .name(name() +".no_allocate_misses")

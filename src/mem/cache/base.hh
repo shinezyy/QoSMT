@@ -596,8 +596,8 @@ class BaseCache : public MemObject
 
     void incMissCount(PacketPtr pkt)
     {
-        assert(pkt->req->masterId() < system->maxMasters());
-        misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
+        assert(pkt->req->threadId() < system->maxMasters());
+        misses[pkt->cmdToIndex()][pkt->req->threadId()]++;
         pkt->req->incAccessDepth();
         if (missCount) {
             --missCount;
@@ -607,13 +607,14 @@ class BaseCache : public MemObject
     }
     void incHitCount(PacketPtr pkt)
     {
-        assert(pkt->req->masterId() < system->maxMasters());
-        hits[pkt->cmdToIndex()][pkt->req->masterId()]++;
+        assert(pkt->req->threadId() < system->maxMasters());
+        hits[pkt->cmdToIndex()][pkt->req->threadId()]++;
 
     }
 
     const int cacheLevel;
 
+    const int numThreads;
 };
 
 #endif //__BASE_CACHE_HH__

@@ -667,7 +667,7 @@ Cache::recvTimingReq(PacketPtr pkt)
                         pkt->getSize());
 
                 assert(pkt->req->masterId() < system->maxMasters());
-                mshr_hits[pkt->cmdToIndex()][pkt->req->masterId()]++;
+                mshr_hits[pkt->cmdToIndex()][pkt->req->threadId()]++;
                 if (mshr->threadNum != 0/*pkt->req->threadId()*/) {
                     mshr->threadNum = -1;
                 }
@@ -704,9 +704,9 @@ Cache::recvTimingReq(PacketPtr pkt)
             // no MSHR
             assert(pkt->req->masterId() < system->maxMasters());
             if (pkt->req->isUncacheable()) {
-                mshr_uncacheable[pkt->cmdToIndex()][pkt->req->masterId()]++;
+                mshr_uncacheable[pkt->cmdToIndex()][pkt->req->threadId()]++;
             } else {
-                mshr_misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
+                mshr_misses[pkt->cmdToIndex()][pkt->req->threadId()]++;
             }
 
             if (pkt->cmd == MemCmd::Writeback ||
@@ -1112,11 +1112,11 @@ Cache::recvTimingResp(PacketPtr pkt)
 
     if (pkt->req->isUncacheable()) {
         assert(pkt->req->masterId() < system->maxMasters());
-        mshr_uncacheable_lat[stats_cmd_idx][pkt->req->masterId()] +=
+        mshr_uncacheable_lat[stats_cmd_idx][pkt->req->threadId()] +=
             miss_latency;
     } else {
         assert(pkt->req->masterId() < system->maxMasters());
-        mshr_miss_latency[stats_cmd_idx][pkt->req->masterId()] +=
+        mshr_miss_latency[stats_cmd_idx][pkt->req->threadId()] +=
             miss_latency;
     }
 
@@ -1196,7 +1196,7 @@ Cache::recvTimingResp(PacketPtr pkt)
                 assert(!tgt_pkt->req->isUncacheable());
 
                 assert(tgt_pkt->req->masterId() < system->maxMasters());
-                missLatency[tgt_pkt->cmdToIndex()][tgt_pkt->req->masterId()] +=
+                missLatency[tgt_pkt->cmdToIndex()][tgt_pkt->req->threadId()] +=
                     completion_time - target->recvTime;
             } else if (pkt->cmd == MemCmd::UpgradeFailResp) {
                 // failed StoreCond upgrade
@@ -1930,7 +1930,7 @@ Cache::getNextMSHR()
                 // Update statistic on number of prefetches issued
                 // (hwpf_mshr_misses)
                 assert(pkt->req->masterId() < system->maxMasters());
-                mshr_misses[pkt->cmdToIndex()][pkt->req->masterId()]++;
+                mshr_misses[pkt->cmdToIndex()][pkt->req->threadId()]++;
                 // Don't request bus, since we already have it
                 return allocateMissBuffer(pkt, curTick(), false);
             } else {
