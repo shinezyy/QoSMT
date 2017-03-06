@@ -1316,11 +1316,11 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         if (fromRename->frontEndMiss) {
             this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
 
-        } else if (LLmiss[HPT]) {
-            this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
-
-        } else if (LLmiss[LPT]) {
+        } else if (dispatchStatus[tid] == Blocked && LLmiss[LPT]) {
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
+
+        } else if (dispatchStatus[tid] == Blocked && LLmiss[HPT]) {
+            this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
 
         }else if (LB_all) {
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
@@ -1683,7 +1683,7 @@ DefaultIEW<Impl>::tick()
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
 
         DPRINTF(FmtSlot2, "Dispatch: Processing [tid:%i]\n",tid);
-        LLmiss[tid] = ldstQueue.LLMiss(tid, l1Lat + 1, LLMInstSeq[tid]);
+        LLmiss[tid] = ldstQueue.LLMiss(tid, l1Lat + 2, LLMInstSeq[tid]);
         checkSignalsAndUpdate(tid);
     }
 
@@ -1743,8 +1743,8 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
-    toRename->iewInfo[0].BLB = !LLmiss[HPT] && (LLmiss[LPT] || LB_all || (LBLC &&
-            dispatchStatus[0] == Unblocking));
+    toRename->iewInfo[0].BLB = LLmiss[LPT] || (!LLmiss[HPT] && (LB_all || (LBLC &&
+            dispatchStatus[0] == Unblocking)));
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         toRename->iewInfo[tid].LLmiss = LLmiss[tid];
@@ -2038,11 +2038,11 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
             if (fromRename->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, dispatchWidth);
             } else {
-                if (LLmiss[HPT]) {
-                    this->incLocalSlots(tid, EntryMiss, dispatchWidth);
-
-                } else if (LLmiss[LPT]) {
+                if (LLmiss[LPT]) {
                     this->incLocalSlots(tid, EntryWait, dispatchWidth);
+
+                } else if (LLmiss[HPT]) {
+                    this->incLocalSlots(tid, EntryMiss, dispatchWidth);
 
                 } else if (LB_all) {
                     this->incLocalSlots(tid, InstMiss,

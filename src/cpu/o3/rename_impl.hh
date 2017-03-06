@@ -709,11 +709,11 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 LB_part = false;
             }
 
-            if (LLmiss[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, shortfall);
-
-            } else if (LLmiss[LPT]) {
+            if (LLmiss[LPT]) {
                 this->incLocalSlots(tid, EntryWait, shortfall);
+
+            } else if (LLmiss[HPT]) {
+                this->incLocalSlots(tid, EntryMiss, shortfall);
 
             } else if (LB_all) {
                 this->incLocalSlots(tid, EntryWait, shortfall);
@@ -756,11 +756,11 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 LB_part = false;
             }
 
-            if (LLmiss[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, shortfall);
-
-            } else if (LLmiss[LPT]) {
+            if (LLmiss[LPT]) {
                 this->incLocalSlots(tid, EntryWait, shortfall);
+
+            } else if (LLmiss[HPT]) {
+                this->incLocalSlots(tid, EntryMiss, shortfall);
 
             } else if (LB_part) {
                 this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
@@ -961,11 +961,11 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             LB_part = false;
         }
 
-        if (LLmiss[HPT]) {
-            this->incLocalSlots(tid, EntryMiss, renamable[tid]);
-
-        } else if (LLmiss[LPT]) {
+        if (LLmiss[LPT] && numLPTcause) {
             this->incLocalSlots(tid, EntryWait, renamable[tid]);
+
+        } else if (LLmiss[HPT]) {
+            this->incLocalSlots(tid, EntryMiss, renamable[tid]);
 
         } else if(LB_part) {
             this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
@@ -2027,11 +2027,11 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
             if (fromDecode->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, renameWidths[tid]);
             } else {
-                if (LLmiss[HPT]) {
-                    this->incLocalSlots(HPT, EntryMiss, renameWidths[tid]);
-
-                } else if (LLmiss[LPT]) {
+                if (LLmiss[LPT]) {
                     this->incLocalSlots(HPT, EntryWait, renameWidths[tid]);
+
+                } else if (LLmiss[HPT]) {
+                    this->incLocalSlots(HPT, EntryMiss, renameWidths[tid]);
 
                 } else if (fromIEW->iewInfo[0].BLB) {
                     this->incLocalSlots(HPT, InstMiss,
