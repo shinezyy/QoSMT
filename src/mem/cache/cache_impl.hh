@@ -59,6 +59,7 @@
 #include "debug/Cache.hh"
 #include "debug/CachePort.hh"
 #include "debug/CacheTags.hh"
+#include "debug/LLM.hh"
 #include "mem/cache/prefetch/base.hh"
 #include "mem/cache/blk.hh"
 #include "mem/cache/cache.hh"
@@ -346,6 +347,13 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             if (blk == NULL) {
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt);
+                if (isDcache && pkt->req->seqNum) {
+                    missTable.emplace_back(pkt->req->threadId(), curTick(),
+                            cacheLevel, pkt->req->seqNum);
+                    DPRINTF(LLM, "T[%i] Add L%i cache miss to miss table,"
+                            " requested by [sn:%lli]\n",
+                            pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
+                }
                 return false;
             }
             tags->insertBlock(pkt, blk);
@@ -378,6 +386,14 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // or have block but need exclusive & only have shared.
 
     incMissCount(pkt);
+    if (isDcache && pkt->req->seqNum) {
+        missTable.emplace_back(pkt->req->threadId(), cacheLevel,
+                pkt->req->seqNum, curTick());
+        DPRINTF(LLM, "T[%i] Add L%i cache miss to miss table,"
+                " requested by [sn:%lli]\n",
+                pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
+    }
+
 
     if (blk == NULL && pkt->isLLSC() && pkt->isWrite()) {
         // complete miss on store conditional... just give up now

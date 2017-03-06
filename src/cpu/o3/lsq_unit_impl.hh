@@ -59,8 +59,10 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
+#include "debug/LLM.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
+#include "mem/cache/miss_table.hh"
 
 template<class Impl>
 LSQUnit<Impl>::WritebackEvent::WritebackEvent(DynInstPtr &_inst, PacketPtr _pkt,
@@ -113,6 +115,28 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     // If this is a split access, wait until all packets are received.
     if (TheISA::HasUnalignedMemAcc && !state->complete()) {
         return;
+    }
+
+    DPRINTF(LLM, "Finished cache access of [sn:%lli]\n", inst->seqNum);
+
+    if (missTable.size() > 1000) {
+        panic("Miss table size is too large, check memory leak!\n");
+    }
+
+    auto &&it = missTable.begin();
+    while (it != missTable.end()) {
+        if (it->tid == inst->threadNumber && it->seqNum == inst->seqNum) {
+            DPRINTF(LLM, "T[%i] Remove L%i cache miss from miss table,"
+                    " which start at %llu\n", inst->threadNumber, it->cacheLevel,
+                    it->startTick);
+            it = missTable.erase(it);
+        } else {
+            /**
+            DPRINTF(LLM, "resp sn %llu, tid %i, entry sn %llu, tid %i\n",
+                    inst->seqNum, inst->threadNumber, it->seqNum, it->tid);
+             */
+            it++;
+        }
     }
 
     assert(!cpu->switchedOut());
@@ -1228,6 +1252,12 @@ template <class Impl>
 bool
 LSQUnit<Impl>::sendStore(PacketPtr data_pkt)
 {
+    LSQSenderState *state =
+        dynamic_cast<LSQSenderState *>(data_pkt->senderState);
+    DynInstPtr inst = state->inst;
+
+    data_pkt->req->seqNum = inst->seqNum;
+
     if (!dcachePort->sendTimingReq(data_pkt)) {
         // Need to handle becoming blocked on a store.
         isStoreBlocked = true;
@@ -1249,6 +1279,10 @@ LSQUnit<Impl>::recvRetry()
 
         LSQSenderState *state =
             dynamic_cast<LSQSenderState *>(retryPkt->senderState);
+
+        DynInstPtr inst = state->inst;
+
+        retryPkt->req->seqNum = inst->seqNum;
 
         if (dcachePort->sendTimingReq(retryPkt)) {
             // Don't finish the store unless this is the last packet.

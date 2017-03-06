@@ -842,6 +842,7 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
     }
 
     bool successful_load = true;
+    fst_data_pkt->req->seqNum = load_inst->seqNum;
     if (!dcachePort->sendTimingReq(fst_data_pkt)) {
         successful_load = false;
     } else if (TheISA::HasUnalignedMemAcc && sreqLow) {
@@ -853,6 +854,7 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
         // The first packet will return in completeDataAccess and be
         // handled there.
         ++usedPorts;
+        snd_data_pkt->req->seqNum = load_inst->seqNum;
         if (!dcachePort->sendTimingReq(snd_data_pkt)) {
             // The main packet will be deleted in completeDataAccess.
             state->complete();

@@ -1890,8 +1890,9 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
 
             toDecode->renameInfo[tid].BLB =
-                !LLmiss[HPT] && ( LLmiss[LPT] ||
-                        fromIEW->iewInfo[tid].BLB || LB_all);
+                    LLmiss[LPT] || (!LLmiss[HPT] &&
+                        (fromIEW->iewInfo[tid].BLB || LB_all));
+
             /**如果LB_part，那么这个周期没有LPT也会阻塞，肯定会阻塞上一个stage*/
 
             if (toDecode->renameInfo[tid].BLB) {

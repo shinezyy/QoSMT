@@ -86,7 +86,8 @@ BaseCache::BaseCache(const Params *p)
       addrRanges(p->addr_ranges.begin(), p->addr_ranges.end()),
       system(p->system),
       cacheLevel(p->cache_level),
-      numThreads(p->numThreads)
+      numThreads(p->numThreads),
+      isDcache(p->is_dcache)
 {
 }
 

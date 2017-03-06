@@ -57,6 +57,7 @@
 #include "mem/cache/blk.hh"
 #include "mem/cache/mshr.hh"
 #include "mem/cache/tags/base.hh"
+#include "mem/cache/miss_table.hh"
 #include "sim/eventq.hh"
 
 //Forward decleration

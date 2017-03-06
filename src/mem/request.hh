@@ -653,6 +653,10 @@ class Request
     bool isClearLL() const { return _flags.isSet(CLEAR_LL); }
     bool isSecure() const { return _flags.isSet(SECURE); }
     bool isPTWalk() const { return _flags.isSet(PT_WALK); }
+
+    // seq num of instruction
+    uint64_t seqNum;
+
 };
 
 #endif // __MEM_REQUEST_HH__

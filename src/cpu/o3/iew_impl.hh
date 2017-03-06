@@ -1743,8 +1743,8 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
-    toRename->iewInfo[0].BLB = LLmiss[LPT] || (!LLmiss[HPT] && (LB_all || (LBLC &&
-            dispatchStatus[0] == Unblocking)));
+    toRename->iewInfo[0].BLB = (dispatchStatus[HPT] == Blocked && LLmiss[LPT]) ||
+        (!LLmiss[HPT] && (LB_all || (LBLC && dispatchStatus[HPT] == Unblocking)));
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         toRename->iewInfo[tid].LLmiss = LLmiss[tid];

@@ -86,6 +86,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('SmtFetch')
     DebugFlag('LB')
     DebugFlag('InstPass')
+    DebugFlag('LLM')
 
     CompoundFlag('PardAll', ['FmtCtrl', 'Pard', 'FMT', 'VOC', 'BMT'])
 
