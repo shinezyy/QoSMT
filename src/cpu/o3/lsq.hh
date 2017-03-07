@@ -376,8 +376,11 @@ class LSQ {
 
     unsigned sampleCycle, sampleTime, sampleRate;
 
-    bool LLMiss(ThreadID tid, int threshold, InstSeqNum &seq) {
-        return thread[tid].LLMiss(threshold, seq);
+    bool L2Miss(ThreadID tid, int threshold, InstSeqNum &seq) {
+        return thread[tid].L2Miss(threshold, seq);
+    }
+    bool L1Miss(ThreadID tid, int threshold, InstSeqNum &seq) {
+        return thread[tid].L1Miss(threshold, seq);
     }
 };
 

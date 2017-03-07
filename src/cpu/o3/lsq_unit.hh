@@ -562,9 +562,14 @@ class LSQUnit {
 
     bool isDynamic;
 
-    bool LLMiss(int threshold, InstSeqNum &seq) {
-        return hasL2Miss || hasL1Miss;
+    bool L2Miss(int threshold, InstSeqNum &seq) {
+        return hasL2Miss;
     }
+    bool L1Miss(int threshold, InstSeqNum &seq) {
+        return hasL1Miss;
+    }
+
+  private:
 
     bool hasL1Miss;
     bool hasL2Miss;

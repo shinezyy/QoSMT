@@ -577,13 +577,15 @@ class DefaultIEW : public SlotCounter<Impl>
 
     int numLPTcause;
 
-    std::vector<bool> LLmiss;
-
     std::vector<uint64_t> LLMInstSeq;
 
     const int l1Lat;
 
     int localInstMiss;
+
+    ThreadID missThread;
+
+    void missTry();
 };
 
 #endif // __CPU_O3_IEW_HH__
