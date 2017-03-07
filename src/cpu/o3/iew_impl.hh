@@ -94,7 +94,8 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       headInst(params->numThreads, nullptr),
       LLmiss(params->numThreads, false),
       LLMInstSeq(params->numThreads, 0),
-      l1Lat(params->l1Lat)
+      l1Lat(params->l1Lat),
+      localInstMiss(0)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -1138,6 +1139,10 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             dispatched[tid]++;
             squashed[tid]++;
 
+            if (tid == HPT && !headInst[tid]) {
+                headInst[tid] = inst;
+            }
+
             continue;
         }
 
@@ -1696,26 +1701,28 @@ DefaultIEW<Impl>::tick()
     }
 
     if (this->checkSlots(HPT)) {
+        //only inst miss should be counted
+        localInstMiss += this->perCycleSlots[HPT][InstMiss];
         this->sumLocalSlots(HPT);
     }
 
     fmt->incMissDirect(HPT, this->miss[HPT], false);
-    if (dispatched[HPT] > 0 && dispatched[HPT] > squashed[HPT]) {
+
+    if (dispatched[HPT] > 0) {
         /** reshape 保证不会高估wait的数量*/
-        if (dispatchStatus[HPT] != Squashing) {
-            DynInstPtr &inst = this->getHeadInst(HPT);
+        DynInstPtr &inst = this->getHeadInst(HPT);
 
-            int localMiss = this->miss[HPT];
-
-            this->assignSlots(HPT, inst);
-
-            fmt->incMissDirect(HPT, -std::min(inst->getWaitSlot(), localMiss), false);
-            fmt->incWaitSlot(inst, HPT, std::min(inst->getWaitSlot(), localMiss));
-        } else {
-            /**错误的等待*/
+        if (inst->isSquashed()) {
             fmt->incMissDirect(HPT, this->wait[HPT], false);
-            this->wait[HPT] = 0;
+
+        } else {
+            // this->assignSlots(HPT, inst);
+            fmt->incMissDirect(HPT, -(std::min(inst->getWaitSlot(), localInstMiss)), false);
+            fmt->incWaitSlot(inst, HPT, std::min(inst->getWaitSlot(), localInstMiss) + this->wait[HPT]);
+
+            localInstMiss = 0;
         }
+        this->wait[HPT] = 0;
     }
     this->miss[HPT] = 0;
 

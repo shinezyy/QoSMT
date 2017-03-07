@@ -76,6 +76,7 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     miss[tid] += perCycleSlots[tid][EntryMiss];
     miss[tid] += perCycleSlots[tid][ComputeEntryMiss];
     miss[tid] += perCycleSlots[tid][LaterMiss];
+    miss[tid] += perCycleSlots[tid][SerializeMiss];
 
     wait[tid] += perCycleSlots[tid][EarlierWait];
     wait[tid] += perCycleSlots[tid][WidthWait];

@@ -582,6 +582,8 @@ class DefaultIEW : public SlotCounter<Impl>
     std::vector<uint64_t> LLMInstSeq;
 
     const int l1Lat;
+
+    int localInstMiss;
 };
 
 #endif // __CPU_O3_IEW_HH__
