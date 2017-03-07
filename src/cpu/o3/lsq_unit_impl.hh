@@ -123,6 +123,9 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         panic("Miss table size is too large, check memory leak!\n");
     }
 
+    hasL1Miss = false;
+    hasL2Miss = false;
+
     auto &&it = missTable.begin();
     while (it != missTable.end()) {
         if (it->tid == inst->threadNumber && it->seqNum == inst->seqNum) {
@@ -135,6 +138,13 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
             DPRINTF(LLM, "resp sn %llu, tid %i, entry sn %llu, tid %i\n",
                     inst->seqNum, inst->threadNumber, it->seqNum, it->tid);
              */
+            if (it->tid == inst->threadNumber) {
+                if (it->cacheLevel == 1) {
+                    hasL1Miss = true;
+                } else if (it->cacheLevel == 2) {
+                    hasL2Miss = true;
+                }
+            }
             it++;
         }
     }
@@ -206,6 +216,9 @@ LSQUnit<Impl>::init(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params,
     checkLoads = params->LSQCheckLoads;
     cachePorts = params->cachePorts;
     needsTSO = params->needsTSO;
+
+    hasL1Miss = false;
+    hasL2Miss = false;
 
     resetState();
 }

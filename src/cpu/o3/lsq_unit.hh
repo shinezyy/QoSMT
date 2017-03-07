@@ -563,21 +563,11 @@ class LSQUnit {
     bool isDynamic;
 
     bool LLMiss(int threshold, InstSeqNum &seq) {
-        if (!loads) {
-            return false;
-        } else {
-            DynInstPtr &inst = loadQueue[loadHead];
-            if (inst->loadStartCycle == 0) {
-                // not started
-                return false;
-            } else if ((int) (cpu->localCycles - inst->loadStartCycle) > threshold) {
-                seq = inst->seqNum;
-                return true;
-            }
-
-        }
-        return false;
+        return hasL2Miss || hasL1Miss;
     }
+
+    bool hasL1Miss;
+    bool hasL2Miss;
 };
 
 template <class Impl>
