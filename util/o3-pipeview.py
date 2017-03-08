@@ -55,8 +55,8 @@ insts = {
     'max_threshold':2000, # Instructions are sorted out and printed when
                           # their number reaches this threshold.
     'min_threshold':1000, # Printing stops when this number is reached.
-    'sn_start':0,         # The first instruction seq. number to be printed.
-    'sn_stop':0,          # The last instruction seq. number to be printed.
+    'sn_start':1000000,         # The first instruction seq. number to be printed.
+    'sn_stop':2000000,          # The last instruction seq. number to be printed.
     'tick_start':0,       # The first tick to be printed
     'tick_stop':0,        # The last tick to be printed
     'tick_drift':2000,    # Used to calculate the start and the end of main
@@ -118,7 +118,8 @@ def process_trace(trace, outfile, cycle_time, width, color, timestamps,
                   '   ' + 'tick'.center(15) +
                   '  ' + 'pc.upc'.center(12) +
                   '  ' + 'disasm'.ljust(25) +
-                  '  ' + 'seq_num'.center(10))
+                  '  ' + 'seq_num'.center(10) +
+                  '  ' + 'tid'.center(5))
     if timestamps:
         outfile.write('timestamps'.center(25))
     outfile.write('\n')
@@ -131,11 +132,12 @@ def process_trace(trace, outfile, cycle_time, width, color, timestamps,
             if fields[1] == 'fetch':
                 if ((stop_tick > 0 and int(fields[2]) > stop_tick+insts['tick_drift']) or
                     (stop_sn > 0 and int(fields[5]) > (stop_sn+insts['max_threshold']))):
-                    print_insts(outfile, cycle_time, width, color, timestamps, 0)
+                    print_insts(outfile, cycle_time, width, color, timestamps, store_completions, 0)
                     return
                 (curr_inst['pc'], curr_inst['upc']) = fields[3:5]
                 curr_inst['sn'] = int(fields[5])
                 curr_inst['disasm'] = ' '.join(fields[6][:-1].split())
+                curr_inst['tid'] = int(fields[7])
             elif fields[1] == 'retire':
                 if curr_inst['retire'] == 0:
                     curr_inst['disasm'] = '-----' + curr_inst['disasm']
@@ -282,11 +284,13 @@ def print_inst(outfile, inst, cycle_time, width, color, timestamps, store_comple
         outfile.write(curr_color + dot * (width - pos) + termcap.Normal +
                       ']-(' + str(base_tick + i * time_width).rjust(15) + ') ')
         if i == 0:
-            outfile.write('%s.%s %s [%s]' % (
+            outfile.write('[T %s ]%s.%s %s [%s]' % (
+                    str(inst['tid']),
                     inst['pc'].rjust(10),
                     inst['upc'],
                     inst['disasm'].ljust(25),
-                    str(inst['sn']).rjust(10)))
+                    str(inst['sn']).rjust(10),
+            ))
             if timestamps:
                 outfile.write('  f=%s, r=%s' % (inst['fetch'], inst['retire']))
             outfile.write('\n')

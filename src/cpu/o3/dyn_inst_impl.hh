@@ -75,12 +75,13 @@ template <class Impl>BaseO3DynInst<Impl>::~BaseO3DynInst()
         if (fetch != -1) {
             Tick val;
             // Print info needed by the pipeline activity viewer.
-            DPRINTFR(O3PipeView, "O3PipeView:fetch:%llu:0x%08llx:%d:%llu:%s\n",
+            DPRINTFR(O3PipeView, "O3PipeView:fetch:%llu:0x%08llx:%d:%llu:%s:%i\n",
                      fetch,
                      this->instAddr(),
                      this->microPC(),
                      this->seqNum,
-                     this->staticInst->disassemble(this->instAddr()));
+                     this->staticInst->disassemble(this->instAddr()),
+                     this->threadNumber);
 
             val = (this->decodeTick == -1) ? 0 : fetch + this->decodeTick;
             DPRINTFR(O3PipeView, "O3PipeView:decode:%llu\n", val);
