@@ -73,7 +73,9 @@ echo "" | tee -a $SCRIPT_OUT
 #gdb --args \
 nohup \
 $GEM5_DIR/build/$arch/gem5.$gem5_ver\
-    $debug_flags\
+    --debug-flags="O3PipeView,SI"\
+    --debug-start=1000000\
+    --debug-file=trace.out\
     --outdir=$output_dir\
     $GEM5_DIR/configs/spec/spec06_config.py\
     --benchmark="$benchmark"\

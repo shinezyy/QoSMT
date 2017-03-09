@@ -60,6 +60,7 @@
 #include "debug/FmtSlot2.hh"
 #include "debug/LB.hh"
 #include "debug/InstPass.hh"
+#include "debug/SI.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 
@@ -555,6 +556,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
                 break;
             case SerializeStall:
                 DPRINTF(FmtSlot2, "Thread [%i] status now:" "SerializeStall\n", tid);
+                DPRINTF(SI, "T[%d] serialize on %llu\n", tid, curTick());
                 break;
             default:
                 break;
@@ -1585,6 +1587,8 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
     } else if (renameStatus[tid] == SerializeStall &&
                (!emptyROB[tid] || instsInProgress[tid])) {
+        DPRINTF(SI, "T[%i] %i instructions in rob, %i instructions in progress.\n",
+                tid, calcFreeROBEntries(tid), instsInProgress[tid]);
         toIEW->serialize[tid] = true;
         DPRINTF(Rename,"[tid:%i]: Stall: Serialize stall and ROB is not "
                 "empty.\n",
