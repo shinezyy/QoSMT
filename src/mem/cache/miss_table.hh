@@ -3,6 +3,7 @@
 
 #include <cinttypes>
 #include <list>
+#include <vector>
 
 #include <base/types.hh>
 
@@ -20,6 +21,13 @@ struct MissEntry {
 typedef std::list<MissEntry> MissTable;
 
 extern MissTable missTable;
+
+struct MissStat {
+    std::vector<int> numL1Miss;
+    std::vector<int> numL2Miss;
+};
+
+extern MissStat missStat;
 
 
 #endif // __MISS_TABLE_H_

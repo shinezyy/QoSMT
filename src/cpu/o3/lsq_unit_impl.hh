@@ -132,20 +132,28 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
             DPRINTF(LLM, "T[%i] Remove L%i cache miss from miss table,"
                     " which start at %llu\n", inst->threadNumber, it->cacheLevel,
                     it->startTick);
+
+            if (it->cacheLevel == 1) {
+                missStat.numL1Miss[it->tid]--;
+                assert(missStat.numL1Miss[it->tid] >= 0);
+
+            } else if (it->cacheLevel == 2) {
+                missStat.numL2Miss[it->tid]--;
+                assert(missStat.numL2Miss[it->tid] >= 0);
+            }
+
             it = missTable.erase(it);
         } else {
-            /**
-            DPRINTF(LLM, "resp sn %llu, tid %i, entry sn %llu, tid %i\n",
-                    inst->seqNum, inst->threadNumber, it->seqNum, it->tid);
-             */
-            if (it->tid == inst->threadNumber) {
-                if (it->cacheLevel == 1) {
-                    hasL1Miss = true;
-                } else if (it->cacheLevel == 2) {
-                    hasL2Miss = true;
-                }
-            }
             it++;
+        }
+
+        if (it->tid == inst->threadNumber) {
+            if (missStat.numL1Miss[it->tid] > 0) {
+                hasL1Miss = true;
+
+            } else if (missStat.numL2Miss[it->tid] > 0) {
+                hasL2Miss = true;
+            }
         }
     }
 

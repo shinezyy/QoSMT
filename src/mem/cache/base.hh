@@ -61,8 +61,10 @@
 #include "base/types.hh"
 #include "debug/Cache.hh"
 #include "debug/CachePort.hh"
+#include "debug/LLM.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/mem_object.hh"
+#include "mem/cache/miss_table.hh"
 #include "mem/packet.hh"
 #include "mem/qport.hh"
 #include "mem/request.hh"
@@ -603,6 +605,21 @@ class BaseCache : public MemObject
             --missCount;
             if (missCount == 0)
                 exitSimLoop("A cache reached the maximum miss count");
+        }
+
+        if (isDcache && pkt->req->seqNum) {
+            missTable.emplace_back(pkt->req->threadId(), cacheLevel,
+                    pkt->req->seqNum, curTick());
+
+            DPRINTF(LLM, "T[%i] Add L%i cache miss to miss table,"
+                    " requested by [sn:%lli]\n",
+                    pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
+
+            if (cacheLevel == 1) {
+                missStat.numL1Miss[pkt->req->threadId()]++;
+            } else if (cacheLevel == 2) {
+                missStat.numL2Miss[pkt->req->threadId()]++;
+            }
         }
     }
     void incHitCount(PacketPtr pkt)

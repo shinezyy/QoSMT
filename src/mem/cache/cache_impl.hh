@@ -84,6 +84,9 @@ Cache::Cache(const Params *p)
     tags->setCache(this);
     if (prefetcher)
         prefetcher->setCache(this);
+
+    missStat.numL1Miss.resize(numThreads, 0);
+    missStat.numL2Miss.resize(numThreads, 0);
 }
 
 Cache::~Cache()
@@ -347,13 +350,6 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             if (blk == NULL) {
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt);
-                if (isDcache && pkt->req->seqNum) {
-                    missTable.emplace_back(pkt->req->threadId(), curTick(),
-                            cacheLevel, pkt->req->seqNum);
-                    DPRINTF(LLM, "T[%i] Add L%i cache miss to miss table,"
-                            " requested by [sn:%lli]\n",
-                            pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
-                }
                 return false;
             }
             tags->insertBlock(pkt, blk);
@@ -386,13 +382,6 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // or have block but need exclusive & only have shared.
 
     incMissCount(pkt);
-    if (isDcache && pkt->req->seqNum) {
-        missTable.emplace_back(pkt->req->threadId(), cacheLevel,
-                pkt->req->seqNum, curTick());
-        DPRINTF(LLM, "T[%i] Add L%i cache miss to miss table,"
-                " requested by [sn:%lli]\n",
-                pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
-    }
 
 
     if (blk == NULL && pkt->isLLSC() && pkt->isWrite()) {

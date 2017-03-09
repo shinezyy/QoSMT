@@ -75,6 +75,7 @@ class IOCache(BaseCache):
     tgts_per_mshr = 12
     forward_snoops = False
     is_top_level = True
+    cache_level = -1
 
 class PageTableWalkerCache(BaseCache):
     assoc = 2
@@ -84,4 +85,5 @@ class PageTableWalkerCache(BaseCache):
     size = '1kB'
     tgts_per_mshr = 12
     forward_snoops = False
+    cache_level = -1
     is_top_level = True
