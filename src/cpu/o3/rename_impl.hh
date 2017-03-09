@@ -51,6 +51,7 @@
 #include "arch/registers.hh"
 #include "config/the_isa.hh"
 #include "cpu/o3/rename.hh"
+#include "mem/cache/miss_table.hh"
 #include "cpu/reg_class.hh"
 #include "debug/Activity.hh"
 #include "debug/Rename.hh"
@@ -469,6 +470,10 @@ DefaultRename<Impl>::tick()
 
         computeMiss(tid);
         rename(status_change, tid);
+    }
+
+    if (renameStatus[HPT] == Blocked) {
+        missTry();
     }
 
     clearAvailableInstCount();
@@ -1857,7 +1862,6 @@ template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnROBEntries(ThreadID tid)
 {
-    assert(tid == 1); // assume that we calculate thread 1 only
     return busyEntries[tid].robEntries;
 }
 
@@ -1865,7 +1869,6 @@ template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnLQEntries(ThreadID tid)
 {
-    assert(tid == 1); // assume that we calculate thread 1 only
     return busyEntries[tid].lqEntries;
 }
 
@@ -1873,7 +1876,6 @@ template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnSQEntries(ThreadID tid)
 {
-    assert(tid == 1); // assume that we calculate thread 1 only
     return busyEntries[tid].sqEntries;
 }
 
@@ -1881,7 +1883,6 @@ template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnIQEntries(ThreadID tid)
 {
-    assert(tid == 1); // assume that we calculate thread 1 only
     return busyEntries[tid].iqEntries;
 }
 
@@ -2078,6 +2079,12 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         default:
             break;
     }
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::missTry()
+{
 }
 
 

@@ -527,6 +527,9 @@ class LSQUnit {
 
     /** Returns the index of the head load instruction. */
     int getLoadHead() { return loadHead; }
+
+    DynInstPtr getLoadHeadInst() { return loadQueue[loadHead]; }
+
     /** Returns the sequence number of the head load instruction. */
     InstSeqNum getLoadHeadSeqNum()
     {
@@ -540,6 +543,8 @@ class LSQUnit {
 
     /** Returns the index of the head store instruction. */
     int getStoreHead() { return storeHead; }
+
+    DynInstPtr getStoreHeadInst() { return storeQueue[storeHead].inst; }
     /** Returns the sequence number of the head store instruction. */
     InstSeqNum getStoreHeadSeqNum()
     {

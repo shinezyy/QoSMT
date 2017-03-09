@@ -382,6 +382,13 @@ class LSQ {
     bool L1Miss(ThreadID tid, int threshold, InstSeqNum &seq) {
         return thread[tid].L1Miss(threshold, seq);
     }
+
+    DynInstPtr getLoadHeadInst(ThreadID tid) {
+        return thread[tid].getLoadHeadInst();
+    }
+    DynInstPtr getStoreHeadInst(ThreadID tid) {
+        return thread[tid].getStoreHeadInst();
+    }
 };
 
 template <class Impl>

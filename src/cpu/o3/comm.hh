@@ -196,6 +196,9 @@ struct TimeBufStruct {
         bool LLmiss;
 
         InstSeqNum LLMInstSeq;
+
+        DynInstPtr LQHead;
+        DynInstPtr SQHead;
     };
 
     iewComm iewInfo[Impl::MaxThreads];
@@ -264,6 +267,8 @@ struct TimeBufStruct {
         unsigned maxROBEntries;
 
         unsigned busyROBEntries;
+
+        DynInstPtr ROBHead;
     };
 
     commitComm commitInfo[Impl::MaxThreads];

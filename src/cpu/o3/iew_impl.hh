@@ -1831,6 +1831,8 @@ DefaultIEW<Impl>::tick()
             toRename->iewInfo[tid].busyLQEntries = ldstQueue.numLoads(tid);
             toRename->iewInfo[tid].busySQEntries = ldstQueue.numStores(tid);
 
+            toRename->iewInfo[tid].LQHead = ldstQueue.getLoadHeadInst(tid);
+            toRename->iewInfo[tid].SQHead = ldstQueue.getStoreHeadInst(tid);
 
             toRename->iewInfo[tid].dispatchWidth = dispatchWidths[tid];
 

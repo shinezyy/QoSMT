@@ -619,6 +619,8 @@ class DefaultRename : public SlotCounter<Impl>
     std::vector<bool> LLmiss;
 
     std::vector<uint64_t> LLMInstSeq;
+
+    void missTry();
 };
 
 #endif // __CPU_O3_RENAME_HH__

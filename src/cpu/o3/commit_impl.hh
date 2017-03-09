@@ -955,6 +955,8 @@ DefaultCommit<Impl>::commit()
             toIEW->commitInfo[tid].maxROBEntries = rob->getMaxEntries(tid);
             toIEW->commitInfo[tid].busyROBEntries = rob->numBusyEntries(tid);
 
+            toIEW->commitInfo[tid].ROBHead = rob->readHeadInst(tid);
+
             wroteToTimeBuffer = true;
             changedROBNumEntries[tid] = false;
             if (rob->isEmpty(tid))
