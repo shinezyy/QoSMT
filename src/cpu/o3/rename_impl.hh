@@ -62,6 +62,7 @@
 #include "debug/LB.hh"
 #include "debug/InstPass.hh"
 #include "debug/SI.hh"
+#include "debug/missTry.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 
@@ -472,7 +473,7 @@ DefaultRename<Impl>::tick()
         rename(status_change, tid);
     }
 
-    if (renameStatus[HPT] == Blocked) {
+    if (status_change && renameStatus[HPT] == Blocked) {
         missTry();
     }
 
@@ -1858,25 +1859,32 @@ DefaultRename<Impl>::dumpFreeEntries()
     resetFreeEntries();
 }
 
+
 template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnROBEntries(ThreadID tid)
 {
-    return busyEntries[tid].robEntries;
+    int numInstsInFlight = availableInstCount;
+
+    numInstsInFlight += instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched;
+
+    return busyEntries[tid].robEntries + numInstsInFlight;
 }
 
 template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnLQEntries(ThreadID tid)
 {
-    return busyEntries[tid].lqEntries;
+    return busyEntries[tid].lqEntries + loadsInProgress[tid] -
+        fromIEW->iewInfo[tid].dispatchedToLQ;
 }
 
 template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnSQEntries(ThreadID tid)
 {
-    return busyEntries[tid].sqEntries;
+    return busyEntries[tid].sqEntries + storesInProgress[tid] -
+        fromIEW->iewInfo[tid].dispatchedToSQ;
 }
 
 template <class Impl>
@@ -2085,7 +2093,22 @@ template<class Impl>
 void
 DefaultRename<Impl>::missTry()
 {
-}
+    DPRINTF(missTry, "====== HPT blocked ======!\n");
 
+    DPRINTFR(missTry, "Number of pending misses:\n"
+            "L2 cache: T0: %i, T1: %i;\n"
+            "L1 cache: T0: %i, T1: %i;\n",
+            missStat.numL2Miss[HPT], missStat.numL2Miss[LPT],
+            missStat.numL1Miss[HPT], missStat.numL1Miss[LPT]);
+
+    DPRINTFR(missTry, "Queue utilization:\n"
+            "ROB: T0: %i, T1: %i;\n"
+            "LQ: T0: %i, T1: %i;\n"
+            "SQ: T0: %i, T1: %i;\n",
+            calcOwnROBEntries(HPT), calcOwnROBEntries(LPT),
+            calcOwnLQEntries(HPT), calcOwnLQEntries(LPT),
+            calcOwnSQEntries(HPT), calcOwnSQEntries(LPT));
+
+}
 
 #endif//__CPU_O3_RENAME_IMPL_HH__
