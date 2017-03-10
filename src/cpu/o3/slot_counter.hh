@@ -139,6 +139,8 @@ class SlotCounter
     virtual void regStats();
 
     void incLocalSlots(ThreadID tid, SlotsUse su, int32_t num);
+
+    void incLocalSlots(ThreadID tid, SlotsUse su, int32_t num, bool verbose);
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__

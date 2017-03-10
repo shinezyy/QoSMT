@@ -85,6 +85,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('FmtSlot2')
     DebugFlag('SmtFetch')
     DebugFlag('LB')
+    DebugFlag('VLB')
     DebugFlag('InstPass')
     DebugFlag('LLM')
     DebugFlag('SI')

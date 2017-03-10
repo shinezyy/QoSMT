@@ -60,6 +60,7 @@
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
 #include "debug/LLM.hh"
+#include "debug/missTry.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 #include "mem/cache/miss_table.hh"
@@ -117,7 +118,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         return;
     }
 
-    DPRINTF(LLM, "Finished cache access of [sn:%lli]\n", inst->seqNum);
+    DPRINTF(missTry, "Finished cache access of [sn:%lli]\n", inst->seqNum);
 
     if (missTable.size() > 1000) {
         panic("Miss table size is too large, check memory leak!\n");
@@ -129,7 +130,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     auto &&it = missTable.begin();
     while (it != missTable.end()) {
         if (it->tid == inst->threadNumber && it->seqNum == inst->seqNum) {
-            DPRINTF(LLM, "T[%i] Remove L%i cache miss from miss table,"
+            DPRINTF(missTry, "T[%i] Remove L%i cache miss from miss table,"
                     " which start at %llu\n", inst->threadNumber, it->cacheLevel,
                     it->startTick);
 
@@ -154,6 +155,17 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
             } else if (missStat.numL2Miss[it->tid] > 0) {
                 hasL2Miss = true;
             }
+        }
+
+    }
+
+    if (missStat.numL2Miss[it->tid] > 100) {
+        DPRINTF(missTry, "Print miss table:\n");
+        auto itx = missTable.begin();
+        while (itx != missTable.end()) {
+            DPRINTFR(missTry, "T[%i]  L%i  SN:%llu  start:%llu\n",
+                    itx->tid, itx->cacheLevel, itx->seqNum, itx->startTick);
+            itx++;
         }
     }
 

@@ -621,6 +621,12 @@ class DefaultRename : public SlotCounter<Impl>
     std::vector<uint64_t> LLMInstSeq;
 
     void missTry();
+
+    DynInstPtr ROBHead[Impl::MaxThreads];
+    DynInstPtr LQHead[Impl::MaxThreads];
+    DynInstPtr SQHead[Impl::MaxThreads];
+
+    std::vector<FullSource> fullSource;
 };
 
 #endif // __CPU_O3_RENAME_HH__

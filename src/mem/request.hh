@@ -298,7 +298,7 @@ class Request
         : _paddr(0), _size(0), _masterId(invldMasterId), _time(0),
           _taskId(ContextSwitchTaskId::Unknown), _asid(0), _vaddr(0),
           _extraData(0), _contextId(0), _threadId(0), _pc(0),
-          translateDelta(0), accessDelta(0), depth(0)
+          translateDelta(0), accessDelta(0), depth(0), seqNum(0)
     {}
 
     /**
@@ -310,7 +310,7 @@ class Request
         : _paddr(0), _size(0), _masterId(invldMasterId), _time(0),
           _taskId(ContextSwitchTaskId::Unknown), _asid(0), _vaddr(0),
           _extraData(0), _contextId(0), _threadId(0), _pc(0),
-          translateDelta(0), accessDelta(0), depth(0)
+          translateDelta(0), accessDelta(0), depth(0), seqNum(0)
     {
         setPhys(paddr, size, flags, mid, curTick());
     }
@@ -319,7 +319,7 @@ class Request
         : _paddr(0), _size(0), _masterId(invldMasterId), _time(0),
           _taskId(ContextSwitchTaskId::Unknown), _asid(0), _vaddr(0),
           _extraData(0), _contextId(0), _threadId(0), _pc(0),
-          translateDelta(0), accessDelta(0), depth(0)
+          translateDelta(0), accessDelta(0), depth(0), seqNum(0)
     {
         setPhys(paddr, size, flags, mid, time);
     }
@@ -329,7 +329,7 @@ class Request
         : _paddr(0), _size(0), _masterId(invldMasterId), _time(0),
           _taskId(ContextSwitchTaskId::Unknown), _asid(0), _vaddr(0),
           _extraData(0), _contextId(0), _threadId(0), _pc(0),
-          translateDelta(0), accessDelta(0), depth(0)
+          translateDelta(0), accessDelta(0), depth(0), seqNum(0)
     {
         setPhys(paddr, size, flags, mid, time);
         privateFlags.set(VALID_PC);
@@ -341,7 +341,7 @@ class Request
         : _paddr(0), _size(0), _masterId(invldMasterId), _time(0),
           _taskId(ContextSwitchTaskId::Unknown), _asid(0), _vaddr(0),
           _extraData(0), _contextId(0), _threadId(0), _pc(0),
-          translateDelta(0), accessDelta(0), depth(0)
+          translateDelta(0), accessDelta(0), depth(0), seqNum(0)
     {
         setVirt(asid, vaddr, size, flags, mid, pc);
         setThreadContext(cid, tid);

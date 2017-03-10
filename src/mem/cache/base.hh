@@ -62,6 +62,7 @@
 #include "debug/Cache.hh"
 #include "debug/CachePort.hh"
 #include "debug/LLM.hh"
+#include "debug/missTry.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/mem_object.hh"
 #include "mem/cache/miss_table.hh"
@@ -607,11 +608,11 @@ class BaseCache : public MemObject
                 exitSimLoop("A cache reached the maximum miss count");
         }
 
-        if (isDcache && pkt->req->seqNum) {
+        if (isDcache && pkt->req->seqNum && pkt->needsResponse()) {
             missTable.emplace_back(pkt->req->threadId(), cacheLevel,
                     pkt->req->seqNum, curTick());
 
-            DPRINTF(LLM, "T[%i] Add L%i cache miss to miss table,"
+            DPRINTF(missTry, "T[%i] Add L%i cache miss to miss table,"
                     " requested by [sn:%lli]\n",
                     pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
 
