@@ -494,6 +494,8 @@ class DefaultRename : public SlotCounter<Impl>
         IQ,
         LQ,
         SQ,
+        IEWStage,
+        Register,
         NONE
     };
 

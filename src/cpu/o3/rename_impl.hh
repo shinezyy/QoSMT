@@ -883,6 +883,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             blockThisCycle = true;
             insts_to_rename.push_front(inst);
             ++renameFullRegistersEvents;
+            fullSource[tid] = Register;
 
             break;
         }
@@ -1550,6 +1551,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
 
     if (stalls[tid].iew) {
         DPRINTF(Rename,"[tid:%i]: Stall from IEW stage detected.\n", tid);
+        fullSource[tid] = IEWStage;
         ret_val = true;
         if (tid == HPT) {
             LB_all = fromIEW->iewInfo[0].BLB;
@@ -1607,6 +1609,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         }
 
     } else if (renameMap[tid]->numFreeEntries() <= 0) {
+        fullSource[tid] = Register;
         DPRINTF(Rename,"[tid:%i]: Stall: RenameMap has 0 free entries.\n", tid);
         ret_val = true;
     } else if (renameStatus[tid] == SerializeStall &&
@@ -1913,7 +1916,8 @@ template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnIQEntries(ThreadID tid)
 {
-    return busyEntries[tid].iqEntries;
+    return busyEntries[tid].iqEntries + instsInProgress[tid] -
+        fromIEW->iewInfo[tid].dispatched;
 }
 
 template <class Impl>
@@ -2128,20 +2132,44 @@ DefaultRename<Impl>::missTry()
             missStat.numL1Miss[HPT], missStat.numL1Miss[LPT]);
 
     DPRINTFR(missTry, "Queue utilization:\n"
-            "ROB: T0 ---- %i, T1: %i;\n"
-            "LQ: T0 ---- %i, T1: %i;\n"
-            "SQ: T0 ---- %i, T1: %i;\n",
+            "ROB: T0 ---- %i,\t T1: %i;\n"
+            "IQ: T0 ---- %i,\t T1: %i;\n"
+            "LQ: T0 ---- %i,\t T1: %i;\n"
+            "SQ: T0 ---- %i,\t T1: %i;\n",
             calcOwnROBEntries(HPT), calcOwnROBEntries(LPT),
+            calcOwnIQEntries(HPT), calcOwnIQEntries(LPT),
             calcOwnLQEntries(HPT), calcOwnLQEntries(LPT),
             calcOwnSQEntries(HPT), calcOwnSQEntries(LPT));
 
-    DPRINTFR(missTry, "ROB Head ---- T0: %s, T1: %s\n"
-            "LQ Head ---- T0: %s, T1: %s\n"
-            "SQ Head ---- T0: %s, T1: %s\n",
+    DPRINTFR(missTry, "ROB Head ---- T0: %s,\t  T1: %s\n"
+            "LQ Head ---- T0: %s,\t  T1: %s\n"
+            "SQ Head ---- T0: %s,\t  T1: %s\n",
             dis(ROBHead[HPT]), dis(ROBHead[LPT]),
             dis(LQHead[HPT]), dis(LQHead[LPT]),
             dis(SQHead[HPT]), dis(SQHead[LPT]));
 
+    switch (fullSource[HPT]) {
+        case ROB:
+            DPRINTF(missTry, "Block reason: ROB\n");
+            break;
+        case IQ:
+            DPRINTF(missTry, "Block reason: IQ\n");
+            break;
+        case LQ:
+            DPRINTF(missTry, "Block reason: LQ\n");
+            break;
+        case SQ:
+            DPRINTF(missTry, "Block reason: SQ\n");
+            break;
+        case Register:
+            DPRINTF(missTry, "Block reason: Register\n");
+            break;
+        case IEWStage:
+            DPRINTF(missTry, "Block reason: IEW blocked\n");
+            break;
+        default:
+            DPRINTF(missTry, "Other reason\n");
+    }
 
 #undef dis
 }

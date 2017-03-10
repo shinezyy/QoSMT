@@ -118,7 +118,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         return;
     }
 
-    DPRINTF(missTry, "Finished cache access of [sn:%lli]\n", inst->seqNum);
+    DPRINTF(LLM, "Finished cache access of [sn:%lli]\n", inst->seqNum);
 
     if (missTable.size() > 1000) {
         panic("Miss table size is too large, check memory leak!\n");
