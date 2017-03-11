@@ -2,7 +2,9 @@
 #define __CPU_O3_BMT_HH__
 
 
-#include <vector>
+#include <list>
+#include <cinttypes>
+#include <cpu/inst_seq.hh>
 
 #include "config/the_isa.hh"
 
@@ -38,6 +40,10 @@ class BMT {
         // Pointer to the Long-latency Load
         // DynInstPtr &dlp;
 
+        BME(InstSeqNum _llid, uint64_t _orbv, int _dic)
+            : llid(std::move(_llid)), orbv(std::move(_orbv)), dic(std::move(_dic))
+        {}
+
     };
 
 
@@ -45,13 +51,11 @@ class BMT {
 
     O3CPU *cpu;
 
-    std::vector<BME> table[Impl::MaxThreads];
+    std::list<BME> table[Impl::MaxThreads];
 
     ThreadID numThreads;
 
     int numROBEntries;
-
-    int numLQEntries;
 
 
     public:
@@ -64,16 +68,12 @@ class BMT {
     BMT(O3CPU *cpu_ptr, DerivO3CPUParams *params);
 
     // allocate a BME for the loading inst, and initiate the entry
-    void allocEntry(DynInstPtr &inst, ThreadID tid);
+    void addLL(DynInstPtr &inst);
 
-    // update the orbv and dic when an instruction commit
-    void update(DynInstPtr &inst);
-
-    void init(DerivO3CPUParams *params);
+    // if inst is depencent on an existing tree, return true, else return false
+    bool addInst(DynInstPtr &inst);
 
     void merge(DynInstPtr &inst);
-
-    int computeMLP(ThreadID tid);
 
     int count1(uint64_t x)
     {
@@ -83,6 +83,13 @@ class BMT {
     uint64_t getSrcRegs(DynInstPtr &inst);
 
     uint64_t getDestRegs(DynInstPtr &inst);
+
+    void clear(ThreadID tid)
+    {
+        table[tid].clear();
+    }
+
+    bool isDep(DynInstPtr &inst);
 };
 
 #endif // __CPU_O3_BMT_HH__

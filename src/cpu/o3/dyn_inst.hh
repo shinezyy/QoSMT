@@ -382,6 +382,16 @@ class BaseO3DynInst : public BaseDynInst<Impl>
 
   public:
     uint64_t loadStartCycle;
+
+  private:
+
+    bool LLMissed;
+
+    void setMiss() {LLMissed = true;}
+
+  public:
+
+    bool LLMiss() {return LLMissed;}
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__
