@@ -90,6 +90,23 @@ class BMT {
     }
 
     bool isDep(DynInstPtr &inst);
+
+    private:
+
+    InstSeqNum start, end;
+
+    public:
+
+    void setRange(InstSeqNum s, InstSeqNum e)
+    {
+        start = s;
+        end = e;
+    }
+
+    void inRange(InstSeqNum seq)
+    {
+        return seq >= start && seq <= end;
+    }
 };
 
 #endif // __CPU_O3_BMT_HH__

@@ -58,7 +58,7 @@ bool BMT<Impl>::addInst(DynInstPtr &inst)
     }
 
     /** 自立门户 */
-    if (numDep == 0 && inst->LLMiss()) {
+    if (numDep == 0 && inst->LLMiss() && inRange(inst->seqNum)) {
         addLL(inst);
         return false;
     }
