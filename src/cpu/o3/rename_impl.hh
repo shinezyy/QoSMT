@@ -85,8 +85,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       availableInstCount(0),
       BLBlocal(false),
       renamable(params->numThreads, 0),
-      LLmiss(params->numThreads, false),
-      LLMInstSeq(params->numThreads, 0),
       fullSource(params->numThreads, NONE)
 {
     if (renameWidth > Impl::MaxWidth)
@@ -462,8 +460,6 @@ DefaultRename<Impl>::tick()
     for (ThreadID tid = 0; tid < numThreads; tid++) {
 
         DPRINTF(FmtSlot2, "Processing [tid:%i]\n", tid);
-        LLmiss[tid] = fromIEW->iewInfo[tid].LLmiss;
-        LLMInstSeq[tid] = fromIEW->iewInfo[tid].LLMInstSeq;
         status_change = checkSignalsAndUpdate(tid) || status_change;
     }
 
@@ -475,9 +471,11 @@ DefaultRename<Impl>::tick()
         rename(status_change, tid);
     }
 
+    /**
     if (status_change && renameStatus[HPT] == Blocked) {
         missTry();
     }
+    */
 
     clearAvailableInstCount();
 
@@ -721,25 +719,25 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             /**Must has been blocked, verbose on*/
 
-            if (LLmiss[LPT]) {
-                this->incLocalSlots(tid, EntryWait, shortfall, true);
+            if (missStat.numL2Miss[HPT]) {
+                this->incLocalSlots(tid, EntryMiss, shortfall);
 
-            } else if (LLmiss[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, shortfall, true);
+            } else if (missStat.numL2Miss[LPT]) {
+                LB_all = true;
+                this->incLocalSlots(tid, EntryWait, shortfall);
 
             } else if (LB_all) {
-                this->incLocalSlots(tid, EntryWait, shortfall, true);
+                this->incLocalSlots(tid, EntryWait, shortfall);
 
             } else if (LB_part) {
-                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause, true);
+                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
                 this->incLocalSlots(tid, ComputeEntryMiss,
-                        shortfall - numLPTcause, true);
+                        shortfall - numLPTcause);
             } else {
-                this->incLocalSlots(tid, EntryMiss, shortfall, true);
+                this->incLocalSlots(tid, EntryMiss, shortfall);
             }
 
             renamable[tid] -= shortfall;
-
         }
 
         return;
@@ -769,18 +767,19 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 LB_part = false;
             }
 
-            if (LLmiss[LPT]) {
-                this->incLocalSlots(tid, EntryWait, shortfall, true);
+            if (missStat.numL2Miss[HPT]) {
+                this->incLocalSlots(tid, EntryMiss, shortfall);
 
-            } else if (LLmiss[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, shortfall, true);
+            } else if (missStat.numL2Miss[LPT] && numLPTcause) {
+                LB_all = true;
+                this->incLocalSlots(tid, EntryWait, shortfall);
 
             } else if (LB_part) {
-                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause, true);
+                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
                 this->incLocalSlots(tid, ComputeEntryMiss,
-                        shortfall - numLPTcause, true);
+                        shortfall - numLPTcause);
             } else {
-                this->incLocalSlots(tid, EntryMiss, shortfall, true);
+                this->incLocalSlots(tid, EntryMiss, shortfall);
             }
 
             renamable[tid] -= shortfall;
@@ -979,18 +978,19 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             LB_part = false;
         }
 
-        if (LLmiss[LPT] && numLPTcause) {
-            this->incLocalSlots(tid, EntryWait, renamable[tid], true);
+        if (missStat.numL2Miss[HPT]) {
+            this->incLocalSlots(tid, EntryMiss, renamable[tid]);
 
-        } else if (LLmiss[HPT]) {
-            this->incLocalSlots(tid, EntryMiss, renamable[tid], true);
+        } else if (missStat.numL2Miss[LPT] && numLPTcause) {
+            LB_all = true;
+            this->incLocalSlots(tid, EntryWait, renamable[tid]);
 
         } else if(LB_part) {
-            this->incLocalSlots(tid, ComputeEntryWait, numLPTcause, true);
+            this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
             this->incLocalSlots(tid, ComputeEntryMiss,
-                    renamable[tid] - numLPTcause, true);
+                    renamable[tid] - numLPTcause);
         } else {
-            this->incLocalSlots(tid, ComputeEntryMiss, renamable[tid], true);
+            this->incLocalSlots(tid, ComputeEntryMiss, renamable[tid]);
         }
     }
 
@@ -1161,7 +1161,7 @@ DefaultRename<Impl>::block(ThreadID tid)
             renameStatus[tid] = Blocked;
 
             BLBlocal = tid == HPT ?
-                fromIEW->iewInfo[0].BLB || LB_all : BLBlocal;
+                fromIEW->iewInfo[HPT].BLB || LB_all : BLBlocal;
 
             DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
             return true;
@@ -1564,7 +1564,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == HPT) {
-            /**即使没有LPT， HPT一样会stall*/
             LB_all = calcOwnROBEntries(LPT) >= renameWidths[HPT];
             LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnROBEntries(LPT), numLPTcause);
@@ -1928,9 +1927,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         case Blocked:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
 
-            toDecode->renameInfo[tid].BLB =
-                    LLmiss[LPT] || (!LLmiss[HPT] &&
-                        (fromIEW->iewInfo[tid].BLB || LB_all));
+            toDecode->renameInfo[tid].BLB = fromIEW->iewInfo[tid].BLB || LB_all;
 
             /**如果LB_part，那么这个周期没有LPT也会阻塞，肯定会阻塞上一个stage*/
 
@@ -1988,7 +1985,8 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 
 template <class Impl>
 void
-DefaultRename<Impl>::getRenamable() {
+DefaultRename<Impl>::getRenamable()
+{
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         switch (renameStatus[tid]) {
             case Running:
@@ -2066,34 +2064,34 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
             /**block一定导致本周期miss */
             if (fromDecode->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, renameWidths[tid], false);
+
+            } else if (missStat.numL2Miss[HPT]) {
+                this->incLocalSlots(HPT, EntryMiss, renameWidths[tid], true);
+
+            } else if (missStat.numL2Miss[LPT]) {
+                LB_all = true;
+                this->incLocalSlots(HPT, EntryWait, renameWidths[tid], true);
+
+            } else if (fromIEW->iewInfo[0].BLB) {
+                this->incLocalSlots(HPT, InstMiss,
+                        renameWidths[tid] - numLPTcause, false);
+                this->incLocalSlots(HPT, LaterWait, numLPTcause, true);
+
+            } else if (LB_all) {
+                this->incLocalSlots(HPT, InstMiss,
+                        renameWidths[tid] - numLPTcause, false);
+                this->incLocalSlots(HPT, EntryWait, numLPTcause, true);
+
+            } else if (LB_part) {
+                this->incLocalSlots(HPT, ComputeEntryWait, numLPTcause, true);
+                this->incLocalSlots(HPT, ComputeEntryMiss,
+                        renamable[HPT] - numLPTcause, true);
+                this->incLocalSlots(HPT, InstMiss,
+                        renameWidths[HPT] - renamable[HPT], false);
             } else {
-                if (LLmiss[LPT]) {
-                    this->incLocalSlots(HPT, EntryWait, renameWidths[tid], true);
-
-                } else if (LLmiss[HPT]) {
-                    this->incLocalSlots(HPT, EntryMiss, renameWidths[tid], true);
-
-                } else if (fromIEW->iewInfo[0].BLB) {
-                    this->incLocalSlots(HPT, InstMiss,
-                            renameWidths[tid] - numLPTcause, false);
-                    this->incLocalSlots(HPT, LaterWait, numLPTcause, true);
-
-                } else if (LB_all) {
-                    this->incLocalSlots(HPT, InstMiss,
-                            renameWidths[tid] - numLPTcause, false);
-                    this->incLocalSlots(HPT, EntryWait, numLPTcause, true);
-
-                } else if (LB_part) {
-                    this->incLocalSlots(HPT, ComputeEntryWait, numLPTcause, true);
-                    this->incLocalSlots(HPT, ComputeEntryMiss,
-                            renamable[HPT] - numLPTcause, true);
-                    this->incLocalSlots(HPT, InstMiss,
-                            renameWidths[HPT] - renamable[HPT], false);
-                } else {
-                    this->incLocalSlots(HPT, EntryMiss, renamable[HPT], true);
-                    this->incLocalSlots(HPT, InstMiss,
-                            renameWidths[HPT] - renamable[HPT], false);
-                }
+                this->incLocalSlots(HPT, EntryMiss, renamable[HPT], true);
+                this->incLocalSlots(HPT, InstMiss,
+                        renameWidths[HPT] - renamable[HPT], false);
             }
             break;
 

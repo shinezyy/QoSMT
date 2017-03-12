@@ -618,10 +618,6 @@ class DefaultRename : public SlotCounter<Impl>
 
     void computeMiss(ThreadID tid);
 
-    std::vector<bool> LLmiss;
-
-    std::vector<uint64_t> LLMInstSeq;
-
     void missTry();
 
     DynInstPtr ROBHead[Impl::MaxThreads];
