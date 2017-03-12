@@ -103,7 +103,7 @@ class BMT {
         end = e;
     }
 
-    void inRange(InstSeqNum seq)
+    bool inRange(InstSeqNum seq)
     {
         return seq >= start && seq <= end;
     }

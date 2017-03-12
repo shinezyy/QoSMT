@@ -56,6 +56,7 @@
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/iew.hh"
 #include "cpu/timebuf.hh"
+#include "mem/cache/miss_table.hh"
 #include "debug/Activity.hh"
 #include "debug/Drain.hh"
 #include "debug/IEW.hh"
@@ -92,10 +93,8 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       BLBlocal(false),
       missRecorded(params->numThreads, false),
       headInst(params->numThreads, nullptr),
-      LLMInstSeq(params->numThreads, 0),
       l1Lat(params->l1Lat),
-      localInstMiss(0),
-      missThread(-1)
+      localInstMiss(0)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -631,7 +630,7 @@ DefaultIEW<Impl>::block(ThreadID tid)
     skidInsert(tid);
 
     dispatchStatus[tid] = Blocked;
-    BLBlocal = tid == 0 ? LB_all : BLBlocal;
+    BLBlocal = tid == HPT ? (LB_all || LB_part) : BLBlocal;
 }
 
 template<class Impl>
@@ -645,7 +644,7 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
     // Also switch status to running.
     if (skidBuffer[tid].empty()) {
         toRename->iewUnblock[tid] = true;
-        BLBlocal = tid == 0 ? false : BLBlocal;
+        BLBlocal = tid == HPT ? false : BLBlocal;
         wroteToTimeBuffer = true;
         DPRINTF(IEW, "[tid:%i]: Done unblocking.\n",tid);
         dispatchStatus[tid] = Running;
@@ -1321,11 +1320,12 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         if (fromRename->frontEndMiss) {
             this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
 
-        } else if (dispatchStatus[tid] == Blocked && missThread == LPT) {
-            this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
-
-        } else if (dispatchStatus[tid] == Blocked && missThread == HPT) {
+        } else if (dispatchStatus[tid] == Blocked && missStat.numL2Miss[HPT]) {
+            LB_all = true;
             this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
+
+        } else if (dispatchStatus[tid] == Blocked && missStat.numL2Miss[LPT]) {
+            this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
 
         }else if (LB_all) {
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
@@ -1691,7 +1691,7 @@ DefaultIEW<Impl>::tick()
         checkSignalsAndUpdate(tid);
     }
 
-    missTry();
+    /** missTry();*/
 
     getDispatchable();
 
@@ -1753,14 +1753,8 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
-    toRename->iewInfo[0].BLB = (dispatchStatus[HPT] == Blocked && missThread == LPT) ||
-        (!missThread == HPT &&
-         (LB_all || (LBLC && dispatchStatus[HPT] == Unblocking)));
-
-    for (ThreadID tid = 0; tid < numThreads; ++tid) {
-        toRename->iewInfo[tid].LLmiss = missThread == tid;
-        toRename->iewInfo[tid].LLMInstSeq = LLMInstSeq[tid];
-    }
+    toRename->iewInfo[0].BLB = (dispatchStatus[HPT] == Blocked && LB_all) ||
+        (BLBlocal && dispatchStatus[HPT] == Unblocking);
 
     if (toRename->iewInfo[0].BLB) {
         DPRINTF(FmtSlot, "Send LPT cause HPT Stall backward to rename.\n");
@@ -1983,7 +1977,8 @@ DefaultIEW<Impl>::reassignDispatchWidth(int newWidthVec[], int lenWidthVec)
 
 template<class Impl>
 void
-DefaultIEW<Impl>::getDispatchable() {
+DefaultIEW<Impl>::getDispatchable()
+{
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         switch (dispatchStatus[tid]) {
             case Running:
@@ -2023,7 +2018,8 @@ DefaultIEW<Impl>::getDispatchable() {
 
 template<class Impl>
 void
-DefaultIEW<Impl>::computeMiss(ThreadID tid) {
+DefaultIEW<Impl>::computeMiss(ThreadID tid)
+{
     /**在dispatch之前被调用
      *记录已经确定了的该线程在本周期的wait和miss情况
      */
@@ -2053,29 +2049,29 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid) {
             /**block一定导致本周期miss */
             if (fromRename->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, dispatchWidth);
+
+            } else if (missStat.numL2Miss[HPT]) {
+                this->incLocalSlots(tid, EntryMiss, dispatchWidth);
+
+            } else if (missStat.numL2Miss[LPT]) {
+                LB_all = true;
+                this->incLocalSlots(tid, EntryWait, dispatchWidth);
+
+            } else if (LB_all) {
+                this->incLocalSlots(tid, InstMiss,
+                        dispatchWidth - numLPTcause);
+                this->incLocalSlots(tid, EntryWait, numLPTcause);
+
+            } else if(LB_part) {
+                this->incLocalSlots(tid, EntryWait, numLPTcause);
+                this->incLocalSlots(tid, EntryMiss,
+                        dispatchable[tid] - numLPTcause);
+                this->incLocalSlots(tid, InstMiss,
+                        dispatchWidth - dispatchable[tid]);
             } else {
-                if (missThread == LPT) {
-                    this->incLocalSlots(tid, EntryWait, dispatchWidth);
-
-                } else if (missThread == HPT) {
-                    this->incLocalSlots(tid, EntryMiss, dispatchWidth);
-
-                } else if (LB_all) {
-                    this->incLocalSlots(tid, InstMiss,
-                            dispatchWidth - numLPTcause);
-                    this->incLocalSlots(tid, EntryWait, numLPTcause);
-
-                } else if(LB_part) {
-                    this->incLocalSlots(tid, EntryWait, numLPTcause);
-                    this->incLocalSlots(tid, EntryMiss,
-                            dispatchable[tid] - numLPTcause);
-                    this->incLocalSlots(tid, InstMiss,
-                            dispatchWidth - dispatchable[tid]);
-                } else {
-                    this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
-                    this->incLocalSlots(tid, InstMiss,
-                            dispatchWidth - dispatchable[tid]);
-                }
+                this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
+                this->incLocalSlots(tid, InstMiss,
+                        dispatchWidth - dispatchable[tid]);
             }
 
             break;
@@ -2099,21 +2095,6 @@ template<class Impl>
 void
 DefaultIEW<Impl>::missTry()
 {
-    if (ldstQueue.L2Miss(HPT, l1Lat + 2, LLMInstSeq[HPT])) {
-        missThread = HPT;
-
-    } else if (ldstQueue.L2Miss(LPT, l1Lat + 2, LLMInstSeq[LPT])) {
-        missThread = LPT;
-
-    } else if (ldstQueue.L1Miss(HPT, l1Lat + 2, LLMInstSeq[HPT])) {
-        missThread = HPT;
-
-    } else if (ldstQueue.L1Miss(HPT, l1Lat + 2, LLMInstSeq[LPT])) {
-        missThread = LPT;
-
-    } else {
-        missThread = -1;
-    }
 }
 
 #endif//__CPU_O3_IEW_IMPL_IMPL_HH__
