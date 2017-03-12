@@ -603,7 +603,7 @@ FullO3CPU<Impl>::regStats()
         .init(numThreads);
 
     HPTQoS
-        .name(name() + "HPTQoS")
+        .name(name() + ".HPTQoS")
         .desc("Predicted QoS of HPT")
         .precision(6)
         .flags(Stats::display)
