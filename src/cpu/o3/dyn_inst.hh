@@ -393,7 +393,9 @@ class BaseO3DynInst : public BaseDynInst<Impl>
 
     bool LLMiss() {return LLMissed;}
 
-    uint64_t MissTime;
+    uint64_t missTime;
+
+    bool inShadow;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

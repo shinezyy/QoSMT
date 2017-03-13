@@ -103,6 +103,13 @@ struct DefaultRenameDefaultIEW {
     bool serialize[Impl::MaxWidth]; // waiting ROB empty
 
     bool unSerialize[Impl::MaxWidth];
+
+    bool genShadow;
+
+    /** 告诉另一个阶段，发生了squash，或者某一种shadow queue用完了，
+      * 剩下的shadow queue entries没有意义了
+      */
+    bool shine;
 };
 
 /** Struct that defines the information passed from IEW to commit. */
@@ -199,6 +206,10 @@ struct TimeBufStruct {
 
         DynInstPtr LQHead;
         DynInstPtr SQHead;
+
+        bool genShadow; // to rename
+
+        bool shine;
     };
 
     iewComm iewInfo[Impl::MaxThreads];

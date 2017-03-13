@@ -582,6 +582,18 @@ class DefaultIEW : public SlotCounter<Impl>
     int localInstMiss;
 
     void missTry();
+
+    void genShadow();
+
+    void shine();
+
+    bool inShadow;
+
+    int shadowIQ;
+
+    int shadowLQ;
+
+    int shadowSQ;
 };
 
 #endif // __CPU_O3_IEW_HH__

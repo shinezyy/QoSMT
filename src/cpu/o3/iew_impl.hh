@@ -555,6 +555,11 @@ DefaultIEW<Impl>::squash(ThreadID tid)
     }
 
     emptyRenameInsts(tid);
+
+    if (HPT == tid) {
+        shine();
+        toRename->iewInfo[HPT].shine = true;
+    }
 }
 
 template<class Impl>
@@ -623,6 +628,14 @@ DefaultIEW<Impl>::block(ThreadID tid)
         dispatchStatus[tid] != Unblocking) {
         toRename->iewBlock[tid] = true;
         wroteToTimeBuffer = true;
+
+        if (tid == HPT && instQueue.isFull(HPT) &&
+                instQueue.numBusyEntries(LPT) > 0) {
+            if (!fromRename->genShadow) {
+                toRename->iewInfo[HPT].genShadow = true;
+            }
+            genShadow();
+        }
     }
 
     // Add the current inputs to the skid buffer so they can be
@@ -1664,6 +1677,12 @@ DefaultIEW<Impl>::tick()
 
     sortInsts();
 
+    if (fromRename->genShadow) {
+        genShadow();
+    } else if (fromRename->shine) {
+        shine();
+    }
+
     LBLC = LB_all || LB_part;
 
     LB_all = false; // reset it
@@ -2096,5 +2115,26 @@ void
 DefaultIEW<Impl>::missTry()
 {
 }
+
+template<class Impl>
+void
+DefaultIEW<Impl>::genShadow()
+{
+    inShadow = true;
+    shadowIQ = instQueue.maxEntries[HPT] - instQueue.numBusyEntries(HPT);
+    shadowLQ = ldstQueue.maxLQEntries[HPT] - ldstQueue.numLoads(HPT);
+    shadowSQ = ldstQueue.maxSQEntries[HPT] - ldstQueue.numStores(HPT);
+}
+
+template<class Impl>
+void
+DefaultIEW<Impl>::shine()
+{
+    inShadow = false;
+    shadowIQ = 0;
+    shadowLQ = 0;
+    shadowSQ = 0;
+}
+
 
 #endif//__CPU_O3_IEW_IMPL_IMPL_HH__

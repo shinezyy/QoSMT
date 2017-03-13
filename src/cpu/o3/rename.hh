@@ -625,6 +625,14 @@ class DefaultRename : public SlotCounter<Impl>
     DynInstPtr SQHead[Impl::MaxThreads];
 
     std::vector<FullSource> fullSource;
+
+    void genShadow();
+
+    void shine();
+
+    bool inShadow;
+
+    int shadowROB;
 };
 
 #endif // __CPU_O3_RENAME_HH__

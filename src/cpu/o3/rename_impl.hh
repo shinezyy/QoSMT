@@ -423,6 +423,11 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
     skidBuffer[tid].clear();
 
     doSquash(squash_seq_num, tid);
+
+    if (HPT == tid) {
+        shine();
+        toIEW->shine = true;
+    }
 }
 
 template <class Impl>
@@ -438,6 +443,12 @@ DefaultRename<Impl>::tick()
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         toIEW->serialize[tid] = false;
         toIEW->unSerialize[tid] = false;
+    }
+
+    if (fromIEW->iewInfo[HPT].genShadow) {
+        genShadow();
+    } else if (fromIEW->iewInfo[HPT].shine) {
+        shine();
     }
 
     toIEWIndex = 0;
@@ -997,6 +1008,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     instsInProgress[tid] += renamed_insts;
     renameRenamedInsts += renamed_insts;
 
+    if (HPT == tid && inShadow) {
+        shadowROB -= renamed_insts;
+        if (shadowROB <= 0) {
+            toIEW->shine = true;
+            shine();
+        }
+    }
+
     // If we wrote to the time buffer, record this.
     if (toIEWIndex) {
         wroteToTimeBuffer = true;
@@ -1152,6 +1171,13 @@ DefaultRename<Impl>::block(ThreadID tid)
             toDecode->renameBlock[tid] = true;
             toDecode->renameUnblock[tid] = false;
             wroteToTimeBuffer = true;
+
+            if (HPT == tid && (LB_all || LB_part)) {
+                if (!fromIEW->iewInfo[HPT].genShadow) {
+                    toIEW->genShadow = true;
+                }
+                genShadow();
+            }
         }
 
         // Rename can not go from SerializeStall to Blocked, otherwise
@@ -2171,5 +2197,22 @@ DefaultRename<Impl>::missTry()
 
 #undef dis
 }
+
+template<class Impl>
+void
+DefaultRename<Impl>::genShadow()
+{
+    inShadow = true;
+    shadowROB = maxEntries[HPT].robEntries - calcOwnROBEntries(HPT);
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::shine()
+{
+    inShadow = false;
+    shadowROB = 0;
+}
+
 
 #endif//__CPU_O3_RENAME_IMPL_HH__
