@@ -1231,6 +1231,12 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             add_to_iq = true;
 
             toRename->iewInfo[tid].dispatchedToLQ++;
+
+            if (HPT == tid && inShadow) {
+                inst->inShadowLQ = true;
+                shadowLQ--;
+            }
+
         } else if (inst->isStore()) {
             DPRINTF(IEW, "[tid:%i]: Issue: Memory instruction "
                     "encountered, adding to LSQ.\n", tid);
@@ -1251,6 +1257,11 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 ++iewDispNonSpecInsts;
             } else {
                 add_to_iq = true;
+            }
+
+            if (HPT == tid && inShadow) {
+                inst->inShadowSQ = true;
+                shadowSQ--;
             }
 
             toRename->iewInfo[tid].dispatchedToSQ++;
@@ -1300,6 +1311,18 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         // instruction.
         if (add_to_iq) {
             instQueue.insert(inst);
+
+            if (HPT == tid && inShadow) {
+                inst->inShadowIQ = true;
+                shadowIQ--;
+            }
+        }
+
+        if (HPT == tid && inShadow) {
+            if (shadowIQ < 0 || shadowLQ < 0 || shadowSQ < 0) {
+                toRename->iewInfo[HPT].shine = true;
+                shine();
+            }
         }
 
         insts_to_dispatch.pop();

@@ -141,6 +141,8 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
             } else if (it->cacheLevel == 2) {
                 missStat.numL2Miss[it->tid]--;
                 assert(missStat.numL2Miss[it->tid] >= 0);
+                inst->setMiss();
+                inst->missTime = int(curTick() - it->startTick);
             }
 
             it = missTable.erase(it);

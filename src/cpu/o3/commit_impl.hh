@@ -1396,7 +1396,17 @@ DefaultCommit<Impl>::updateComInstStats(DynInstPtr &inst)
     opsCommitted[tid]++;
 
     // update bmt
-    bmt->addInst(inst);
+    bool dep = bmt->addInst(inst);
+
+    /**do MLP rectification*/
+    if (!dep && inst->LLMiss()) {
+        if (inst->inShadowROB && inst->inShadowIQ &&
+                (inst->inShadowLQ || inst->inShadowSQ)) {
+            int rectSlots = 8 * (inst->missTime / 500); //depend on ClockFreq
+            fmt->incMissDirect(inst->threadNumber, -rectSlots, false);
+            fmt->incWaitDirect(inst->threadNumber, rectSlots);
+        }
+    }
 
     // To match the old model, don't count nops and instruction
     // prefetches towards the total commit count.

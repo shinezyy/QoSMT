@@ -66,12 +66,6 @@ bool BMT<Impl>::addInst(DynInstPtr &inst)
 }
 
     template<class Impl>
-void BMT<Impl>::merge(DynInstPtr &inst)
-{
-}
-
-
-    template<class Impl>
 uint64_t BMT<Impl>::getSrcRegs(DynInstPtr &inst)
 {
     const StaticInstPtr& stInst = inst->staticInst;

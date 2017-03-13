@@ -91,6 +91,11 @@ void FMT<Impl>::regStats()
         .flags(Stats::display)
         ;
 
+    MLPrect
+        .name(name() + ".mlp_rectification")
+        .desc("Estimated MLP wait caused by LPT.")
+        ;
+
 }
 
     template<class Impl>
@@ -171,6 +176,7 @@ void FMT<Impl>::incMissDirect(ThreadID tid, int n, bool Overlapped)
     template<class Impl>
 void FMT<Impl>::incWaitDirect(ThreadID tid, int n)
 {
+    MLPrect += n;
     rBranchEntryIterator it = table[tid].rbegin();
     it->waitSlots += n;
 }

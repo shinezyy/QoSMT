@@ -143,6 +143,18 @@ BaseO3DynInst<Impl>::initVars()
     priorMissSlots = 0;
 
     loadStartCycle = 0;
+
+    LLMissed = false;
+
+    missTime = 0;
+
+    inShadowROB = false;
+
+    inShadowIQ = false;
+
+    inShadowLQ = false;
+
+    inShadowSQ = false;
 }
 
 template <class Impl>

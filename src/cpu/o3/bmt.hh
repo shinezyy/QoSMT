@@ -73,8 +73,6 @@ class BMT {
     // if inst is depencent on an existing tree, return true, else return false
     bool addInst(DynInstPtr &inst);
 
-    void merge(DynInstPtr &inst);
-
     int count1(uint64_t x)
     {
         return __builtin_popcount(x);

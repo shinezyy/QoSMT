@@ -84,6 +84,8 @@ class FMT {
 
     Stats::Vector baseToMiss;
 
+    Stats::Scalar MLPrect;
+
     public:
 
     std::string name() const
@@ -125,10 +127,6 @@ class FMT {
      */
     void incMissDirect(ThreadID tid, int n, bool Overlapped);
 
-    /* incWaitDirect是不准确的，它的存在是为了解决：
-     * 当T处于wait时，不知道它的下一条指令应该属于哪一个branch
-     * 姑且认为它属于最新的branch（一般是这样，但是可能引入误差）
-     */
     void incWaitDirect(ThreadID tid, int n);
 
     void dumpStats();

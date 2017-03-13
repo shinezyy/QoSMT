@@ -1009,6 +1009,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     renameRenamedInsts += renamed_insts;
 
     if (HPT == tid && inShadow) {
+        inst->inShadowROB = true;
         shadowROB -= renamed_insts;
         if (shadowROB <= 0) {
             toIEW->shine = true;
