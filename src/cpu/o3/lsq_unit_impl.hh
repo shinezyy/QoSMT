@@ -196,6 +196,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     cpu->ppDataAccessComplete->notify(std::make_pair(inst, pkt));
 
     if (inst->isLoad()) {
+        inst->compAccessTick = curTick();
         completedCacheLoads++;
         overallCacheLoadTime += curTick() - inst->accessTick;
     }
@@ -361,6 +362,30 @@ LSQUnit<Impl>::regStats()
         ;
 
     avgCacheLoadTime = overallCacheLoadTime / completedCacheLoads;
+
+    overallCacheBlockTime
+        .name(name() + ".overallCacheBlockTime")
+        .desc("Sum of time loads wait cache to receive requset")
+        ;
+
+    avgCacheBlockTime
+        .name(name() + ".avgCacheBlockTime")
+        .desc("Average of time loads wait cache to receive requset")
+        ;
+
+    avgCacheBlockTime = overallCacheBlockTime / completedCacheLoads;
+
+    overallWaitComTime
+        .name(name() + ".overallWaitComTime")
+        .desc("Sum of time loads wait to commit after cache access")
+        ;
+
+    avgWaitComTime
+        .name(name() + ".avgWaitComTime")
+        .desc("Average of time loads wait to commit after cache access")
+        ;
+
+    avgWaitComTime = overallWaitComTime / completedCacheLoads;
 }
 
 template<class Impl>
@@ -819,6 +844,10 @@ LSQUnit<Impl>::commitLoad()
     assert(loadQueue[loadHead]);
 
     overallStopTime += curTick() - loadQueue[loadHead]->enLQTick;
+
+    if (loadQueue[loadHead]->compAccessTick) {
+        overallWaitComTime += curTick() - loadQueue[loadHead]->compAccessTick;
+    }
 
     committedLoads++;
 

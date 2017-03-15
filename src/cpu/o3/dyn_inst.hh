@@ -406,6 +406,10 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     Tick enLQTick;
 
     Tick accessTick;
+
+    Tick tryAccessTick;
+
+    Tick compAccessTick;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

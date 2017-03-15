@@ -528,6 +528,14 @@ class LSQUnit {
 
     Stats::Formula avgCacheLoadTime;
 
+    Stats::Scalar overallCacheBlockTime;
+
+    Stats::Formula avgCacheBlockTime;
+
+    Stats::Scalar overallWaitComTime;
+
+    Stats::Formula avgWaitComTime;
+
   public:
     /** Executes the load at the given index. */
     Fault read(Request *req, Request *sreqLow, Request *sreqHigh,
@@ -876,6 +884,10 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
         }
     }
 
+    if (load_inst->tryAccessTick == 0) {
+        load_inst->tryAccessTick = curTick();
+    }
+
     // If the cache was blocked, or has become blocked due to the access,
     // handle it.
     if (!successful_load) {
@@ -918,6 +930,7 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
     }
 
     if (successful_load) {
+        overallCacheBlockTime += curTick() - load_inst->tryAccessTick;
         load_inst->accessTick = curTick();
     }
 
