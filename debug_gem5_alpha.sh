@@ -70,12 +70,12 @@ echo "" | tee -a $SCRIPT_OUT
 echo "" | tee -a $SCRIPT_OUT
 
 ################# detailed
+#--debug-start=1000000\
+#--debug-file=trace.out\
 #gdb --args \
 nohup \
 $GEM5_DIR/build/$arch/gem5.$gem5_ver\
-    --debug-flags="O3PipeView,SI"\
-    --debug-start=1000000\
-    --debug-file=trace.out\
+    --debug-flags="BMT"\
     --outdir=$output_dir\
     $GEM5_DIR/configs/spec/spec06_config.py\
     --benchmark="$benchmark"\
