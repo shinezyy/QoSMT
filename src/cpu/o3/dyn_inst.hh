@@ -402,6 +402,10 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     bool inShadowLQ;
 
     bool inShadowSQ;
+
+    Tick enLQTick;
+
+    Tick accessTick;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

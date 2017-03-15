@@ -516,6 +516,12 @@ class LSQUnit {
     /** Number of times the LSQ is blocked due to the cache. */
     Stats::Scalar lsqCacheBlocked;
 
+    Stats::Scalar overallStopTime;
+
+    Stats::Scalar committedLoads;
+
+    Stats::Formula avgStopTime;
+
   public:
     /** Executes the load at the given index. */
     Fault read(Request *req, Request *sreqLow, Request *sreqHigh,

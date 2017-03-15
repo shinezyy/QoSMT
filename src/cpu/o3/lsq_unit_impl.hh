@@ -319,7 +319,26 @@ LSQUnit<Impl>::regStats()
 
     lsqCacheBlocked
         .name(name() + ".cacheBlocked")
-        .desc("Number of times an access to memory failed due to the cache being blocked");
+        .desc("Number of times an access to memory failed due"
+                " to the cache being blocked");
+
+    overallStopTime
+        .name(name() + ".overallStopTime")
+        .desc("Sum of stop time of loads in load queue, in ps.")
+        ;
+
+    committedLoads
+        .name(name() + ".committedLoads")
+        .desc("Number of loads committed.")
+        ;
+
+    avgStopTime
+        .name(name() + ".avgStopTime")
+        .desc("Average of stop time of loads in load queue, in ps.")
+        ;
+
+    avgStopTime = overallStopTime / committedLoads;
+
 }
 
 template<class Impl>
@@ -776,6 +795,10 @@ void
 LSQUnit<Impl>::commitLoad()
 {
     assert(loadQueue[loadHead]);
+
+    overallStopTime += curTick() - loadQueue[loadHead]->enLQTick;
+
+    committedLoads++;
 
     DPRINTF(LSQUnit, "Committing head load instruction, PC %s\n",
             loadQueue[loadHead]->pcState());

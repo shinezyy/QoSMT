@@ -1225,6 +1225,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             // Reserve a spot in the load store queue for this
             // memory access.
+            inst->enLQTick = curTick();
             ldstQueue.insertLoad(inst);
 
             ++iewDispLoadInsts;
