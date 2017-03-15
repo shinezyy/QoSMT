@@ -16,6 +16,7 @@
     numThreads(params->numThreads),
     numROBEntries(params->numROBEntries)
 {
+    printBuf[64] = '\0';
 }
 
 
@@ -60,6 +61,9 @@ bool BMT<Impl>::addInst(DynInstPtr &inst)
     /** 自立门户 */
     if (numDep == 0 && inst->LLMiss() && inRange(inst->seqNum)) {
         addLL(inst);
+    }
+
+    if (numDep != 0) {
         return false;
     }
     return true;
@@ -87,6 +91,7 @@ uint64_t BMT<Impl>::getDestRegs(DynInstPtr &inst)
     return vec;
 }
 
+
     template<class Impl>
 bool BMT<Impl>::isDep(DynInstPtr &inst)
 {
@@ -95,8 +100,12 @@ bool BMT<Impl>::isDep(DynInstPtr &inst)
 
     uint64_t srcVec = getSrcRegs(inst);
 
+    DPRINTF(BMT, "Source registers are:\n%s\n", printVec(srcVec));
+
     while (it != table[tid].end()) {
         if ((it->orbv & srcVec) != 0) {
+            DPRINTF(BMT, "Matched dest registers are:\n%s\n", printVec(it->orbv));
+            DPRINTF(BMT, "Matched dest LLMiss is: %llu\n", it->llid);
             return true;
         }
         it++;

@@ -60,6 +60,7 @@
 #include "debug/FmtSlot.hh"
 #include "debug/FmtSlot2.hh"
 #include "debug/LB.hh"
+#include "debug/BMT.hh"
 #include "debug/InstPass.hh"
 #include "debug/SI.hh"
 #include "debug/missTry.hh"
@@ -425,7 +426,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
     doSquash(squash_seq_num, tid);
 
     if (HPT == tid) {
-        shine();
+        shine("squash");
         toIEW->shine = true;
     }
 }
@@ -448,7 +449,7 @@ DefaultRename<Impl>::tick()
     if (fromIEW->iewInfo[HPT].genShadow) {
         genShadow();
     } else if (fromIEW->iewInfo[HPT].shine) {
-        shine();
+        shine("IEW shine");
     }
 
     toIEWIndex = 0;
@@ -1013,7 +1014,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         shadowROB -= renamed_insts;
         if (shadowROB <= 0) {
             toIEW->shine = true;
-            shine();
+            shine("use up ROB");
         }
     }
 
@@ -1836,6 +1837,10 @@ DefaultRename<Impl>::incrFullStat(const FullSource &source,
         ++numIQFull[tid];
         break;
       case LQ:
+        if (tid == HPT) {
+            DPRINTF(BMT, "HPT LQ full,  HPT: %i,  LPT %i\n",
+                    calcOwnLQEntries(HPT), calcOwnLQEntries(LPT));
+        }
         ++renameLQFullEvents[tid];
         ++numLQFull[tid];
         break;
@@ -2203,14 +2208,36 @@ template<class Impl>
 void
 DefaultRename<Impl>::genShadow()
 {
+    DPRINTF(BMT, "genShadowing\n");
+
+    DPRINTF(BMT, "HPT LQ full,  HPT: %i,  LPT %i\n",
+            calcOwnLQEntries(HPT), calcOwnLQEntries(LPT));
+
     inShadow = true;
     shadowROB = maxEntries[HPT].robEntries - calcOwnROBEntries(HPT);
+
+    InstSeqNum start = ~0, end = 0;
+
+    for (auto&& it : missTable) {
+        if (it.cacheLevel == 2 && it.tid == HPT) {
+            if (it.seqNum < start) {
+                start = it.seqNum;
+            }
+
+            if (it.seqNum > end) {
+                end = it.seqNum;
+            }
+        }
+    }
+    bmt->clear(HPT);
+    bmt->setRange(start, end);
 }
 
 template<class Impl>
 void
-DefaultRename<Impl>::shine()
+DefaultRename<Impl>::shine(const char *reason)
 {
+    DPRINTF(BMT, "Shining because of %s\n", reason);
     inShadow = false;
     shadowROB = 0;
 }

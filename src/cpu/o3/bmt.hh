@@ -105,6 +105,16 @@ class BMT {
     {
         return seq >= start && seq <= end;
     }
+
+    char printBuf[65];
+
+    char* printVec(uint64_t v)
+    {
+        for (int i = 0; i < 64; ++i) {
+            printBuf[i] = (v >> i) & 1 ? '1' : '0';
+        }
+        return &printBuf[0];
+    }
 };
 
 #endif // __CPU_O3_BMT_HH__

@@ -64,6 +64,7 @@
 #include "debug/CommitRate.hh"
 #include "debug/Drain.hh"
 #include "debug/FmtSlot.hh"
+#include "debug/BMT.hh"
 #include "debug/ExecFaulting.hh"
 #include "debug/O3PipeView.hh"
 #include "params/DerivO3CPU.hh"
@@ -1399,9 +1400,16 @@ DefaultCommit<Impl>::updateComInstStats(DynInstPtr &inst)
     bool dep = bmt->addInst(inst);
 
     /**do MLP rectification*/
-    if (!dep && inst->LLMiss()) {
-        if (inst->inShadowROB && inst->inShadowIQ &&
-                (inst->inShadowLQ || inst->inShadowSQ)) {
+    if (inst->LLMiss()) {
+        if (dep) {
+            dep = bmt->isDep(inst);
+        }
+
+        DPRINTF(BMT, "LL miss[%llu] has %s dep, %s in shadowLQ, %s in shadowSQ\n",
+                inst->seqNum, dep ? "" : "no", inst->inShadowLQ ? "" : "not",
+                inst->inShadowSQ ? "" : "not");
+
+        if (!dep && (inst->inShadowLQ || inst->inShadowSQ)) {
             int rectSlots = 8 * (inst->missTime / 500); //depend on ClockFreq
             fmt->incMissDirect(inst->threadNumber, -rectSlots, false);
             fmt->incWaitDirect(inst->threadNumber, rectSlots);

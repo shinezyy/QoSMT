@@ -99,6 +99,7 @@ class DefaultIEW : public SlotCounter<Impl>
     typedef typename CPUPol::FetchStruct FetchStruct;
 
     typedef typename CPUPol::Fmt Fmt;
+    typedef typename CPUPol::Bmt Bmt;
     typedef typename CPUPol::Voc Voc;
 
   public:
@@ -517,6 +518,8 @@ class DefaultIEW : public SlotCounter<Impl>
 
     Fmt *fmt;
 
+    Bmt *bmt;
+
     uint32_t tempWaitSlots[Impl::MaxThreads];
 
     Voc *voc;
@@ -530,6 +533,8 @@ class DefaultIEW : public SlotCounter<Impl>
     void clearNumIQFullALL();
 
     void setFmt(Fmt *_fmt);
+
+    void setBmt(Bmt *_bmt) {bmt = _bmt;}
 
     void setVoc(Voc *_voc);
 
@@ -585,7 +590,7 @@ class DefaultIEW : public SlotCounter<Impl>
 
     void genShadow();
 
-    void shine();
+    void shine(const char *reason);
 
     bool inShadow;
 

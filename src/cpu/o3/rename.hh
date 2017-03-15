@@ -85,6 +85,8 @@ class DefaultRename : public SlotCounter<Impl>
     typedef typename CPUPol::IEW IEW;
     typedef typename CPUPol::Commit Commit;
 
+    typedef typename CPUPol::Bmt Bmt;
+
     // Typedefs from the ISA.
     typedef TheISA::RegIndex RegIndex;
 
@@ -628,11 +630,19 @@ class DefaultRename : public SlotCounter<Impl>
 
     void genShadow();
 
-    void shine();
+    void shine(const char *reason);
 
     bool inShadow;
 
     int shadowROB;
+
+  private:
+
+    Bmt *bmt;
+
+  public:
+
+    void setBmt(Bmt *_bmt) {bmt = _bmt;}
 };
 
 #endif // __CPU_O3_RENAME_HH__

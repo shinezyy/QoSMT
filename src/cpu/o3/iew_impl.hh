@@ -64,6 +64,7 @@
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
 #include "debug/FmtSlot2.hh"
+#include "debug/BMT.hh"
 #include "params/DerivO3CPU.hh"
 
 using namespace std;
@@ -557,7 +558,7 @@ DefaultIEW<Impl>::squash(ThreadID tid)
     emptyRenameInsts(tid);
 
     if (HPT == tid) {
-        shine();
+        shine("squash");
         toRename->iewInfo[HPT].shine = true;
     }
 }
@@ -1233,6 +1234,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             toRename->iewInfo[tid].dispatchedToLQ++;
 
             if (HPT == tid && inShadow) {
+                DPRINTF(BMT, "Put inst [%llu] into shadow LQ\n", inst->seqNum);
                 inst->inShadowLQ = true;
                 shadowLQ--;
             }
@@ -1260,6 +1262,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             }
 
             if (HPT == tid && inShadow) {
+                DPRINTF(BMT, "Put inst [%llu] into shadow SQ\n", inst->seqNum);
                 inst->inShadowSQ = true;
                 shadowSQ--;
             }
@@ -1319,9 +1322,15 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         }
 
         if (HPT == tid && inShadow) {
-            if (shadowIQ < 0 || shadowLQ < 0 || shadowSQ < 0) {
+            if (shadowIQ <= 0 || shadowLQ <= 0 || shadowSQ <= 0) {
                 toRename->iewInfo[HPT].shine = true;
-                shine();
+                if (shadowIQ <= 0) {
+                    shine("use up IQ");
+                } else if (shadowLQ <= 0) {
+                    shine("use up LQ");
+                } else {
+                    shine("use up SQ");
+                }
             }
         }
 
@@ -1703,7 +1712,7 @@ DefaultIEW<Impl>::tick()
     if (fromRename->genShadow) {
         genShadow();
     } else if (fromRename->shine) {
-        shine();
+        shine("rename shine");
     }
 
     LBLC = LB_all || LB_part;
@@ -2143,16 +2152,34 @@ template<class Impl>
 void
 DefaultIEW<Impl>::genShadow()
 {
+    DPRINTF(BMT, "genShadowing\n");
     inShadow = true;
     shadowIQ = instQueue.maxEntries[HPT] - instQueue.numBusyEntries(HPT);
     shadowLQ = ldstQueue.maxLQEntries[HPT] - ldstQueue.numLoads(HPT);
     shadowSQ = ldstQueue.maxSQEntries[HPT] - ldstQueue.numStores(HPT);
+
+    InstSeqNum start = ~0, end = 0;
+
+    for (auto&& it : missTable) {
+        if (it.cacheLevel == 2 && it.tid == HPT) {
+            if (it.seqNum < start) {
+                start = it.seqNum;
+            }
+
+            if (it.seqNum > end) {
+                end = it.seqNum;
+            }
+        }
+    }
+    bmt->clear(HPT);
+    bmt->setRange(start, end);
 }
 
 template<class Impl>
 void
-DefaultIEW<Impl>::shine()
+DefaultIEW<Impl>::shine(const char *reason)
 {
+    DPRINTF(BMT, "Shinging because of %s\n", reason);
     inShadow = false;
     shadowIQ = 0;
     shadowLQ = 0;

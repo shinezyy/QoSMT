@@ -293,6 +293,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     iew.setVoc(&voc);
     commit.setVoc(&voc);
 
+    rename.setBmt(&bmt);
+    iew.setBmt(&bmt);
     commit.setBmt(&bmt);
 
     ThreadID active_threads;
