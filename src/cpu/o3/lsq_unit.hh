@@ -522,6 +522,12 @@ class LSQUnit {
 
     Stats::Formula avgStopTime;
 
+    Stats::Scalar overallCacheLoadTime;
+
+    Stats::Scalar completedCacheLoads;
+
+    Stats::Formula avgCacheLoadTime;
+
   public:
     /** Executes the load at the given index. */
     Fault read(Request *req, Request *sreqLow, Request *sreqHigh,
@@ -851,7 +857,7 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
     fst_data_pkt->req->seqNum = load_inst->seqNum;
     if (!dcachePort->sendTimingReq(fst_data_pkt)) {
         successful_load = false;
-    } else if (TheISA::HasUnalignedMemAcc && sreqLow) {
+    } else if (TheISA::HasUnalignedMemAcc && sreqLow) {// alpha does not have
         completedFirst = true;
 
         // The first packet was sent without problems, so send this one
@@ -909,6 +915,10 @@ LSQUnit<Impl>::read(Request *req, Request *sreqLow, Request *sreqHigh,
 
         // No fault occurred, even though the interface is blocked.
         return NoFault;
+    }
+
+    if (successful_load) {
+        load_inst->accessTick = curTick();
     }
 
     return NoFault;

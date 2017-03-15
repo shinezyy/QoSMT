@@ -195,6 +195,11 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     pkt->req->setAccessLatency();
     cpu->ppDataAccessComplete->notify(std::make_pair(inst, pkt));
 
+    if (inst->isLoad()) {
+        completedCacheLoads++;
+        overallCacheLoadTime += curTick() - inst->accessTick;
+    }
+
     delete state;
 }
 
@@ -339,6 +344,23 @@ LSQUnit<Impl>::regStats()
 
     avgStopTime = overallStopTime / committedLoads;
 
+
+    overallCacheLoadTime
+        .name(name() + ".overallCacheLoadTime")
+        .desc("Sum of access time of loads to cache, in ps")
+        ;
+
+    completedCacheLoads
+        .name(name() + ".completedCacheLoads")
+        .desc("Number of cache loads completed")
+        ;
+
+    avgCacheLoadTime
+        .name(name() + ".avgCacheLoadTime")
+        .desc("Average of access time of loads to cache, in ps")
+        ;
+
+    avgCacheLoadTime = overallCacheLoadTime / completedCacheLoads;
 }
 
 template<class Impl>
