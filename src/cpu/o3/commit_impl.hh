@@ -291,6 +291,39 @@ DefaultCommit<Impl>::regStats()
         .name(name() + ".bw_lim_events")
         .desc("number cycles where commit BW limit reached")
         ;
+
+    numConcerned
+        .init(cpu->numThreads)
+        .name(name() + ".numConcerned")
+        .desc("Number of concerned instructions writeback.")
+        ;
+
+    overallWaitMarkTime
+        .init(cpu->numThreads)
+        .name(name() + ".overallWaitMarkTime")
+        .desc("Sum of wait cycles from LSQ send it  to  mark it ready.")
+        ;
+
+    avgWaitMarkTime
+        .name(name() + ".avgWaitMarkTime")
+        .desc("Average of wait cycles from LSQ send it  to  mark it ready.")
+        ;
+
+    avgWaitMarkTime = overallWaitMarkTime / numConcerned;
+
+    overallWaitComTime
+        .init(cpu->numThreads)
+        .name(name() + ".overallWaitComTime")
+        .desc("Sum of wait cycles from mark it ready  to  erase it from ROB.")
+        ;
+
+    avgWaitComTime
+        .name(name() + ".avgWaitComTime")
+        .desc("Average of wait cycles from mark it ready  to  erase it from ROB.")
+        ;
+
+    avgWaitComTime = overallWaitComTime / numConcerned;
+
 }
 
 template <class Impl>
@@ -1320,6 +1353,18 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
     }
 #endif
 
+    if (head_inst->concerned && head_inst->compAccessTick != 0) {
+
+        numConcerned[head_inst->threadNumber]++;
+
+        overallWaitMarkTime[head_inst->threadNumber] +=
+            head_inst->markCompTick - head_inst->compAccessTick;
+
+        overallWaitComTime[head_inst->threadNumber] +=
+            curTick() - head_inst->markCompTick;
+        head_inst->comTick = curTick();
+    }
+
     // If this was a store, record it for this cycle.
     if (head_inst->isStore())
         committedStores[tid] = true;
@@ -1381,6 +1426,12 @@ DefaultCommit<Impl>::markCompletedInsts()
 
             // Mark the instruction as ready to commit.
             fromIEW->insts[inst_num]->setCanCommit();
+
+            DynInstPtr comInst = fromIEW->insts[inst_num];
+
+            if (comInst->concerned && comInst->compAccessTick != 0) {
+                comInst->markCompTick = curTick();
+            }
         }
     }
 }

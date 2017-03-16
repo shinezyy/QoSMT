@@ -531,6 +531,16 @@ class DefaultCommit
     /** Number of cycles where the commit bandwidth limit is reached. */
     Stats::Scalar commitEligibleSamples;
 
+    Stats::Vector numConcerned;
+
+    Stats::Vector overallWaitMarkTime;
+
+    Stats::Formula avgWaitMarkTime;
+
+    Stats::Vector overallWaitComTime;
+
+    Stats::Formula avgWaitComTime;
+
   private:
     /** Set changedROBNumEntries[tid] to true, do global set if
      * rob->isDynamicPolicy() */

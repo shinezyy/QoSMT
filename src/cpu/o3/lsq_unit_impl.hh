@@ -174,6 +174,8 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     assert(!cpu->switchedOut());
     if (!inst->isSquashed()) {
         if (!state->noWB) {
+
+            inst->concerned = true;
             if (!TheISA::HasUnalignedMemAcc || !state->isSplit ||
                 !state->isLoad) {
                 writeback(inst, pkt);
@@ -375,6 +377,11 @@ LSQUnit<Impl>::regStats()
 
     avgCacheBlockTime = overallCacheBlockTime / completedCacheLoads;
 
+    numConcerned
+        .name(name() + ".numConcerned")
+        .desc("Number of concerned loads committed")
+        ;
+
     overallWaitComTime
         .name(name() + ".overallWaitComTime")
         .desc("Sum of time loads wait to commit after cache access")
@@ -385,7 +392,20 @@ LSQUnit<Impl>::regStats()
         .desc("Average of time loads wait to commit after cache access")
         ;
 
-    avgWaitComTime = overallWaitComTime / completedCacheLoads;
+    avgWaitComTime = overallWaitComTime / numConcerned;
+
+    overallWaitDeLQTime
+        .name(name() + ".overallWaitDeLQTime")
+        .desc("Sum of time from erased in ROB  to  erase in LQ")
+        ;
+
+    avgWaitDeLQTime
+        .name(name() + ".avgWaitDeLQTime")
+        .desc("Average of time from erased in ROB  to  erase in LQ")
+        ;
+
+    avgWaitDeLQTime = overallWaitDeLQTime / numConcerned;
+
 }
 
 template<class Impl>
@@ -843,10 +863,12 @@ LSQUnit<Impl>::commitLoad()
 {
     assert(loadQueue[loadHead]);
 
-    overallStopTime += curTick() - loadQueue[loadHead]->enLQTick;
+    if (loadQueue[loadHead]->concerned && loadQueue[loadHead]->compAccessTick) {
 
-    if (loadQueue[loadHead]->compAccessTick) {
+        overallStopTime += curTick() - loadQueue[loadHead]->enLQTick;
         overallWaitComTime += curTick() - loadQueue[loadHead]->compAccessTick;
+        overallWaitDeLQTime += curTick() - loadQueue[loadHead]->comTick;
+        numConcerned++;
     }
 
     committedLoads++;

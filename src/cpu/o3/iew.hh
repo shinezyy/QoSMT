@@ -511,6 +511,12 @@ class DefaultIEW : public SlotCounter<Impl>
     /** Numbers of slots rectified from miss to wait. */
     Stats::Vector rectifiedWaits;
 
+    Stats::Vector numConcerned;
+
+    Stats::Vector overallWaitWBCycle;
+
+    Stats::Formula avgWaitWBCycle;
+
 
   private:
 

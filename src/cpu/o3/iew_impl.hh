@@ -357,6 +357,25 @@ DefaultIEW<Impl>::regStats()
         .desc("Numbers of slots rectified from miss to wait.")
         .flags(display)
         ;
+
+    numConcerned
+        .init(cpu->numThreads)
+        .name(name() + ".numConcerned")
+        .desc("Number of concerned instructions writeback.")
+        ;
+
+    overallWaitWBCycle
+        .init(cpu->numThreads)
+        .name(name() + ".overallWaitWBCycle")
+        .desc("Sum of scheduled wait cycles.")
+        ;
+
+    avgWaitWBCycle
+        .name(name() + ".avgWaitWBCycle")
+        .desc("Average of scheduled wait cycles.")
+        ;
+
+    avgWaitWBCycle = overallWaitWBCycle / numConcerned;
 }
 
 template<class Impl>
@@ -727,6 +746,11 @@ DefaultIEW<Impl>::instToCommit(DynInstPtr &inst)
     // Add finished instruction to queue to commit.
     (*iewQueue)[wbCycle].insts[wbNumInst] = inst;
     (*iewQueue)[wbCycle].size++;
+
+    if (inst->concerned) {
+        numConcerned[inst->threadNumber]++;
+        overallWaitWBCycle[inst->threadNumber] += wbCycle;
+    }
 }
 
 template <class Impl>

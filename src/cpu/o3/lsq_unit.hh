@@ -536,6 +536,12 @@ class LSQUnit {
 
     Stats::Formula avgWaitComTime;
 
+    Stats::Scalar overallWaitDeLQTime;
+
+    Stats::Formula avgWaitDeLQTime;
+
+    Stats::Scalar numConcerned;
+
   public:
     /** Executes the load at the given index. */
     Fault read(Request *req, Request *sreqLow, Request *sreqHigh,

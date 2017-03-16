@@ -163,6 +163,8 @@ BaseO3DynInst<Impl>::initVars()
     tryAccessTick = 0;
 
     compAccessTick = 0;
+
+    concerned = false;
 }
 
 template <class Impl>
