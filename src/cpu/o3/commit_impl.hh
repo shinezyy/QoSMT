@@ -1048,8 +1048,12 @@ DefaultCommit<Impl>::commitInsts()
 
         ThreadID commit_thread = getCommittingThread();
 
-        if (commit_thread == -1 || !rob->isHeadReady(commit_thread))
+        if (commit_thread == -1 || !rob->isHeadReady(commit_thread)) {
+
+            waitNoReadyCycles += numCompLoads;
+
             break;
+        }
 
         head_inst = rob->readHeadInst(commit_thread);
 
@@ -1073,6 +1077,9 @@ DefaultCommit<Impl>::commitInsts()
 
             // Record that the number of ROB entries has changed.
             markROBNumEntriesChanged(tid);
+
+            waitSquashCycles += numCompLoads;
+
         } else {
             pc[tid] = head_inst->pcState();
 
@@ -1216,6 +1223,9 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
                 head_inst->seqNum, head_inst->pcState());
 
         if (inst_num > 0 || iewStage->hasStoresToWB(tid)) {
+
+            waitStoreCycles[head_inst->threadNumber] += numCompLoads;
+
             DPRINTF(Commit, "Waiting for all stores to writeback.\n");
             return false;
         }
@@ -1234,6 +1244,8 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
         } else {
             ++commitNonSpecStalls;
         }
+
+        waitHeadExeCycles[head_inst->threadNumber] += numCompLoads;
 
         return false;
     }
@@ -1256,6 +1268,9 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
                 head_inst->seqNum, head_inst->pcState());
 
         if (iewStage->hasStoresToWB(tid) || inst_num > 0) {
+
+            waitStoreCycles[head_inst->threadNumber] += numCompLoads;
+
             DPRINTF(Commit, "Stores outstanding, fault must wait.\n");
             return false;
         }
@@ -1302,6 +1317,9 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
 
         // Generate trap squash event.
         generateTrapEvent(tid);
+
+        waitFaultCycles[head_inst->threadNumber] += numCompLoads;
+
         return false;
     }
 

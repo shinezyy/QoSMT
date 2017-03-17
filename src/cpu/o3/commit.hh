@@ -541,6 +541,16 @@ class DefaultCommit
 
     Stats::Formula avgWaitComTime;
 
+    Stats::Vector waitStoreCycles;
+
+    Stats::Vector waitHeadExeCycles;
+
+    Stats::Vector waitFaultCycles;
+
+    Stats::Vector waitSquashCycles;
+
+    Stats::Vector waitNoReadyCycles;
+
   private:
     /** Set changedROBNumEntries[tid] to true, do global set if
      * rob->isDynamicPolicy() */
@@ -586,6 +596,9 @@ class DefaultCommit
         bmt = _bmt;
     }
 
+  private:
+
+    int numCompLoads;
 };
 
 #endif // __CPU_O3_COMMIT_HH__
