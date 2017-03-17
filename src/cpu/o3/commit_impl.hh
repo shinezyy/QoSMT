@@ -360,6 +360,24 @@ DefaultCommit<Impl>::regStats()
         .desc("Number of weighted cycles of waiting prior insts.")
         ;
 
+    waitAnotherHeadCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitAnotherHeadCycles")
+        .desc("Number of weighted cycles of waiting another thread's head.")
+        ;
+
+    waitPriorHeadCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitPriorHeadCycles")
+        .desc("Number of weighted cycles of waiting prior head.")
+        ;
+
+    noReadyCycles
+        .init(cpu->numThreads)
+        .name(name() + ".noReadyCycles")
+        .desc("Number of weighted cycles none of threads have ready head.")
+        ;
+
 }
 
 template <class Impl>
@@ -1087,6 +1105,14 @@ DefaultCommit<Impl>::commitInsts()
         ThreadID commit_thread = getCommittingThread();
 
         if (commit_thread == -1 || !rob->isHeadReady(commit_thread)) {
+
+            if (commit_thread == -1) {
+                noReadyCycles[0] += numCompLoads;
+            } else {
+                waitAnotherHeadCycles[1 - commit_thread] += numCompLoads;
+                waitPriorHeadCycles[commit_thread] += numCompLoads;
+            }
+
             break;
         }
 

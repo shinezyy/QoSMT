@@ -553,6 +553,12 @@ class DefaultCommit
 
     Stats::Vector waitPriorCycles;
 
+    Stats::Vector waitAnotherHeadCycles;
+
+    Stats::Vector waitPriorHeadCycles;
+
+    Stats::Vector noReadyCycles;
+
   private:
     /** Set changedROBNumEntries[tid] to true, do global set if
      * rob->isDynamicPolicy() */
