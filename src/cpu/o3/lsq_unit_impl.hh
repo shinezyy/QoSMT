@@ -175,7 +175,10 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     if (!inst->isSquashed()) {
         if (!state->noWB) {
 
-            inst->concerned = true;
+            if (inst->threadNumber == HPT) {
+                inst->concerned = true;
+            }
+
             if (!TheISA::HasUnalignedMemAcc || !state->isSplit ||
                 !state->isLoad) {
                 writeback(inst, pkt);

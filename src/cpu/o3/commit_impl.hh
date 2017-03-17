@@ -324,6 +324,42 @@ DefaultCommit<Impl>::regStats()
 
     avgWaitComTime = overallWaitComTime / numConcerned;
 
+    waitStoreCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitStoreCycles")
+        .desc("Number of weighted cycles of waiting stores.")
+        ;
+
+    waitHeadExeCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitHeadExeCycles")
+        .desc("Number of weighted cycles of waiting not executed head.")
+        ;
+
+    waitFaultCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitFaultCycles")
+        .desc("Number of weighted cycles of waiting fault.")
+        ;
+
+    waitSquashCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitSquashCycles")
+        .desc("Number of weighted cycles of waiting squash.")
+        ;
+
+    waitAnotherCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitAnotherCycles")
+        .desc("Number of weighted cycles of waiting another thread.")
+        ;
+
+    waitPriorCycles
+        .init(cpu->numThreads)
+        .name(name() + ".waitPriorCycles")
+        .desc("Number of weighted cycles of waiting prior insts.")
+        ;
+
 }
 
 template <class Impl>
@@ -621,6 +657,8 @@ DefaultCommit<Impl>::squashAll(ThreadID tid)
     toIEW->commitInfo[tid].squashInst = NULL;
 
     toIEW->commitInfo[tid].pc = pc[tid];
+
+    numCompLoads = 0;
 }
 
 template <class Impl>
@@ -1049,11 +1087,12 @@ DefaultCommit<Impl>::commitInsts()
         ThreadID commit_thread = getCommittingThread();
 
         if (commit_thread == -1 || !rob->isHeadReady(commit_thread)) {
-
-            waitNoReadyCycles += numCompLoads;
-
             break;
         }
+
+        waitAnotherCycles[1 - commit_thread] += float(numCompLoads)/8;
+
+        waitPriorCycles[commit_thread] += float(numCompLoads)/8;
 
         head_inst = rob->readHeadInst(commit_thread);
 
@@ -1068,6 +1107,11 @@ DefaultCommit<Impl>::commitInsts()
         // (be removed from the ROB) at any time.
         if (head_inst->isSquashed()) {
 
+            if (numCompLoads > 0 && head_inst->concerned &&
+                    head_inst->compAccessTick != 0) {
+                numCompLoads--;
+            }
+
             DPRINTF(Commit, "Retiring squashed instruction from "
                     "ROB.\n");
 
@@ -1077,8 +1121,6 @@ DefaultCommit<Impl>::commitInsts()
 
             // Record that the number of ROB entries has changed.
             markROBNumEntriesChanged(tid);
-
-            waitSquashCycles += numCompLoads;
 
         } else {
             pc[tid] = head_inst->pcState();
@@ -1373,6 +1415,10 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
 
     if (head_inst->concerned && head_inst->compAccessTick != 0) {
 
+        if (numCompLoads > 0) {
+            numCompLoads--;
+        }
+
         numConcerned[head_inst->threadNumber]++;
 
         overallWaitMarkTime[head_inst->threadNumber] +=
@@ -1448,6 +1494,7 @@ DefaultCommit<Impl>::markCompletedInsts()
             DynInstPtr comInst = fromIEW->insts[inst_num];
 
             if (comInst->concerned && comInst->compAccessTick != 0) {
+                numCompLoads++;
                 comInst->markCompTick = curTick();
             }
         }

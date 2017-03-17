@@ -549,7 +549,9 @@ class DefaultCommit
 
     Stats::Vector waitSquashCycles;
 
-    Stats::Vector waitNoReadyCycles;
+    Stats::Vector waitAnotherCycles;
+
+    Stats::Vector waitPriorCycles;
 
   private:
     /** Set changedROBNumEntries[tid] to true, do global set if
