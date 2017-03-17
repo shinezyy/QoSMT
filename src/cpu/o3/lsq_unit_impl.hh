@@ -409,6 +409,23 @@ LSQUnit<Impl>::regStats()
 
     avgWaitDeLQTime = overallWaitDeLQTime / numConcerned;
 
+    committedL2Miss
+        .name(name() + ".committedL2Miss")
+        .desc("Number of committed L2 Miss")
+        ;
+
+    overallL2MissLatency
+        .name(name() + ".overallL2MissLatency")
+        .desc("Sum of time waiting L2 Miss")
+        ;
+
+    avgL2MissLatency
+        .name(name() + ".avgL2MissLatency")
+        .desc("Average of time waiting L2 Miss")
+        ;
+
+    avgL2MissLatency = overallL2MissLatency / committedL2Miss;
+
 }
 
 template<class Impl>
@@ -866,20 +883,27 @@ LSQUnit<Impl>::commitLoad()
 {
     assert(loadQueue[loadHead]);
 
-    if (loadQueue[loadHead]->concerned && loadQueue[loadHead]->compAccessTick) {
+    DynInstPtr load_head = loadQueue[loadHead];
 
-        overallStopTime += curTick() - loadQueue[loadHead]->enLQTick;
-        overallWaitComTime += curTick() - loadQueue[loadHead]->compAccessTick;
-        overallWaitDeLQTime += curTick() - loadQueue[loadHead]->comTick;
+    if (load_head->concerned && load_head->compAccessTick) {
+
+        overallStopTime += curTick() - load_head->enLQTick;
+        overallWaitComTime += curTick() - load_head->compAccessTick;
+        overallWaitDeLQTime += curTick() - load_head->comTick;
         numConcerned++;
+
+        if (load_head->LLMiss()) {
+            committedL2Miss++;
+            overallL2MissLatency += load_head->compAccessTick - load_head->accessTick;
+        }
     }
 
     committedLoads++;
 
     DPRINTF(LSQUnit, "Committing head load instruction, PC %s\n",
-            loadQueue[loadHead]->pcState());
+            load_head->pcState());
 
-    loadQueue[loadHead] = NULL;
+    load_head = NULL;
 
     incrLdIdx(loadHead);
 

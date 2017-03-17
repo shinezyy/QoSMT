@@ -45,6 +45,7 @@
 #define __CPU_O3_COMMIT_HH__
 
 #include <queue>
+#include <vector>
 
 #include "base/statistics.hh"
 #include "cpu/exetrace.hh"
@@ -607,6 +608,8 @@ class DefaultCommit
   private:
 
     int numCompLoads;
+
+    std::vector<bool> skipThisCycle;
 };
 
 #endif // __CPU_O3_COMMIT_HH__

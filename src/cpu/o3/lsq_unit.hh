@@ -542,6 +542,12 @@ class LSQUnit {
 
     Stats::Scalar numConcerned;
 
+    Stats::Scalar committedL2Miss;
+
+    Stats::Scalar overallL2MissLatency;
+
+    Stats::Formula avgL2MissLatency;
+
   public:
     /** Executes the load at the given index. */
     Fault read(Request *req, Request *sreqLow, Request *sreqHigh,

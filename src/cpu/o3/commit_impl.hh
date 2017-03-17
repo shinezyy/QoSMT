@@ -110,7 +110,8 @@ DefaultCommit<Impl>::DefaultCommit(O3CPU *_cpu, DerivO3CPUParams *params)
       drainImminent(false),
       trapLatency(params->trapLatency),
       canHandleInterrupts(true),
-      avoidQuiesceLiveLock(false)
+      avoidQuiesceLiveLock(false),
+      skipThisCycle(params->numThreads, false)
 {
     if (commitWidth > Impl::MaxWidth)
         fatal("commitWidth (%d) is larger than compiled limit (%d),\n"
@@ -759,6 +760,8 @@ DefaultCommit<Impl>::tick()
         return;
     }
 
+    std::fill(skipThisCycle.begin(), skipThisCycle.end(), false);
+
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
 
@@ -1234,7 +1237,8 @@ DefaultCommit<Impl>::commitInsts()
                     if (count > 1) {
                         DPRINTF(Commit,
                                 "PC skip function event, stopping commit\n");
-                        break;
+                        skipThisCycle[tid] = true;
+                        continue;
                     }
                 }
 
@@ -1252,7 +1256,9 @@ DefaultCommit<Impl>::commitInsts()
                 DPRINTF(Commit, "Unable to commit head instruction PC:%s "
                         "[tid:%i] [sn:%i].\n",
                         head_inst->pcState(), tid ,head_inst->seqNum);
-                break;
+
+                skipThisCycle[tid] = true;
+                continue;
             }
         }
     }
@@ -1654,7 +1660,7 @@ DefaultCommit<Impl>::roundRobin()
             commitStatus[tid] == Idle ||
             commitStatus[tid] == FetchTrapPending) {
 
-            if (rob->isHeadReady(tid)) {
+            if (rob->isHeadReady(tid) && !skipThisCycle[tid]) {
                 priority_list.erase(pri_iter);
                 priority_list.push_back(tid);
 
