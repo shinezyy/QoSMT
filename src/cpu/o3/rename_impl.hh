@@ -454,7 +454,7 @@ DefaultRename<Impl>::tick()
 
     toIEWIndex = 0;
 
-    LBLC = LB_all || LB_part;
+    LBLC = LB_all;
 
     LB_all = false;
     LB_part = false;
@@ -1178,7 +1178,11 @@ DefaultRename<Impl>::block(ThreadID tid)
                 if (!fromIEW->iewInfo[HPT].genShadow) {
                     toIEW->genShadow = true;
                 }
-                genShadow();
+                if (!inShadow) {
+                    genShadow();
+                } else {
+                    shine("Blocking again");
+                }
             }
         }
 

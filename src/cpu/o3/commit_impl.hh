@@ -1557,7 +1557,8 @@ DefaultCommit<Impl>::updateComInstStats(DynInstPtr &inst)
                 inst->seqNum, dep ? "" : "no", inst->inShadowLQ ? "" : "not",
                 inst->inShadowSQ ? "" : "not");
 
-        if (!dep && (inst->inShadowLQ || inst->inShadowSQ)) {
+        if (!dep && (inst->inShadowLQ || inst->inShadowSQ) &&
+                inst->inShadowIQ && inst->inShadowROB) {
             int rectSlots = 8 * (inst->missTime / 500); //depend on ClockFreq
             fmt->incMissDirect(inst->threadNumber, -rectSlots, false);
             fmt->incWaitDirect(inst->threadNumber, rectSlots);

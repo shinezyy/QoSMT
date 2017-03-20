@@ -654,7 +654,11 @@ DefaultIEW<Impl>::block(ThreadID tid)
             if (!fromRename->genShadow) {
                 toRename->iewInfo[HPT].genShadow = true;
             }
-            genShadow();
+            if (!inShadow) {
+                genShadow();
+            } else {
+                shine("Blocking again");
+            }
         }
     }
 
@@ -663,7 +667,7 @@ DefaultIEW<Impl>::block(ThreadID tid)
     skidInsert(tid);
 
     dispatchStatus[tid] = Blocked;
-    BLBlocal = tid == HPT ? (LB_all || LB_part) : BLBlocal;
+    BLBlocal = tid == HPT ? LB_all : BLBlocal;
 }
 
 template<class Impl>
@@ -1391,10 +1395,10 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
 
         } else if (dispatchStatus[tid] == Blocked && missStat.numL2Miss[HPT]) {
-            LB_all = true;
             this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
 
         } else if (dispatchStatus[tid] == Blocked && missStat.numL2Miss[LPT]) {
+            LB_all = true;
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
 
         }else if (LB_all) {
@@ -1740,7 +1744,7 @@ DefaultIEW<Impl>::tick()
         shine("rename shine");
     }
 
-    LBLC = LB_all || LB_part;
+    LBLC = LB_all;
 
     LB_all = false; // reset it
     LB_part = false; // reset it
