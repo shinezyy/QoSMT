@@ -731,10 +731,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             /**Must has been blocked, verbose on*/
 
-            if (missStat.numL2Miss[HPT] && (fullSource[HPT] != SQ)) {
+            if (missStat.numL2Miss[HPT]) {
                 this->incLocalSlots(tid, EntryMiss, shortfall);
 
-            } else if (missStat.numL2Miss[LPT] && (fullSource[HPT] != SQ)) {
+            } else if (missStat.numL2Miss[LPT]) {
                 LB_all = true;
                 this->incLocalSlots(tid, EntryWait, shortfall);
 
@@ -779,11 +779,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 LB_part = false;
             }
 
-            if (missStat.numL2Miss[HPT] && (fullSource[HPT] != SQ)) {
+            if (missStat.numL2Miss[HPT]) {
                 this->incLocalSlots(tid, EntryMiss, shortfall);
 
-            } else if (missStat.numL2Miss[LPT] && numLPTcause
-                    && (fullSource[HPT] != SQ)) {
+            } else if (missStat.numL2Miss[LPT] && numLPTcause) {
                 LB_all = true;
                 this->incLocalSlots(tid, EntryWait, shortfall);
 
@@ -991,11 +990,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             LB_part = false;
         }
 
-        if (missStat.numL2Miss[HPT] && (fullSource[HPT] != SQ)) {
+        if (missStat.numL2Miss[HPT]) {
             this->incLocalSlots(tid, EntryMiss, renamable[tid]);
 
-        } else if (missStat.numL2Miss[LPT] && numLPTcause
-                && (fullSource[HPT] != SQ)) {
+        } else if (missStat.numL2Miss[LPT] && numLPTcause) {
             LB_all = true;
             this->incLocalSlots(tid, EntryWait, renamable[tid]);
 
@@ -2103,10 +2101,10 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
             if (fromDecode->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, renameWidths[tid], false);
 
-            } else if (missStat.numL2Miss[HPT] && (fullSource[HPT] != SQ)) {
+            } else if (missStat.numL2Miss[HPT]) {
                 this->incLocalSlots(HPT, EntryMiss, renameWidths[tid], true);
 
-            } else if (missStat.numL2Miss[LPT] && (fullSource[HPT] != SQ)) {
+            } else if (missStat.numL2Miss[LPT]) {
                 LB_all = true;
                 this->incLocalSlots(HPT, EntryWait, renameWidths[tid], true);
 
