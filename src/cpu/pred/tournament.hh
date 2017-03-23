@@ -119,6 +119,9 @@ class TournamentBP : public BPredUnit
     inline unsigned readGlobalHist() { return globalHistory; }
 
   private:
+
+    ThreadID numThreads;
+
     /**
      * Returns if the branch should be taken or not, given a counter
      * value.
@@ -143,14 +146,14 @@ class TournamentBP : public BPredUnit
      * @param local_history_idx The local history table entry that
      * will be updated.
      */
-    inline void updateLocalHistTaken(unsigned local_history_idx);
+    inline void updateLocalHistTaken(unsigned local_history_idx, ThreadID tid);
 
     /**
      * Updates local histories as not taken.
      * @param local_history_idx The local history table entry that
      * will be updated.
      */
-    inline void updateLocalHistNotTaken(unsigned local_history_idx);
+    inline void updateLocalHistNotTaken(unsigned local_history_idx, ThreadID tid);
 
     /**
      * The branch history information that is created upon predicting
@@ -177,7 +180,7 @@ class TournamentBP : public BPredUnit
     /** Flag for invalid predictor index */
     static const int invalidPredictorIndex = -1;
     /** Local counters. */
-    std::vector<SatCounter> localCtrs;
+    std::vector<std::vector<SatCounter> > localCtrs;
 
     /** Number of counters in the local predictor. */
     unsigned localPredictorSize;
@@ -189,7 +192,7 @@ class TournamentBP : public BPredUnit
     unsigned localCtrBits;
 
     /** Array of local history table entries. */
-    std::vector<unsigned> localHistoryTable;
+    std::vector<std::vector<unsigned> > localHistoryTable;
 
     /** Number of entries in the local history table. */
     unsigned localHistoryTableSize;
@@ -198,7 +201,7 @@ class TournamentBP : public BPredUnit
     unsigned localHistoryBits;
 
     /** Array of counters that make up the global predictor. */
-    std::vector<SatCounter> globalCtrs;
+    std::vector<std::vector<SatCounter> > globalCtrs;
 
     /** Number of entries in the global predictor. */
     unsigned globalPredictorSize;
@@ -228,7 +231,7 @@ class TournamentBP : public BPredUnit
     unsigned historyRegisterMask;
 
     /** Array of counters that make up the choice predictor. */
-    std::vector<SatCounter> choiceCtrs;
+    std::vector<std::vector<SatCounter> > choiceCtrs;
 
     /** Number of entries in the choice predictor. */
     unsigned choicePredictorSize;

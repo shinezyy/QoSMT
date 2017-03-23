@@ -46,10 +46,16 @@
 
 TournamentBP::TournamentBP(const TournamentBPParams *params)
     : BPredUnit(params),
+      numThreads(params->numThreads),
+      localCtrs(params->numThreads),
       localPredictorSize(params->localPredictorSize),
       localCtrBits(params->localCtrBits),
+
+      localHistoryTable(params->numThreads),
       localHistoryTableSize(params->localHistoryTableSize),
       localHistoryBits(ceilLog2(params->localPredictorSize)),
+
+      globalCtrs(params->numThreads),
       globalPredictorSize(params->globalPredictorSize),
       globalCtrBits(params->globalCtrBits),
       globalHistoryBits(
@@ -57,6 +63,8 @@ TournamentBP::TournamentBP(const TournamentBPParams *params)
           ceilLog2(params->choicePredictorSize) ?
           ceilLog2(params->globalPredictorSize) :
           ceilLog2(params->choicePredictorSize)),
+
+      choiceCtrs(params->numThreads),
       choicePredictorSize(params->choicePredictorSize),
       choiceCtrBits(params->choiceCtrBits)
 {
@@ -68,11 +76,14 @@ TournamentBP::TournamentBP(const TournamentBPParams *params)
         fatal("Invalid global predictor size!\n");
     }
 
-    //Set up the array of counters for the local predictor
-    localCtrs.resize(localPredictorSize);
 
-    for (int i = 0; i < localPredictorSize; ++i)
-        localCtrs[i].setBits(localCtrBits);
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        //Set up the array of counters for the local predictor
+        localCtrs[tid].resize(localPredictorSize);
+
+        for (unsigned i = 0; i < localPredictorSize; ++i)
+            localCtrs[tid][i].setBits(localCtrBits);
+    }
 
     localPredictorMask = mask(localHistoryBits);
 
@@ -80,17 +91,19 @@ TournamentBP::TournamentBP(const TournamentBPParams *params)
         fatal("Invalid local history table size!\n");
     }
 
-    //Setup the history table for the local table
-    localHistoryTable.resize(localHistoryTableSize);
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        //Setup the history table for the local table
+        localHistoryTable[tid].resize(localHistoryTableSize);
 
-    for (int i = 0; i < localHistoryTableSize; ++i)
-        localHistoryTable[i] = 0;
+        for (unsigned i = 0; i < localHistoryTableSize; ++i)
+            localHistoryTable[tid][i] = 0;
 
-    //Setup the array of counters for the global predictor
-    globalCtrs.resize(globalPredictorSize);
+        //Setup the array of counters for the global predictor
+        globalCtrs[tid].resize(globalPredictorSize);
 
-    for (int i = 0; i < globalPredictorSize; ++i)
-        globalCtrs[i].setBits(globalCtrBits);
+        for (unsigned i = 0; i < globalPredictorSize; ++i)
+            globalCtrs[tid][i].setBits(globalCtrBits);
+    }
 
     //Clear the global history
     globalHistory = 0;
@@ -106,11 +119,13 @@ TournamentBP::TournamentBP(const TournamentBPParams *params)
     // this is equivalent to mask(log2(choicePredictorSize)
     choiceHistoryMask = choicePredictorSize - 1;
 
-    //Setup the array of counters for the choice predictor
-    choiceCtrs.resize(choicePredictorSize);
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        //Setup the array of counters for the choice predictor
+        choiceCtrs[tid].resize(choicePredictorSize);
 
-    for (int i = 0; i < choicePredictorSize; ++i)
-        choiceCtrs[i].setBits(choiceCtrBits);
+        for (unsigned i = 0; i < choicePredictorSize; ++i)
+            choiceCtrs[tid][i].setBits(choiceCtrBits);
+    }
 
     //Set up historyRegisterMask
     historyRegisterMask = mask(globalHistoryBits);
@@ -140,7 +155,7 @@ unsigned
 TournamentBP::calcLocHistIdx(Addr &branch_addr, ThreadID tid)
 {
     // Get low order bits after removing instruction offset.
-    return ((branch_addr >> instShiftAmt) ^ tid) & (localHistoryTableSize - 1);
+    return ((branch_addr >> instShiftAmt)) & (localHistoryTableSize - 1);
 }
 
 inline
@@ -161,18 +176,18 @@ TournamentBP::updateGlobalHistNotTaken()
 
 inline
 void
-TournamentBP::updateLocalHistTaken(unsigned local_history_idx)
+TournamentBP::updateLocalHistTaken(unsigned local_history_idx, ThreadID tid)
 {
-    localHistoryTable[local_history_idx] =
-        (localHistoryTable[local_history_idx] << 1) | 1;
+    localHistoryTable[tid][local_history_idx] =
+        (localHistoryTable[tid][local_history_idx] << 1) | 1;
 }
 
 inline
 void
-TournamentBP::updateLocalHistNotTaken(unsigned local_history_idx)
+TournamentBP::updateLocalHistNotTaken(unsigned local_history_idx, ThreadID tid)
 {
-    localHistoryTable[local_history_idx] =
-        (localHistoryTable[local_history_idx] << 1);
+    localHistoryTable[tid][local_history_idx] =
+        (localHistoryTable[tid][local_history_idx] << 1);
 }
 
 
@@ -183,8 +198,8 @@ TournamentBP::btbUpdate(Addr branch_addr, void * &bp_history, ThreadID tid)
     //Update Global History to Not Taken (clear LSB)
     globalHistory &= (historyRegisterMask & ~ULL(1));
     //Update Local History to Not Taken
-    localHistoryTable[local_history_idx] =
-       localHistoryTable[local_history_idx] & (localPredictorMask & ~ULL(1));
+    localHistoryTable[tid][local_history_idx] =
+       localHistoryTable[tid][local_history_idx] & (localPredictorMask & ~ULL(1));
 }
 
 bool
@@ -199,17 +214,17 @@ TournamentBP::lookup(Addr branch_addr, void * &bp_history, ThreadID tid)
 
     //Lookup in the local predictor to get its branch prediction
     local_history_idx = calcLocHistIdx(branch_addr, tid);
-    local_predictor_idx = localHistoryTable[local_history_idx]
+    local_predictor_idx = localHistoryTable[tid][local_history_idx]
         & localPredictorMask;
-    local_prediction = localCtrs[local_predictor_idx].read() > localThreshold;
+    local_prediction = localCtrs[tid][local_predictor_idx].read() > localThreshold;
 
     //Lookup in the global predictor to get its branch prediction
     global_prediction =
-      globalCtrs[globalHistory & globalHistoryMask].read() > globalThreshold;
+      globalCtrs[tid][globalHistory & globalHistoryMask].read() > globalThreshold;
 
     //Lookup in the choice predictor to see which one to use
     choice_prediction =
-      choiceCtrs[globalHistory & choiceHistoryMask].read() > choiceThreshold;
+      choiceCtrs[tid][globalHistory & choiceHistoryMask].read() > choiceThreshold;
 
     // Create BPHistory and pass it back to be recorded.
     BPHistory *history = new BPHistory;
@@ -227,21 +242,21 @@ TournamentBP::lookup(Addr branch_addr, void * &bp_history, ThreadID tid)
     if (choice_prediction) {
         if (global_prediction) {
             updateGlobalHistTaken();
-            updateLocalHistTaken(local_history_idx);
+            updateLocalHistTaken(local_history_idx, tid);
             return true;
         } else {
             updateGlobalHistNotTaken();
-            updateLocalHistNotTaken(local_history_idx);
+            updateLocalHistNotTaken(local_history_idx, tid);
             return false;
         }
     } else {
         if (local_prediction) {
             updateGlobalHistTaken();
-            updateLocalHistTaken(local_history_idx);
+            updateLocalHistTaken(local_history_idx, tid);
             return true;
         } else {
             updateGlobalHistNotTaken();
-            updateLocalHistNotTaken(local_history_idx);
+            updateLocalHistNotTaken(local_history_idx, tid);
             return false;
         }
     }
@@ -272,7 +287,7 @@ TournamentBP::update(Addr branch_addr, bool taken, void *bp_history,
 
     // Get the local predictor's current prediction
     local_history_idx = calcLocHistIdx(branch_addr, tid);
-    local_predictor_hist = localHistoryTable[local_history_idx];
+    local_predictor_hist = localHistoryTable[tid][local_history_idx];
     local_predictor_idx = local_predictor_hist & localPredictorMask;
 
     if (bp_history) {
@@ -303,9 +318,9 @@ TournamentBP::update(Addr branch_addr, bool taken, void *bp_history,
                  unsigned choice_predictor_idx =
                    history->globalHistory & choiceHistoryMask;
                  if (history->localPredTaken == taken) {
-                     choiceCtrs[choice_predictor_idx].decrement();
+                     choiceCtrs[tid][choice_predictor_idx].decrement();
                  } else if (history->globalPredTaken == taken) {
-                     choiceCtrs[choice_predictor_idx].increment();
+                     choiceCtrs[tid][choice_predictor_idx].increment();
                  }
 
              }
@@ -317,14 +332,14 @@ TournamentBP::update(Addr branch_addr, bool taken, void *bp_history,
              unsigned global_predictor_idx =
                history->globalHistory & globalHistoryMask;
              if (taken) {
-                  globalCtrs[global_predictor_idx].increment();
+                  globalCtrs[tid][global_predictor_idx].increment();
                   if (old_local_pred_valid) {
-                          localCtrs[old_local_pred_index].increment();
+                          localCtrs[tid][old_local_pred_index].increment();
                   }
              } else {
-                  globalCtrs[global_predictor_idx].decrement();
+                  globalCtrs[tid][global_predictor_idx].decrement();
                   if (old_local_pred_valid) {
-                          localCtrs[old_local_pred_index].decrement();
+                          localCtrs[tid][old_local_pred_index].decrement();
                   }
              }
         }
@@ -333,14 +348,14 @@ TournamentBP::update(Addr branch_addr, bool taken, void *bp_history,
                 globalHistory = (history->globalHistory << 1) | 1;
                 globalHistory = globalHistory & historyRegisterMask;
                 if (old_local_pred_valid) {
-                    localHistoryTable[local_history_idx] =
+                    localHistoryTable[tid][local_history_idx] =
                      (history->localHistory << 1) | 1;
                 }
              } else {
                 globalHistory = (history->globalHistory << 1);
                 globalHistory = globalHistory & historyRegisterMask;
                 if (old_local_pred_valid) {
-                     localHistoryTable[local_history_idx] =
+                     localHistoryTable[tid][local_history_idx] =
                      history->localHistory << 1;
                 }
              }
