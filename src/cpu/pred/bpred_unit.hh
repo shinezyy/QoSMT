@@ -51,7 +51,7 @@
 
 #include "base/statistics.hh"
 #include "base/types.hh"
-#include "cpu/pred/btb.hh"
+#include "cpu/pred/smt_btb.hh"
 #include "cpu/pred/ras.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/static_inst.hh"
@@ -153,6 +153,7 @@ class BPredUnit : public SimObject
      */
     virtual void btbUpdate(Addr instPC, void * &bp_history) = 0;
 
+#ifdef NEVER_DEFINED
     /**
      * Looks up a given PC in the BTB to see if a matching entry exists.
      * @param inst_PC The PC to look up.
@@ -168,6 +169,7 @@ class BPredUnit : public SimObject
      */
     TheISA::PCState BTBLookup(Addr instPC)
     { return BTB.lookup(instPC, 0); }
+#endif
 
     /**
      * Updates the BP with taken/not taken information.
@@ -189,6 +191,7 @@ class BPredUnit : public SimObject
      */
     virtual void retireSquashed(void *bp_history) = 0;
 
+#ifdef NEVER_DEFINED
     /**
      * Updates the BTB with the target of a branch.
      * @param inst_PC The branch's PC that will be updated.
@@ -196,6 +199,7 @@ class BPredUnit : public SimObject
      */
     void BTBUpdate(Addr instPC, const TheISA::PCState &target)
     { BTB.update(instPC, target, 0); }
+#endif
 
     void dump();
 
@@ -271,7 +275,7 @@ class BPredUnit : public SimObject
     std::vector<History> predHist;
 
     /** The BTB. */
-    DefaultBTB BTB;
+    SMTBTB BTB;
 
     /** The per-thread return address stack. */
     std::vector<ReturnAddrStack> RAS;

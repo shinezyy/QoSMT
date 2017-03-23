@@ -69,25 +69,25 @@ SMTBTB::reset()
 
 inline
 unsigned
-SMTBTB::getIndex(Addr instPC)
+SMTBTB::getIndex(Addr instPC, ThreadID tid)
 {
     // Need to shift PC over by the word offset.
-    return (instPC >> instShiftAmt) & idxMask;
+    return ((instPC >> instShiftAmt) ^ tid) & idxMask;
 }
 
 inline
 Addr
-SMTBTB::getTag(Addr instPC)
+SMTBTB::getTag(Addr instPC, ThreadID tid)
 {
-    return (instPC >> tagShiftAmt) & tagMask;
+    return ((instPC >> tagShiftAmt) ^ tid) & tagMask;
 }
 
 bool
 SMTBTB::valid(Addr instPC, ThreadID tid)
 {
-    unsigned btb_idx = getIndex(instPC);
+    unsigned btb_idx = getIndex(instPC, tid);
 
-    Addr inst_tag = getTag(instPC);
+    Addr inst_tag = getTag(instPC, tid);
 
     assert(btb_idx < numEntries);
 
@@ -106,9 +106,9 @@ SMTBTB::valid(Addr instPC, ThreadID tid)
 TheISA::PCState
 SMTBTB::lookup(Addr instPC, ThreadID tid)
 {
-    unsigned btb_idx = getIndex(instPC);
+    unsigned btb_idx = getIndex(instPC, tid);
 
-    Addr inst_tag = getTag(instPC);
+    Addr inst_tag = getTag(instPC, tid);
 
     assert(btb_idx < numEntries);
 
@@ -124,12 +124,12 @@ SMTBTB::lookup(Addr instPC, ThreadID tid)
 void
 SMTBTB::update(Addr instPC, const TheISA::PCState &target, ThreadID tid)
 {
-    unsigned btb_idx = getIndex(instPC);
+    unsigned btb_idx = getIndex(instPC, tid);
 
     assert(btb_idx < numEntries);
 
     btb[btb_idx].tid = tid;
     btb[btb_idx].valid = true;
     btb[btb_idx].target = target;
-    btb[btb_idx].tag = getTag(instPC);
+    btb[btb_idx].tag = getTag(instPC, tid);
 }

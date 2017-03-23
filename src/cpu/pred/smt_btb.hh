@@ -97,13 +97,13 @@ class SMTBTB
      *  @param inst_PC The branch to look up.
      *  @return Returns the index into the BTB.
      */
-    inline unsigned getIndex(Addr instPC);
+    inline unsigned getIndex(Addr instPC, ThreadID tid);
 
     /** Returns the tag bits of a given address.
      *  @param inst_PC The branch's address.
      *  @return Returns the tag bits.
      */
-    inline Addr getTag(Addr instPC);
+    inline Addr getTag(Addr instPC, ThreadID tid);
 
     /** The actual BTB. */
     std::vector<BTBEntry> btb;
