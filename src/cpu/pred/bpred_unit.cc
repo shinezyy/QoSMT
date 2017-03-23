@@ -164,10 +164,10 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
         DPRINTF(Branch, "[tid:%i]: Unconditional control.\n", tid);
         pred_taken = true;
         // Tell the BP there was an unconditional branch.
-        uncondBranch(pc.instAddr(), bp_history);
+        uncondBranch(pc.instAddr(), bp_history, tid);
     } else {
         ++condPredicted;
-        pred_taken = lookup(pc.instAddr(), bp_history);
+        pred_taken = lookup(pc.instAddr(), bp_history, tid);
 
         DPRINTF(Branch, "[tid:%i]: [sn:%i] Branch predictor"
                 " predicted %i for PC %s\n", tid, seqNum,  pred_taken, pc);
@@ -232,7 +232,7 @@ BPredUnit::predict(const StaticInstPtr &inst, const InstSeqNum &seqNum,
                 // BTB did not have an entry
                 // The predictor needs to be updated accordingly
                 if (!inst->isCall() && !inst->isReturn()) {
-                      btbUpdate(pc.instAddr(), bp_history);
+                      btbUpdate(pc.instAddr(), bp_history, tid);
                       DPRINTF(Branch, "[tid:%i]:[sn:%i] btbUpdate"
                               " called for %s\n", tid, seqNum, pc);
                 } else if (inst->isCall() && !inst->isUncondCtrl()) {
@@ -287,7 +287,7 @@ BPredUnit::predictInOrder(const StaticInstPtr &inst, const InstSeqNum &seqNum,
         DPRINTF(Branch, "[tid:%i] Unconditional control.\n", tid);
         pred_taken = true;
         // Tell the BP there was an unconditional branch.
-        uncondBranch(instPC.instAddr(), bp_history);
+        uncondBranch(instPC.instAddr(), bp_history, tid);
 
         if (inst->isReturn() && RAS[tid].empty()) {
             DPRINTF(Branch, "[tid:%i] RAS is empty, predicting "
@@ -297,7 +297,7 @@ BPredUnit::predictInOrder(const StaticInstPtr &inst, const InstSeqNum &seqNum,
     } else {
         ++condPredicted;
 
-        pred_taken = lookup(predPC.instAddr(), bp_history);
+        pred_taken = lookup(predPC.instAddr(), bp_history, tid);
     }
 
     PredictorHistory predict_record(seqNum, predPC.instAddr(), pred_taken,
@@ -392,7 +392,7 @@ BPredUnit::update(const InstSeqNum &done_sn, ThreadID tid)
         // Update the branch predictor with the correct results.
         if (!predHist[tid].back().wasSquashed) {
             update(predHist[tid].back().pc, predHist[tid].back().predTaken,
-                predHist[tid].back().bpHistory, false);
+                predHist[tid].back().bpHistory, false, tid);
         } else {
             retireSquashed(predHist[tid].back().bpHistory);
         }
@@ -487,7 +487,7 @@ BPredUnit::squash(const InstSeqNum &squashed_sn,
         }
 
         update((*hist_it).pc, actually_taken,
-               pred_hist.front().bpHistory, true);
+               pred_hist.front().bpHistory, true, tid);
         hist_it->wasSquashed = true;
 
         if (actually_taken) {

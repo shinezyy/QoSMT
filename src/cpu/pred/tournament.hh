@@ -77,7 +77,7 @@ class TournamentBP : public BPredUnit
      * @param bp_history Pointer that will be set to the BPHistory object.
      * @return Whether or not the branch is taken.
      */
-    bool lookup(Addr branch_addr, void * &bp_history);
+    bool lookup(Addr branch_addr, void * &bp_history, ThreadID tid);
 
     /**
      * Records that there was an unconditional branch, and modifies
@@ -85,7 +85,7 @@ class TournamentBP : public BPredUnit
      * global history stored in it.
      * @param bp_history Pointer that will be set to the BPHistory object.
      */
-    void uncondBranch(Addr pc, void * &bp_history);
+    void uncondBranch(Addr pc, void * &bp_history, ThreadID tid);
     /**
      * Updates the branch predictor to Not Taken if a BTB entry is
      * invalid or not found.
@@ -93,7 +93,7 @@ class TournamentBP : public BPredUnit
      * @param bp_history Pointer to any bp history state.
      * @return Whether or not the branch is taken.
      */
-    void btbUpdate(Addr branch_addr, void * &bp_history);
+    void btbUpdate(Addr branch_addr, void * &bp_history, ThreadID tid);
     /**
      * Updates the branch predictor with the actual result of a branch.
      * @param branch_addr The address of the branch to update.
@@ -103,7 +103,8 @@ class TournamentBP : public BPredUnit
      * @param squashed is set when this function is called during a squash
      * operation.
      */
-    void update(Addr branch_addr, bool taken, void *bp_history, bool squashed);
+    void update(Addr branch_addr, bool taken, void *bp_history,
+            bool squashed, ThreadID tid);
 
     void retireSquashed(void *bp_history);
 
@@ -129,7 +130,7 @@ class TournamentBP : public BPredUnit
      * Returns the local history index, given a branch address.
      * @param branch_addr The branch's PC address.
      */
-    inline unsigned calcLocHistIdx(Addr &branch_addr);
+    inline unsigned calcLocHistIdx(Addr &branch_addr, ThreadID tid);
 
     /** Updates global history as taken. */
     inline void updateGlobalHistTaken();

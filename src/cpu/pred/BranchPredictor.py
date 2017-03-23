@@ -43,6 +43,7 @@ class BranchPredictor(SimObject):
     instShiftAmt = Param.Unsigned(2, "Number of bits to shift instructions by")
 
 
+'''
 class LocalBP(BranchPredictor):
     type = 'LocalBP'
     cxx_class = 'LocalBP'
@@ -50,6 +51,7 @@ class LocalBP(BranchPredictor):
 
     localPredictorSize = Param.Unsigned(2048, "Size of local predictor")
     localCtrBits = Param.Unsigned(2, "Bits per counter")
+'''
 
 
 class TournamentBP(BranchPredictor):
@@ -66,6 +68,7 @@ class TournamentBP(BranchPredictor):
     choiceCtrBits = Param.Unsigned(2, "Bits of choice counters")
 
 
+'''
 class BiModeBP(BranchPredictor):
     type = 'BiModeBP'
     cxx_class = 'BiModeBP'
@@ -90,3 +93,4 @@ class YagsBP(BranchPredictor):
     choicePredictorSize = Param.Unsigned(8192, "Size of choice predictor")
     choiceCtrBits = Param.Unsigned(2, "Bits of choice counters")
 
+'''

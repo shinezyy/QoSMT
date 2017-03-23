@@ -97,7 +97,7 @@ class BPredUnit : public SimObject
                         TheISA::PCState &predPC, ThreadID tid);
 
     // @todo: Rename this function.
-    virtual void uncondBranch(Addr pc, void * &bp_history) = 0;
+    virtual void uncondBranch(Addr pc, void * &bp_history, ThreadID tid) = 0;
 
     /**
      * Tells the branch predictor to commit any updates until the given
@@ -141,7 +141,7 @@ class BPredUnit : public SimObject
      * has the branch predictor state associated with the lookup.
      * @return Whether the branch is taken or not taken.
      */
-    virtual bool lookup(Addr instPC, void * &bp_history) = 0;
+    virtual bool lookup(Addr instPC, void * &bp_history, ThreadID tid) = 0;
 
      /**
      * If a branch is not taken, because the BTB address is invalid or missing,
@@ -151,7 +151,7 @@ class BPredUnit : public SimObject
      * @param bp_history Pointer that will be set to an object that
      * has the branch predictor state associated with the lookup.
      */
-    virtual void btbUpdate(Addr instPC, void * &bp_history) = 0;
+    virtual void btbUpdate(Addr instPC, void * &bp_history, ThreadID tid) = 0;
 
 #ifdef NEVER_DEFINED
     /**
@@ -182,7 +182,7 @@ class BPredUnit : public SimObject
      * @todo Make this update flexible enough to handle a global predictor.
      */
     virtual void update(Addr instPC, bool taken, void *bp_history,
-                        bool squashed) = 0;
+                        bool squashed, ThreadID tid) = 0;
      /**
      * Deletes the associated history with a branch, performs no predictor
      * updates.  Used for branches that mispredict and update tables but

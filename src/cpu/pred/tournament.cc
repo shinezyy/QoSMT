@@ -137,10 +137,10 @@ TournamentBP::TournamentBP(const TournamentBPParams *params)
 
 inline
 unsigned
-TournamentBP::calcLocHistIdx(Addr &branch_addr)
+TournamentBP::calcLocHistIdx(Addr &branch_addr, ThreadID tid)
 {
     // Get low order bits after removing instruction offset.
-    return (branch_addr >> instShiftAmt) & (localHistoryTableSize - 1);
+    return ((branch_addr >> instShiftAmt) ^ tid) & (localHistoryTableSize - 1);
 }
 
 inline
@@ -177,9 +177,9 @@ TournamentBP::updateLocalHistNotTaken(unsigned local_history_idx)
 
 
 void
-TournamentBP::btbUpdate(Addr branch_addr, void * &bp_history)
+TournamentBP::btbUpdate(Addr branch_addr, void * &bp_history, ThreadID tid)
 {
-    unsigned local_history_idx = calcLocHistIdx(branch_addr);
+    unsigned local_history_idx = calcLocHistIdx(branch_addr, tid);
     //Update Global History to Not Taken (clear LSB)
     globalHistory &= (historyRegisterMask & ~ULL(1));
     //Update Local History to Not Taken
@@ -188,7 +188,7 @@ TournamentBP::btbUpdate(Addr branch_addr, void * &bp_history)
 }
 
 bool
-TournamentBP::lookup(Addr branch_addr, void * &bp_history)
+TournamentBP::lookup(Addr branch_addr, void * &bp_history, ThreadID tid)
 {
     bool local_prediction;
     unsigned local_history_idx;
@@ -198,7 +198,7 @@ TournamentBP::lookup(Addr branch_addr, void * &bp_history)
     bool choice_prediction;
 
     //Lookup in the local predictor to get its branch prediction
-    local_history_idx = calcLocHistIdx(branch_addr);
+    local_history_idx = calcLocHistIdx(branch_addr, tid);
     local_predictor_idx = localHistoryTable[local_history_idx]
         & localPredictorMask;
     local_prediction = localCtrs[local_predictor_idx].read() > localThreshold;
@@ -248,7 +248,7 @@ TournamentBP::lookup(Addr branch_addr, void * &bp_history)
 }
 
 void
-TournamentBP::uncondBranch(Addr pc, void * &bp_history)
+TournamentBP::uncondBranch(Addr pc, void * &bp_history, ThreadID tid)
 {
     // Create BPHistory and pass it back to be recorded.
     BPHistory *history = new BPHistory;
@@ -264,14 +264,14 @@ TournamentBP::uncondBranch(Addr pc, void * &bp_history)
 
 void
 TournamentBP::update(Addr branch_addr, bool taken, void *bp_history,
-                     bool squashed)
+                     bool squashed, ThreadID tid)
 {
     unsigned local_history_idx;
     unsigned local_predictor_idx M5_VAR_USED;
     unsigned local_predictor_hist;
 
     // Get the local predictor's current prediction
-    local_history_idx = calcLocHistIdx(branch_addr);
+    local_history_idx = calcLocHistIdx(branch_addr, tid);
     local_predictor_hist = localHistoryTable[local_history_idx];
     local_predictor_idx = local_predictor_hist & localPredictorMask;
 
