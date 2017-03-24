@@ -35,8 +35,11 @@
 
 SMTBTB::SMTBTB(unsigned _numEntries,
                        unsigned _tagBits,
-                       unsigned _instShiftAmt)
-    : numEntries(_numEntries),
+                       unsigned _instShiftAmt,
+                       ThreadID _numThreads)
+    : numThreads(_numThreads),
+      btb(_numThreads),
+      numEntries(_numEntries),
       tagBits(_tagBits),
       instShiftAmt(_instShiftAmt)
 {
@@ -46,10 +49,12 @@ SMTBTB::SMTBTB(unsigned _numEntries,
         fatal("BTB entries is not a power of 2!");
     }
 
-    btb.resize(numEntries);
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        btb[tid].resize(numEntries);
 
-    for (unsigned i = 0; i < numEntries; ++i) {
-        btb[i].valid = false;
+        for (unsigned i = 0; i < numEntries; ++i) {
+            btb[tid][i].valid = false;
+        }
     }
 
     idxMask = numEntries - 1;
@@ -62,8 +67,10 @@ SMTBTB::SMTBTB(unsigned _numEntries,
 void
 SMTBTB::reset()
 {
-    for (unsigned i = 0; i < numEntries; ++i) {
-        btb[i].valid = false;
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        for (unsigned i = 0; i < numEntries; ++i) {
+            btb[tid][i].valid = false;
+        }
     }
 }
 
@@ -72,14 +79,14 @@ unsigned
 SMTBTB::getIndex(Addr instPC, ThreadID tid)
 {
     // Need to shift PC over by the word offset.
-    return ((instPC >> instShiftAmt) ^ tid) & idxMask;
+    return ((instPC >> instShiftAmt)) & idxMask;
 }
 
 inline
 Addr
 SMTBTB::getTag(Addr instPC, ThreadID tid)
 {
-    return ((instPC >> tagShiftAmt) ^ tid) & tagMask;
+    return ((instPC >> tagShiftAmt)) & tagMask;
 }
 
 bool
@@ -91,9 +98,8 @@ SMTBTB::valid(Addr instPC, ThreadID tid)
 
     assert(btb_idx < numEntries);
 
-    if (btb[btb_idx].valid
-        && inst_tag == btb[btb_idx].tag
-        && btb[btb_idx].tid == tid) {
+    if (btb[tid][btb_idx].valid
+        && inst_tag == btb[tid][btb_idx].tag) {
         return true;
     } else {
         return false;
@@ -112,10 +118,9 @@ SMTBTB::lookup(Addr instPC, ThreadID tid)
 
     assert(btb_idx < numEntries);
 
-    if (btb[btb_idx].valid
-        && inst_tag == btb[btb_idx].tag
-        && btb[btb_idx].tid == tid) {
-        return btb[btb_idx].target;
+    if (btb[tid][btb_idx].valid
+        && inst_tag == btb[tid][btb_idx].tag) {
+        return btb[tid][btb_idx].target;
     } else {
         return 0;
     }
@@ -128,8 +133,7 @@ SMTBTB::update(Addr instPC, const TheISA::PCState &target, ThreadID tid)
 
     assert(btb_idx < numEntries);
 
-    btb[btb_idx].tid = tid;
-    btb[btb_idx].valid = true;
-    btb[btb_idx].target = target;
-    btb[btb_idx].tag = getTag(instPC, tid);
+    btb[tid][btb_idx].valid = true;
+    btb[tid][btb_idx].target = target;
+    btb[tid][btb_idx].tag = getTag(instPC, tid);
 }

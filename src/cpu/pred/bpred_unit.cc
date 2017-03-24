@@ -60,7 +60,7 @@ BPredUnit::BPredUnit(const Params *params)
       BTB(params->BTBEntries,
           params->BTBTagSize,
           params->instShiftAmt,
-          numThreads),
+          params->numThreads),
       RAS(numThreads),
       instShiftAmt(params->instShiftAmt)
 {
@@ -425,7 +425,7 @@ BPredUnit::squash(const InstSeqNum &squashed_sn, ThreadID tid)
         }
 
         // This call should delete the bpHistory.
-        squash(pred_hist.front().bpHistory);
+        squash(pred_hist.front().bpHistory, tid);
 
         DPRINTF(Branch, "[tid:%i]: Removing history for [sn:%i] "
                 "PC %s.\n", tid, pred_hist.front().seqNum,

@@ -113,10 +113,12 @@ class TournamentBP : public BPredUnit
      * @param bp_history Pointer to the BPHistory object that has the
      * previous global branch history in it.
      */
-    void squash(void *bp_history);
+    void squash(void *bp_history, ThreadID tid);
 
+#if 0
     /** Returns the global history. */
     inline unsigned readGlobalHist() { return globalHistory; }
+#endif
 
   private:
 
@@ -136,10 +138,10 @@ class TournamentBP : public BPredUnit
     inline unsigned calcLocHistIdx(Addr &branch_addr, ThreadID tid);
 
     /** Updates global history as taken. */
-    inline void updateGlobalHistTaken();
+    inline void updateGlobalHistTaken(ThreadID tid);
 
     /** Updates global history as not taken. */
-    inline void updateGlobalHistNotTaken();
+    inline void updateGlobalHistNotTaken(ThreadID tid);
 
     /**
      * Updates local histories as taken.
@@ -212,7 +214,7 @@ class TournamentBP : public BPredUnit
     /** Global history register. Contains as much history as specified by
      *  globalHistoryBits. Actual number of bits used is determined by
      *  globalHistoryMask and choiceHistoryMask. */
-    unsigned globalHistory;
+    std::vector<unsigned> globalHistory;
 
     /** Number of bits for the global history. Determines maximum number of
         entries in global and choice predictor tables. */

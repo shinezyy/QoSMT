@@ -66,7 +66,7 @@ class SMTBTB
      *  @param instShiftAmt Offset amount for instructions to ignore alignment.
      */
     SMTBTB(unsigned numEntries, unsigned tagBits,
-               unsigned instShiftAmt);
+               unsigned instShiftAmt, ThreadID _numThreads);
 
     void reset();
 
@@ -105,8 +105,10 @@ class SMTBTB
      */
     inline Addr getTag(Addr instPC, ThreadID tid);
 
+    ThreadID numThreads;
+
     /** The actual BTB. */
-    std::vector<BTBEntry> btb;
+    std::vector<std::vector<BTBEntry> > btb;
 
     /** The number of entries in the BTB. */
     unsigned numEntries;

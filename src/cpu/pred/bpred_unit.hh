@@ -132,7 +132,7 @@ class BPredUnit : public SimObject
      * @param bp_history Pointer to the history object.  The predictor
      * will need to update any state and delete the object.
      */
-    virtual void squash(void *bp_history) = 0;
+    virtual void squash(void *bp_history, ThreadID tid) = 0;
 
     /**
      * Looks up a given PC in the BP to see if it is taken or not taken.
