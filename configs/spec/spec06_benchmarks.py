@@ -128,56 +128,19 @@ def get_mcf():
     #mcf.output = out_dir + 'mcf.out'
     return mcf
 
-#433.milc
-milc=LiveProcess()
-milc.executable = 'milc' + my_suffix
-# TEST CMDS
-#milc.cmd = [milc.executable]
-#milc.input = 'su3imp.in'
-# REF CMDS
-milc.cmd = [milc.executable]
-milc.input = 'su3imp.in'
-#milc.output = out_dir + 'milc.out'
 
-#434.zeusmp
-zeusmp=LiveProcess()
-zeusmp.executable = 'zeusmp' + my_suffix
-# TEST CMDS
-#zeusmp.cmd = [zeusmp.executable]
-# REF CMDS
-zeusmp.cmd = [zeusmp.executable]
-#zeusmp.output = out_dir + 'zeusmp.out'
-
-#435.gromacs
-gromacs = LiveProcess()
-gromacs.executable = 'gromacs' + my_suffix
-# TEST CMDS
-# gromacs.cmd = [gromacs.executable] + ['-silent',\
-# '-deffnm', 'gromacs', '-nice','0']
-# REF CMDS
-gromacs.cmd = [gromacs.executable] + ['-silent',\
-        '-deffnm', 'gromacs', '-nice','0']
-#gromacs.output = out_dir + 'gromacs.out'
-
-#436.cactusADM
-cactusADM = LiveProcess()
-cactusADM.executable = 'cactusADM' + my_suffix
-# TEST CMDS
-#cactusADM.cmd = [cactusADM.executable] + ['benchADM.par']
-# REF CMDS
-cactusADM.cmd = [cactusADM.executable] + ['benchADM.par']
-#cactusADM.output = out_dir + 'cactusADM.out'
-
-#437.leslie3d
-leslie3d=LiveProcess()
-leslie3d.executable = 'leslie3d' + my_suffix
-# TEST CMDS
-#leslie3d.cmd = [leslie3d.executable]
-#leslie3d.input = 'leslie3d.in'
-# REF CMDS
-leslie3d.cmd = [leslie3d.executable]
-leslie3d.input = 'leslie3d.in'
-#leslie3d.output = out_dir + 'leslie3d.out'
+def get_leslie3d():
+    #437.leslie3d
+    leslie3d = LiveProcess()
+    leslie3d.executable = spec_dir + '429.leslie3d/exe/leslie3d' + my_suffix
+    leslie3d_input_ref_dir = spec_dir + '429.leslie3d/data/ref/input/'
+    leslie3d_input_test_dir = spec_dir + '429.leslie3d/data/test/input/'
+    # TEST CMDS
+    # leslie3d.cmd = [leslie3d.executable] + [leslie3d_input_test_dir + 'leslie3d.in']
+    # REF CMDS
+    leslie3d.cmd = [leslie3d.executable] + [leslie3d_input_ref_dir + 'leslie3d.in']
+    #leslie3d.output = out_dir + 'leslie3d.out'
+    return leslie3d
 
 #444.namd
 namd = LiveProcess()
@@ -347,10 +310,11 @@ def get_omnetpp():
     omnetpp=LiveProcess()
     omnetpp.executable = spec_dir + '471.omnetpp/exe/omnetpp' + my_suffix
     test_dir = spec_dir + '471.omnetpp/data/test/input/'
+    ref_dir = spec_dir + '471.omnetpp/data/ref/input/'
     # TEST CMDS
-    omnetpp.cmd = [omnetpp.executable] + [test_dir+'omnetpp.ini']
+    # omnetpp.cmd = [omnetpp.executable] + [test_dir+'omnetpp.ini']
     # REF CMDS
-    # omnetpp.cmd = [omnetpp.executable] + ['omnetpp.ini']
+    omnetpp.cmd = [omnetpp.executable] + [ref_dir + 'omnetpp.ini']
     #omnetpp.output = out_dir + 'omnetpp.out'
     return omnetpp
 
@@ -359,10 +323,11 @@ def get_astar():
     astar=LiveProcess()
     astar.executable = spec_dir + '473.astar/exe/astar' + my_suffix
     test_dir = spec_dir + '473.astar/data/test/input/'
+    ref_dir = spec_dir + '473.astar/data/ref/input/'
     # TEST CMDS
-    astar.cmd = [astar.executable] + [test_dir + 'lake.cfg']
+    # astar.cmd = [astar.executable] + [test_dir + 'lake.cfg']
     # REF CMDS
-    # astar.cmd = [astar.executable] + ['rivers.cfg']
+    astar.cmd = [astar.executable] + [ref_dir + 'rivers.cfg']
     #astar.output = out_dir + 'astar.out'
     return astar
 
@@ -400,9 +365,9 @@ def get_specrand_i():
     specrand_i=LiveProcess()
     specrand_i.executable = spec_dir + '999.specrand/exe/specrand' + my_suffix
     # TEST CMDS
-    specrand_i.cmd = [specrand_i.executable] + ['324342', '24239']
+    # specrand_i.cmd = [specrand_i.executable] + ['324342', '24239']
     # REF CMDS
-    #specrand_i.cmd = [specrand_i.executable] + ['1255432124', '234923']
+    specrand_i.cmd = [specrand_i.executable] + ['1255432124', '234923']
     #specrand_i.output = out_dir + 'specrand_i.out'
     return specrand_i
 
