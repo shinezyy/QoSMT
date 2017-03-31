@@ -794,6 +794,8 @@ class FullO3CPU : public BaseO3CPU
 
     bool robReserved, lqReserved, sqReserved, fetchReserved;
 
+    void fetchControl();
+
   public:
     unsigned windowSize;
 

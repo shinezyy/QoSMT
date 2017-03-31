@@ -162,7 +162,7 @@ class DerivO3CPU(BaseCPU):
     needsTSO = Param.Bool(buildEnv['TARGET_ISA'] == 'x86',
                           "Enable TSO Memory model")
 
-    autoControl = Param.Bool(False, "Enable auto control")
+    autoControl = Param.Bool(True, "Enable auto control")
 
     expectedSlowdown = Param.Int(200, "Expected max slowdown 1024 as deno")
 

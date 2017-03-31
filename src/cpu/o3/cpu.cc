@@ -967,6 +967,66 @@ FullO3CPU<Impl>::fmtBasedDist()
     */
 }
 
+template <class Impl>
+void
+FullO3CPU<Impl>::fetchControl()
+{
+    // Treat thread 0 as high-prio as usual
+    ThreadID hpt = 0;
+    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt];
+    uint64_t real = predicted + fmt.globalWait[hpt];
+
+    DPRINTF(Pard, "PTA working -----------------------\n");
+
+    bool nsat = predicted*1024 < real*(1024 - expectedSlowdown);
+
+    int vec[2];
+
+    if (nsat) {
+
+        vec[0] = std::min(fetch.getHPTPortion() + 128, 1024);
+        vec[1] = 1024 - vec[0];
+        if (vec[0] != fetch.getHPTPortion()) {
+            DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
+                    vec[0], vec[1]);
+            fetch.reassignFetchWidth(vec, 2, 1024);
+        }
+
+        vec[0] = std::min(iew.getHPTWidth() + 1, 7);
+        vec[1] = 8 - vec[0];
+        if (vec[0] != iew.getHPTWidth()) {
+            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d, vec[1]: %d\n",
+                    vec[0], vec[1]);
+            iew.reassignDispatchWidth(vec, 2);
+        }
+    } else {
+        vec[0] = std::min(fetch.getHPTPortion() - 128, 512);
+        vec[1] = 1024 - vec[0];
+        if (vec[0] != fetch.getHPTPortion()) {
+            DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
+                    vec[0], vec[1]);
+            fetch.reassignFetchWidth(vec, 2, 1024);
+        }
+
+        vec[0] = std::min(iew.getHPTWidth() - 1, 4);
+        vec[1] = 8 - vec[0];
+        if (vec[0] != iew.getHPTWidth()) {
+            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d, vec[1]: %d\n",
+                    vec[0], vec[1]);
+            iew.reassignDispatchWidth(vec, 2);
+        }
+    }
+
+
+
+    /* reset
+    for (ThreadID t = 0; t < numThreads; ++t) {
+        fmt.globalBase[t] = 0;
+        fmt.globalMiss[t] = 0;
+        fmt.globalWait[t] = 0;
+    }
+    */
+}
 
 template <class Impl>
 void
