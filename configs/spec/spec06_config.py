@@ -318,7 +318,7 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    cpu.dumpWindowSize = (10**3)*1000
+    cpu.dumpWindowSize = (10**3)*10000
     cpu.policyWindowSize = (10**3)*20
 
     cpu.iewProgrammable = True
@@ -326,6 +326,8 @@ for cpu in system.cpu:
 
     cpu.autoControl = True
     cpu.max_insts_all_threads = 200*(10**6)
+
+    cpu.expectedSlowdown = 1024/10 * 1
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
