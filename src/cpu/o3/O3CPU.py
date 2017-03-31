@@ -131,8 +131,8 @@ class DerivO3CPU(BaseCPU):
 
     smtNumFetchingThreads = Param.Unsigned(2, "SMT Number of Fetching Threads")
 
-    #smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
-    smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")
+    smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
+    #smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")
 
     #smtLSQPolicy    = Param.String('Programmable', "SMT LSQ Sharing Policy")
     smtLSQPolicy    = Param.String('Dynamic', "SMT LSQ Sharing Policy")
@@ -168,7 +168,7 @@ class DerivO3CPU(BaseCPU):
 
     expectedSlowdown = Param.Int(200, "Expected max slowdown 1024 as deno")
 
-    iewProgrammable = Param.Bool(False, "Enable programmable dispatch")
+    iewProgrammable = Param.Bool(True, "Enable programmable dispatch")
     hptInitDispatchWidth = Param.Unsigned(0, "Initial dispatch width of HPT")
 
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")

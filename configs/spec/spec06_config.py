@@ -320,6 +320,10 @@ else:
 for cpu in system.cpu:
     cpu.dumpWindowSize = (10**3)*1000
     cpu.policyWindowSize = (10**3)*20
+
+    cpu.iewProgrammable = True
+    cpu.smtFetchPolicy = 'Programmable'
+
     cpu.autoControl = True
     cpu.max_insts_all_threads = 200*(10**6)
 

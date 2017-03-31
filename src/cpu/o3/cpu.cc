@@ -975,12 +975,16 @@ FullO3CPU<Impl>::fetchControl()
 {
     // Treat thread 0 as high-prio as usual
     ThreadID hpt = 0;
-    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt];
-    uint64_t real = predicted + fmt.globalWait[hpt];
+
+    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt] +
+        fmt.getHptNonWait();
+    uint64_t real = predicted + fmt.globalWait[hpt] + fmt.getHptWait();
 
     DPRINTF(Pard, "Fetch Control Working -----------------------\n");
 
     bool nsat = predicted*1024 < real*(1024 - expectedSlowdown);
+
+    bool above = predicted*1024 > real*(1024 - expectedSlowdown + 64);
 
     int vec[2];
 
@@ -1001,8 +1005,8 @@ FullO3CPU<Impl>::fetchControl()
                     vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
-    } else {
-        vec[0] = std::min(fetch.getHPTPortion() - 128, 512);
+    } else if (above) {
+        vec[0] = std::max(fetch.getHPTPortion() - 128, 256);
         vec[1] = 1024 - vec[0];
         if (vec[0] != fetch.getHPTPortion()) {
             DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
@@ -1010,7 +1014,7 @@ FullO3CPU<Impl>::fetchControl()
             fetch.reassignFetchWidth(vec, 2, 1024);
         }
 
-        vec[0] = std::min(iew.getHPTWidth() - 1, 4);
+        vec[0] = std::max(iew.getHPTWidth() - 1, 2);
         vec[1] = 8 - vec[0];
         if (vec[0] != iew.getHPTWidth()) {
             DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d, vec[1]: %d\n",
