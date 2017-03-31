@@ -66,7 +66,7 @@ ROB<Impl>::ROB(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->windowSize)
+      sampleRate(params->policyWindowSize)
 {
 }
 
@@ -729,7 +729,7 @@ void
 ROB<Impl>::increaseUsedEntries()
 {
     sampleCycle++;
-    if (sampleTime*(cpu->windowSize/sampleRate) <= sampleCycle) {
+    if (sampleTime*(cpu->policyWindowSize/sampleRate) <= sampleCycle) {
         sampleTime++;
         numUsedEntries += countInsts();
         numThreadUsedEntries[0] += countInsts(0);

@@ -154,7 +154,9 @@ class DerivO3CPU(BaseCPU):
 
     smtCommitPolicy = Param.String('RoundRobin', "SMT Commit Policy")
 
-    windowSize = Param.Int(15000, "stat dump cycle interval")
+    dumpWindowSize = Param.Int(100000, "stat dump cycle interval")
+
+    policyWindowSize = Param.Int(100000, "stat dump cycle interval")
 
     branchPred = Param.BranchPredictor(TournamentBP(numThreads =
                                                        Parent.numThreads),

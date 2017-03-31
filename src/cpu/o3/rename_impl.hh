@@ -1913,9 +1913,9 @@ void
 DefaultRename<Impl>::dumpFreeEntries()
 {
     intRegUtilization = 1 - ((double) numFreeIntEntries /
-        double(cpu->numPhysIntRegs*cpu->windowSize));
+        double(cpu->numPhysIntRegs*cpu->policyWindowSize));
     intRegUtilization = 1 - ((double) numFreeFloatEntries /
-        double(cpu->numPhysFloatRegs*cpu->windowSize));
+        double(cpu->numPhysFloatRegs*cpu->policyWindowSize));
     resetFreeEntries();
 }
 

@@ -81,7 +81,7 @@ LSQ<Impl>::LSQ(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params)
       sqUptodate(false),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->windowSize)
+      sampleRate(params->policyWindowSize)
 {
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         LQPortion[tid] = denominator/numThreads;
@@ -907,7 +907,7 @@ void
 LSQ<Impl>::increaseUsedEntries()
 {
     sampleCycle++;
-    if (sampleTime*(cpu->windowSize/sampleRate) <= sampleCycle) {
+    if (sampleTime*(cpu->policyWindowSize/sampleRate) <= sampleCycle) {
         sampleTime++;
         numUsedLQEntries += numLoads();
         numThreadUsedLQEntries[0] += numLoads(0);

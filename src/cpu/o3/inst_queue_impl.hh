@@ -97,7 +97,7 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
       numUsedEntries(0),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->windowSize)
+      sampleRate(params->policyWindowSize)
 {
     assert(fuPool);
 
@@ -1802,7 +1802,7 @@ void
 InstructionQueue<Impl>::increaseUsedEntries()
 {
     sampleCycle++;
-    if (sampleTime*(cpu->windowSize/sampleRate) <= sampleCycle) {
+    if (sampleTime*(cpu->policyWindowSize/sampleRate) <= sampleCycle) {
         sampleTime++;
         numUsedEntries += countInsts();
         numThreadUsedEntries[0] += count[0];
@@ -1824,16 +1824,16 @@ void
 InstructionQueue<Impl>::dumpUsedEntries()
 {
     iqThreadUtil[0] = double(numThreadUsedEntries[0])/
-        double(numEntries*cpu->windowSize);
+        double(numEntries*cpu->policyWindowSize);
 
     iqThreadUtil[1] = double(numThreadUsedEntries[1])/
-        double(numEntries*cpu->windowSize);
+        double(numEntries*cpu->policyWindowSize);
 
     iqUtilization[0] = iqThreadUtil[0];
     iqUtilization[1] = iqThreadUtil[1];
 
     iqUtil = double(numUsedEntries) /
-        double(numEntries*cpu->windowSize);
+        double(numEntries*cpu->policyWindowSize);
 
     resetUsedEntries();
 }

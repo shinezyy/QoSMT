@@ -166,6 +166,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       itb(params->itb),
       dtb(params->dtb),
       dumpCycles(0),
+      policyCycles(0),
       tickEvent(this),
 #ifndef NDEBUG
       instcount(0),
@@ -218,7 +219,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       lqReserved(false),
       sqReserved(false),
       fetchReserved(false),
-      windowSize(params->windowSize),
+      dumpWindowSize(params->dumpWindowSize),
+      policyWindowSize(params->policyWindowSize),
       numPhysIntRegs(params->numPhysIntRegs),
       numPhysFloatRegs(params->numPhysFloatRegs),
       localCycles(0),
@@ -976,7 +978,7 @@ FullO3CPU<Impl>::fetchControl()
     uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt];
     uint64_t real = predicted + fmt.globalWait[hpt];
 
-    DPRINTF(Pard, "PTA working -----------------------\n");
+    DPRINTF(Pard, "Fetch Control Working -----------------------\n");
 
     bool nsat = predicted*1024 < real*(1024 - expectedSlowdown);
 
@@ -1040,7 +1042,9 @@ FullO3CPU<Impl>::tick()
     ++numCycles;
     ++localCycles;
     ++dumpCycles;
-    if (dumpCycles >= windowSize) {
+    ++policyCycles;
+
+    if (dumpCycles >= dumpWindowSize) {
 
         commit.rob->dumpUsedEntries();
         rename.dumpFreeEntries();
@@ -1049,14 +1053,17 @@ FullO3CPU<Impl>::tick()
         fmt.dumpStats();
         dumpStats();
 
-        if (autoControl) {
-            fmtBasedDist();
-        }
-
         async_event = true;
         async_statdump = true;
         dumpCycles = 0;
         getEventQueue(0)->wakeup();
+    }
+
+    if (policyCycles >= policyWindowSize) {
+        if (autoControl) {
+            fetchControl();
+        }
+        policyCycles = 0;
     }
 
     ppCycles->notify(1);
@@ -2158,6 +2165,7 @@ FullO3CPU<Impl>::wakeCPU()
         numCycles += cycles;
         localCycles += cycles;
         dumpCycles += cycles;
+        policyCycles += cycles;
         ppCycles->notify(cycles);
     }
 

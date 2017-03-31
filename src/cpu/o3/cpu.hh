@@ -130,6 +130,7 @@ class FullO3CPU : public BaseO3CPU
   private:
 
     long long dumpCycles;
+    long long policyCycles;
 
     /**
      * IcachePort class for instruction fetch.
@@ -797,7 +798,9 @@ class FullO3CPU : public BaseO3CPU
     void fetchControl();
 
   public:
-    unsigned windowSize;
+    unsigned dumpWindowSize;
+
+    unsigned policyWindowSize;
 
     unsigned numPhysIntRegs;
 
