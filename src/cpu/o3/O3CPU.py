@@ -134,8 +134,8 @@ class DerivO3CPU(BaseCPU):
     smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
     #smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")
 
-    #smtLSQPolicy    = Param.String('Programmable', "SMT LSQ Sharing Policy")
-    smtLSQPolicy    = Param.String('Dynamic', "SMT LSQ Sharing Policy")
+    smtLSQPolicy    = Param.String('Programmable', "SMT LSQ Sharing Policy")
+    #smtLSQPolicy    = Param.String('Dynamic', "SMT LSQ Sharing Policy")
 
     smtLSQThreshold = Param.Int(10, "SMT LSQ Threshold Sharing Parameter")
     # LSQ threshold is treated as bull shit
@@ -147,8 +147,9 @@ class DerivO3CPU(BaseCPU):
     smtIQThreshold = Param.Int(50, "SMT IQ Threshold Sharing Parameter")
     # IQ threshold is counted with precentage!!
 
-    smtROBPolicy   = Param.String('Dynamic', "SMT ROB Sharing Policy")
-    #smtROBPolicy   = Param.String('Programmable', "SMT ROB Sharing Policy")
+    #smtROBPolicy   = Param.String('Dynamic', "SMT ROB Sharing Policy")
+    smtROBPolicy   = Param.String('Programmable', "SMT ROB Sharing Policy")
+
     smtROBThreshold = Param.Int(58, "SMT ROB Threshold Sharing Parameter")
     # ROB threshold is counted with absolute number
 
@@ -158,13 +159,16 @@ class DerivO3CPU(BaseCPU):
 
     policyWindowSize = Param.Int(100000, "stat dump cycle interval")
 
+    # controlPolicy = Param.String('FrontEnd', 'control policy')
+    controlPolicy = Param.String('Combined', 'control policy')
+
     branchPred = Param.BranchPredictor(TournamentBP(numThreads =
                                                        Parent.numThreads),
                                        "Branch Predictor")
     needsTSO = Param.Bool(buildEnv['TARGET_ISA'] == 'x86',
                           "Enable TSO Memory model")
 
-    autoControl = Param.Bool(True, "Enable auto control")
+    # autoControl = Param.Bool(True, "Enable auto control")
 
     expectedSlowdown = Param.Int(200, "Expected max slowdown 1024 as deno")
 
@@ -173,6 +177,9 @@ class DerivO3CPU(BaseCPU):
 
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")
+
+    fullThreshold = Param.Int(128, 'when full/cycle > threshold,' +
+                             'it should be controlled')
 
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:

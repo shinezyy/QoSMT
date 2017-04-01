@@ -520,8 +520,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
   private:
 
-    std::vector<int> numIQFull;
-
     Fmt *fmt;
 
     Bmt *bmt;

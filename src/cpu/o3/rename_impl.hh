@@ -301,12 +301,8 @@ DefaultRename<Impl>::resetStage()
         storesInProgress[tid] = 0;
 
         serializeOnNextInst[tid] = false;
-
-        numROBFull[tid] = 0;
-        numLQFull[tid] = 0;
-        numSQFull[tid] = 0;
-        numIQFull[tid] = 0;
     }
+    clearFull();
 }
 
 template<class Impl>
@@ -1615,28 +1611,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             numLPTcause = std::min(calcOwnIQEntries(LPT), numLPTcause);
 
             DPRINTF(FmtSlot2, "HPT stall because no IQ.\n");
-        }
-
-    } else if (calcFreeLQEntries(tid) <= 0 && calcFreeSQEntries(tid) <= 0) {
-        /**为什么这里要检测？可不可以不检测？*/
-        DPRINTF(Rename,"[tid:%i]: Stall: LSQ has 0 free entries.\n", tid);
-
-        if (calcFreeLQEntries(tid) <= 0)
-            fullSource[tid] = LQ;
-        else
-            fullSource[tid] = SQ;
-
-        ret_val = true;
-
-        if (tid == HPT) {
-            LB_all = (calcOwnLQEntries(LPT) > renameWidths[HPT]) ||
-                (calcOwnSQEntries(LPT) > renameWidths[HPT]);
-            LB_part = !LB_all && ((calcOwnLQEntries(LPT) > 0) ||
-                (calcOwnSQEntries(LPT) > 0));
-            numLPTcause = std::min(std::min(calcOwnLQEntries(LPT),
-                        calcOwnSQEntries(LPT)), numLPTcause);
-
-            DPRINTF(FmtSlot2, "HPT stall because no LSQ.\n");
         }
 
     } else if (renameMap[tid]->numFreeEntries() <= 0) {

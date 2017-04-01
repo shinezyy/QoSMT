@@ -318,16 +318,22 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
+    cpu.max_insts_all_threads = 200*(10**6)
+
     cpu.dumpWindowSize = (10**3)*10000
     cpu.policyWindowSize = (10**3)*20
 
     cpu.iewProgrammable = True
     cpu.smtFetchPolicy = 'Programmable'
+    cpu.smtROBPolicy = 'Programmable'
+    cpu.smtLSQPolicy = 'Programmable'
 
-    cpu.autoControl = True
-    cpu.max_insts_all_threads = 200*(10**6)
+    cpu.controlPolicy = 'Combined'
+    # cpu.controlPolicy = 'FrontEnd'
+    # cpu.controlPolicy = 'None'
 
-    cpu.expectedSlowdown = 3 * 1024 / 10
+    cpu.expectedSlowdown = 1 * 1024 / 10 # 0~1024, lower -> higher qos
+    cpu.fullThreshold = 128 # 0~1024: lower -> more strict -> higher qos
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()

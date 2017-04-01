@@ -779,23 +779,15 @@ class FullO3CPU : public BaseO3CPU
      */
     void setUpSrcManagerConfigs(const std::string filename);
 
-    bool autoControl;
-
-    void redistribute();
-
-    void fmtBasedDist();
-
-    void locateSource(bool *rob, bool *lq, bool *sq);
-
-    void reserveResource(bool rob, bool lq, bool sq);
-
-    void freeResource();
+    void incResource(bool rob, bool lq, bool sq, bool inc);
 
     uint32_t expectedSlowdown;
 
     bool robReserved, lqReserved, sqReserved, fetchReserved;
 
-    void fetchControl();
+    bool fetchControl();
+
+    void combinedControl();
 
   public:
     unsigned dumpWindowSize;
@@ -815,6 +807,16 @@ class FullO3CPU : public BaseO3CPU
     bool checkAbn();
 
     void dumpStats();
+
+    enum ControlPolicy {
+        FrontEnd,
+        Combined, // Front-end + Back-end
+        None
+    };
+
+    ControlPolicy controlPolicy;
+
+    uint32_t fullThreshold;
 };
 
 #endif // __CPU_O3_CPU_HH__
