@@ -2246,5 +2246,17 @@ DefaultRename<Impl>::shine(const char *reason)
     shadowROB = 0;
 }
 
+template<class Impl>
+void
+DefaultRename<Impl>::clearFull()
+{
+    for(ThreadID tid = 0; tid < numThreads; tid++) {
+        numROBFull[tid] = 0;
+        numLQFull[tid] = 0;
+        numSQFull[tid] = 0;
+        numIQFull[tid] = 0;
+    }
+}
+
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

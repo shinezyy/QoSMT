@@ -586,12 +586,6 @@ class DefaultRename : public SlotCounter<Impl>
      * The currenct thread being stalled will be makred. */
     void printROBHeadStatus(ThreadID tid) const;
 
-  public:
-    uint64_t numROBFull[Impl::MaxThreads];
-    uint64_t numLQFull[Impl::MaxThreads];
-    uint64_t numSQFull[Impl::MaxThreads];
-    uint64_t numIQFull[Impl::MaxThreads];
-
   private:
 
     bool LB_all; // 在rename前检查出LSQ、IQ或ROB没有空闲项，且LPT占据了一些项
@@ -643,6 +637,14 @@ class DefaultRename : public SlotCounter<Impl>
   public:
 
     void setBmt(Bmt *_bmt) {bmt = _bmt;}
+
+  public:
+    uint64_t numROBFull[Impl::MaxThreads];
+    uint64_t numLQFull[Impl::MaxThreads];
+    uint64_t numSQFull[Impl::MaxThreads];
+    uint64_t numIQFull[Impl::MaxThreads];
+
+    void clearFull();
 };
 
 #endif // __CPU_O3_RENAME_HH__

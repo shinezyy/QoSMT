@@ -1001,8 +1001,8 @@ FullO3CPU<Impl>::fetchControl()
         vec[0] = std::min(iew.getHPTWidth() + 1, 7);
         vec[1] = 8 - vec[0];
         if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d, vec[1]: %d\n",
-                    vec[0], vec[1]);
+            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d,"
+                    " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
     } else if (above) {
@@ -1017,21 +1017,11 @@ FullO3CPU<Impl>::fetchControl()
         vec[0] = std::max(iew.getHPTWidth() - 1, 2);
         vec[1] = 8 - vec[0];
         if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d, vec[1]: %d\n",
-                    vec[0], vec[1]);
+            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d,"
+                    " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
     }
-
-
-
-    /* reset
-    for (ThreadID t = 0; t < numThreads; ++t) {
-        fmt.globalBase[t] = 0;
-        fmt.globalMiss[t] = 0;
-        fmt.globalWait[t] = 0;
-    }
-    */
 }
 
 template <class Impl>

@@ -532,12 +532,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
   public:
 
-    int getNumIQFull(ThreadID tid) const;
-
-    void clearNumIQFull(ThreadID tid);
-
-    void clearNumIQFullALL();
-
     void setFmt(Fmt *_fmt);
 
     void setBmt(Bmt *_bmt) {bmt = _bmt;}
@@ -605,6 +599,14 @@ class DefaultIEW : public SlotCounter<Impl>
     int shadowLQ;
 
     int shadowSQ;
+
+  public:
+
+    uint64_t numLQFull[Impl::MaxThreads];
+    uint64_t numSQFull[Impl::MaxThreads];
+    uint64_t numIQFull[Impl::MaxThreads];
+
+    void clearFull();
 };
 
 #endif // __CPU_O3_IEW_HH__

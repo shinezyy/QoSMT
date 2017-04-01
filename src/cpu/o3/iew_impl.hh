@@ -85,7 +85,6 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       issueWidth(params->issueWidth),
       wbWidth(params->wbWidth),
       numThreads(params->numThreads),
-      numIQFull(params->numThreads),
       Programmable(params->iewProgrammable),
       hptInitDispatchWidth(params->hptInitDispatchWidth),
       dispatched(params->numThreads, 0),
@@ -402,6 +401,8 @@ DefaultIEW<Impl>::startupStage()
 
         toRename->iewInfo[tid].dispatchWidth = dispatchWidths[tid];
     }
+
+    clearFull();
 
     // Initialize the checker's dcache port here
     if (cpu->checker) {
@@ -1234,6 +1235,12 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 }
             }
 
+            if(inst->isLoad()) {
+                ++numLQFull[tid];
+            } else {
+                ++numSQFull[tid];
+            }
+
             // Call function to start blocking.
             block(tid);
 
@@ -2003,29 +2010,6 @@ DefaultIEW<Impl>::checkMisprediction(DynInstPtr &inst)
     }
 }
 
-template <class Impl>
-int
-DefaultIEW<Impl>::getNumIQFull(ThreadID tid) const
-{
-    return numIQFull[tid];
-}
-
-template <class Impl>
-void
-DefaultIEW<Impl>::clearNumIQFull(ThreadID tid)
-{
-    numIQFull[tid] = 0;
-}
-
-template <class Impl>
-void
-DefaultIEW<Impl>::clearNumIQFullALL()
-{
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        clearNumIQFull(tid);
-    }
-}
-
 template<class Impl>
 void
 DefaultIEW<Impl>::setFmt(Fmt *_fmt)
@@ -2213,6 +2197,17 @@ DefaultIEW<Impl>::shine(const char *reason)
     shadowIQ = 0;
     shadowLQ = 0;
     shadowSQ = 0;
+}
+
+template<class Impl>
+void
+DefaultIEW<Impl>::clearFull()
+{
+    for(ThreadID tid = 0; tid < numThreads; tid++) {
+        numLQFull[tid] = 0;
+        numSQFull[tid] = 0;
+        numIQFull[tid] = 0;
+    }
 }
 
 
