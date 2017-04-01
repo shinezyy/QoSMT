@@ -327,7 +327,7 @@ for cpu in system.cpu:
     cpu.autoControl = True
     cpu.max_insts_all_threads = 200*(10**6)
 
-    cpu.expectedSlowdown = 1024/10 * 1
+    cpu.expectedSlowdown = 3 * 1024 / 10
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
