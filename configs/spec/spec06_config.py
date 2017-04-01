@@ -333,7 +333,7 @@ for cpu in system.cpu:
     # cpu.controlPolicy = 'None'
 
     cpu.expectedSlowdown = 1 * 1024 / 10 # 0~1024, lower -> higher qos
-    cpu.fullThreshold = 128 # 0~1024: lower -> more strict -> higher qos
+    cpu.fullThreshold = 64 # 0~1024: lower -> more strict -> higher qos
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
