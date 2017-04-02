@@ -335,8 +335,8 @@ for cpu in system.cpu:
     cpu.expectedSlowdown = 1 * 1024 / 10 # 0~1024, lower -> higher qos
     cpu.fullThreshold = 64 # 0~1024: lower -> more strict -> higher qos
 
-    cpu.LQEntries = 32
-    cpu.SQEntries = 32
+    cpu.LQEntries = 64
+    cpu.SQEntries = 96
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
