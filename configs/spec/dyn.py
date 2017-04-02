@@ -329,30 +329,13 @@ for cpu in system.cpu:
     cpu.LQEntries = 64
     cpu.SQEntries = 64
 
-    # configs for simulate st
+    # configs for dynamic
     cpu.controlPolicy = 'None'
     cpu.iewProgrammable = False
-    cpu.hptInitDispatchWidth = 8
+    cpu.hptInitDispatchWidth = 4
     cpu.smtFetchPolicy = 'RoundRobin'
     cpu.smtROBPolicy = 'Dynamic'
     cpu.smtLSQPolicy = 'Dynamic'
-
-    # configs for control
-    # cpu.controlPolicy = 'Combined'
-    # cpu.controlPolicy = 'FrontEnd'
-    # cpu.iewProgrammable = True
-    # hptInitDispatchWidth = 4
-    # cpu.smtFetchPolicy = 'Programmable'
-    # cpu.smtROBPolicy = 'Programmable'
-    # cpu.smtLSQPolicy = 'Programmable'
-
-    # configs for dynamic
-    # cpu.controlPolicy = 'None'
-    # cpu.iewProgrammable = False
-    # cpu.hptInitDispatchWidth = 4
-    # cpu.smtFetchPolicy = 'RoundRobin'
-    # cpu.smtROBPolicy = 'Dynamic'
-    # cpu.smtLSQPolicy = 'Dynamic'
 
 
 for cpu in system.cpu:
