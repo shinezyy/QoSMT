@@ -323,20 +323,37 @@ for cpu in system.cpu:
     cpu.dumpWindowSize = (10**3)*10000
     cpu.policyWindowSize = (10**3)*20
 
-    # cpu.controlPolicy = 'Combined'
-    # cpu.controlPolicy = 'FrontEnd'
-    cpu.controlPolicy = 'None'
-    cpu.iewProgrammable = False
-    # cpu.smtFetchPolicy = 'Programmable'
-    cpu.smtFetchPolicy = 'RoundRobin'
-    cpu.smtROBPolicy = 'Dynamic'
-    cpu.smtLSQPolicy = 'Dynamic'
-
     cpu.expectedSlowdown = 1 * 1024 / 10 # 0~1024, lower -> higher qos
     cpu.fullThreshold = 64 # 0~1024: lower -> more strict -> higher qos
 
     cpu.LQEntries = 64
-    cpu.SQEntries = 96
+    cpu.SQEntries = 64
+
+    # configs for simulate st
+    cpu.controlPolicy = 'None'
+    cpu.iewProgrammable = False
+    cpu.hptInitDispatchWidth = 8
+    cpu.smtFetchPolicy = 'RoundRobin'
+    cpu.smtROBPolicy = 'Dynamic'
+    cpu.smtLSQPolicy = 'Dynamic'
+
+    # configs for control
+    # cpu.controlPolicy = 'Combined'
+    # cpu.controlPolicy = 'FrontEnd'
+    # cpu.iewProgrammable = True
+    # hptInitDispatchWidth = 4
+    # cpu.smtFetchPolicy = 'Programmable'
+    # cpu.smtROBPolicy = 'Programmable'
+    # cpu.smtLSQPolicy = 'Programmable'
+
+    # configs for dynamic
+    # cpu.controlPolicy = 'None'
+    # cpu.iewProgrammable = False
+    # cpu.hptInitDispatchWidth = 4
+    # cpu.smtFetchPolicy = 'RoundRobin'
+    # cpu.smtROBPolicy = 'Dynamic'
+    # cpu.smtLSQPolicy = 'Dynamic'
+
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
