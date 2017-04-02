@@ -43,6 +43,8 @@ echo gem5_ver = $v
 gem5_ver=$v
 echo arch = $a
 arch=$a
+echo conf = $c
+conf=$c
 
 SCRIPT_OUT=$output_dir/runscript.log
 # File log for this script's stdout henceforth
@@ -75,7 +77,7 @@ nohup \
 $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     $debug_flags\
     --outdir=$output_dir\
-    $GEM5_DIR/configs/spec/spec06_config.py\
+    $GEM5_DIR/configs/spec/$conf\
     --benchmark="$benchmark"\
     --benchmark_stdout=$output_dir\
     --benchmark_stderr=$output_dir\
@@ -88,7 +90,7 @@ $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --l1i_assoc=16\
     --l1d_assoc=16\
     --l2cache\
-    --l2_size=4MB\
-    --l2_assoc=16\
+    --l2_size=8MB\
+    --l2_assoc=8\
     $smt\
     > ./stdout/nohup.$benchmark 2>&1 &
