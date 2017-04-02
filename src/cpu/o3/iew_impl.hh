@@ -1401,10 +1401,10 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         if (fromRename->frontEndMiss) {
             this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
 
-        } else if (dispatchStatus[tid] == Blocked && missStat.numL2Miss[HPT]) {
+        } else if (dispatchStatus[tid] == Blocked && missStat.numL2MissLoad[HPT]) {
             this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
 
-        } else if (dispatchStatus[tid] == Blocked && missStat.numL2Miss[LPT]) {
+        } else if (dispatchStatus[tid] == Blocked && missStat.numL2MissLoad[LPT]) {
             LB_all = true;
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
 
@@ -2114,10 +2114,10 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
             if (fromRename->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, dispatchWidth);
 
-            } else if (missStat.numL2Miss[HPT]) {
+            } else if (missStat.numL2MissLoad[HPT]) {
                 this->incLocalSlots(tid, EntryMiss, dispatchWidth);
 
-            } else if (missStat.numL2Miss[LPT]) {
+            } else if (missStat.numL2MissLoad[LPT]) {
                 LB_all = true;
                 this->incLocalSlots(tid, EntryWait, dispatchWidth);
 

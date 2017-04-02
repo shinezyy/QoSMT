@@ -76,7 +76,7 @@ echo "" | tee -a $SCRIPT_OUT
 $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --outdir=$output_dir\
     --debug-flags="Pard,missTry"\
-    $GEM5_DIR/configs/spec/spec06_config.py\
+    $GEM5_DIR/configs/spec/dyn.py\
     --benchmark="$benchmark"\
     --benchmark_stdout=$output_dir\
     --benchmark_stderr=$output_dir\

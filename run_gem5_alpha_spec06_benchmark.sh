@@ -90,7 +90,7 @@ $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --l1i_assoc=16\
     --l1d_assoc=16\
     --l2cache\
-    --l2_size=8MB\
-    --l2_assoc=8\
+    --l2_size=4MB\
+    --l2_assoc=16\
     $smt\
     > ./stdout/nohup.$benchmark 2>&1 &

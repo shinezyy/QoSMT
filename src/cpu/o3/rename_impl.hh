@@ -727,10 +727,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             /**Must has been blocked, verbose on*/
 
-            if (missStat.numL2Miss[HPT]) {
+            if (missStat.numL2MissLoad[HPT]) {
                 this->incLocalSlots(tid, EntryMiss, shortfall);
 
-            } else if (missStat.numL2Miss[LPT]) {
+            } else if (missStat.numL2MissLoad[LPT]) {
                 LB_all = true;
                 this->incLocalSlots(tid, EntryWait, shortfall);
 
@@ -775,10 +775,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 LB_part = false;
             }
 
-            if (missStat.numL2Miss[HPT]) {
+            if (missStat.numL2MissLoad[HPT]) {
                 this->incLocalSlots(tid, EntryMiss, shortfall);
 
-            } else if (missStat.numL2Miss[LPT] && numLPTcause) {
+            } else if (missStat.numL2MissLoad[LPT] && numLPTcause) {
                 LB_all = true;
                 this->incLocalSlots(tid, EntryWait, shortfall);
 
@@ -988,10 +988,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             LB_part = false;
         }
 
-        if (missStat.numL2Miss[HPT]) {
+        if (missStat.numL2MissLoad[HPT]) {
             this->incLocalSlots(tid, EntryMiss, renamable[tid]);
 
-        } else if (missStat.numL2Miss[LPT] && numLPTcause) {
+        } else if (missStat.numL2MissLoad[LPT] && numLPTcause) {
             LB_all = true;
             this->incLocalSlots(tid, EntryWait, renamable[tid]);
 
@@ -2077,10 +2077,10 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
             if (fromDecode->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, renameWidths[tid], false);
 
-            } else if (missStat.numL2Miss[HPT]) {
+            } else if (missStat.numL2MissLoad[HPT]) {
                 this->incLocalSlots(HPT, EntryMiss, renameWidths[tid], true);
 
-            } else if (missStat.numL2Miss[LPT]) {
+            } else if (missStat.numL2MissLoad[LPT]) {
                 LB_all = true;
                 this->incLocalSlots(HPT, EntryWait, renameWidths[tid], true);
 
@@ -2138,7 +2138,7 @@ DefaultRename<Impl>::missTry()
     DPRINTFR(missTry, "Number of pending misses:\n"
             "L2 cache ---- T0: %i, T1: %i;\n"
             "L1 cache ---- T0: %i, T1: %i;\n",
-            missStat.numL2Miss[HPT], missStat.numL2Miss[LPT],
+            missStat.numL2MissLoad[HPT], missStat.numL2MissLoad[LPT],
             missStat.numL1Miss[HPT], missStat.numL1Miss[LPT]);
 
     DPRINTFR(missTry, "Queue utilization:\n"
