@@ -323,17 +323,20 @@ for cpu in system.cpu:
     cpu.dumpWindowSize = (10**3)*10000
     cpu.policyWindowSize = (10**3)*20
 
-    cpu.iewProgrammable = True
-    cpu.smtFetchPolicy = 'Programmable'
-    cpu.smtROBPolicy = 'Programmable'
-    cpu.smtLSQPolicy = 'Programmable'
-
-    cpu.controlPolicy = 'Combined'
+    # cpu.controlPolicy = 'Combined'
     # cpu.controlPolicy = 'FrontEnd'
-    # cpu.controlPolicy = 'None'
+    cpu.controlPolicy = 'None'
+    cpu.iewProgrammable = False
+    # cpu.smtFetchPolicy = 'Programmable'
+    cpu.smtFetchPolicy = 'RoundRobin'
+    cpu.smtROBPolicy = 'Dynamic'
+    cpu.smtLSQPolicy = 'Dynamic'
 
     cpu.expectedSlowdown = 1 * 1024 / 10 # 0~1024, lower -> higher qos
     cpu.fullThreshold = 64 # 0~1024: lower -> more strict -> higher qos
+
+    cpu.LQEntries = 32
+    cpu.SQEntries = 32
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
