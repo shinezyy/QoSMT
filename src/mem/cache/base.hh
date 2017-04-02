@@ -609,17 +609,47 @@ class BaseCache : public MemObject
         }
 
         if (isDcache && pkt->req->seqNum && pkt->needsResponse()) {
-            missTable.emplace_back(pkt->req->threadId(), cacheLevel,
-                    pkt->req->seqNum, curTick());
+
+            bool isLoad = pkt->cmdToIndex() == MemCmd::ReadReq ||
+                    pkt->cmdToIndex() == MemCmd::ReadExReq;
 
             DPRINTF(missTry, "T[%i] Add L%i cache miss to miss table,"
                     " requested by [sn:%lli]\n",
                     pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
 
             if (cacheLevel == 1) {
+                l1MissTable.emplace(pkt->req->seqNum,
+                        MissEntry{pkt->req->threadId(), cacheLevel,
+                        pkt->req->seqNum, curTick(), isLoad});
+
                 missStat.numL1Miss[pkt->req->threadId()]++;
+                if (isLoad) {
+                    missStat.numL1MissLoad[pkt->req->threadId()]++;
+                }
+
+                if (missStat.numL1Miss[pkt->req->threadId()] > 1000 ||
+                        missStat.numL1MissLoad[pkt->req->threadId()]
+                        > 1000) {
+                    panic("Too many pending miss, DEBUG!\n");
+                }
+
             } else if (cacheLevel == 2) {
                 missStat.numL2Miss[pkt->req->threadId()]++;
+
+                MissTable::const_iterator it = l1MissTable.find(pkt->req->seqNum);
+                if (it != l1MissTable.end() && it->second.isLoad) {
+                    isLoad = true;
+                    missStat.numL2MissLoad[pkt->req->threadId()]++;
+                }
+                l2MissTable.emplace(pkt->req->seqNum,
+                        MissEntry{pkt->req->threadId(), cacheLevel,
+                        pkt->req->seqNum, curTick(), isLoad});
+
+                if (missStat.numL2Miss[pkt->req->threadId()] > 1000 ||
+                        missStat.numL2MissLoad[pkt->req->threadId()]
+                        > 1000) {
+                    panic("Too many pending miss, DEBUG!\n");
+                }
             }
         }
     }

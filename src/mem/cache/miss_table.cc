@@ -1,5 +1,6 @@
 #include <mem/cache/miss_table.hh>
 
-MissTable missTable;
+MissTable l1MissTable;
+MissTable l2MissTable;
 
 MissStat missStat;

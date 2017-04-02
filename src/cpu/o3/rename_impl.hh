@@ -2198,14 +2198,15 @@ DefaultRename<Impl>::genShadow()
 
     InstSeqNum start = ~0, end = 0;
 
-    for (auto&& it : missTable) {
-        if (it.cacheLevel == 2 && it.tid == HPT) {
-            if (it.seqNum < start) {
-                start = it.seqNum;
+    for (MissTable::const_iterator it = l2MissTable.begin();
+            it != l2MissTable.end(); it++) {
+        if (it->second.cacheLevel == 2 && it->second.tid == HPT) {
+            if (it->second.seqNum < start) {
+                start = it->second.seqNum;
             }
 
-            if (it.seqNum > end) {
-                end = it.seqNum;
+            if (it->second.seqNum > end) {
+                end = it->second.seqNum;
             }
         }
     }

@@ -87,6 +87,8 @@ Cache::Cache(const Params *p)
 
     missStat.numL1Miss.resize(numThreads, 0);
     missStat.numL2Miss.resize(numThreads, 0);
+    missStat.numL1MissLoad.resize(numThreads, 0);
+    missStat.numL2MissLoad.resize(numThreads, 0);
 }
 
 Cache::~Cache()

@@ -73,10 +73,9 @@ echo "" | tee -a $SCRIPT_OUT
 # --debug-start=1000000\
 # --debug-file=trace.out\
 #gdb --args \
-nohup \
 $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --outdir=$output_dir\
-    --debug-flags="Pard"\
+    --debug-flags="Pard,missTry"\
     $GEM5_DIR/configs/spec/spec06_config.py\
     --benchmark="$benchmark"\
     --benchmark_stdout=$output_dir\
@@ -93,4 +92,4 @@ $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --l2_size=4MB\
     --l2_assoc=16\
     $smt\
-    > debug.$benchmark 2>&1 &
+    > stdout/debug.$benchmark 2>&1 &
