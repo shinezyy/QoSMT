@@ -986,14 +986,17 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
                     missStat.numL2MissLoad[HPT];
 
-            if (hptl2StoreMiss && calcOwnSQEntries(HPT) > 16) {
+
+            if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 16) {
+                LB_all = true; // for unblocking
+                LB_part = true;
+                numLPTcause = renamable[HPT] * calcOwnSQEntries(LPT) / 64;
+
+            } else if (hptl2StoreMiss && calcOwnSQEntries(HPT) > 16) {
                 LB_all = false;
                 LB_part = false;
                 numLPTcause = 0;
-            } else if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 16) {
-                LB_all = true; // for unblocking
-                LB_part = true;
-                numLPTcause = renamable[HPT];
+
             } else {
                 LB_all = true;
                 LB_part = true;

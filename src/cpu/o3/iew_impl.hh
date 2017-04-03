@@ -1235,15 +1235,17 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                     bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
                         missStat.numL2MissLoad[HPT];
 
-                    if (hptl2StoreMiss && ldstQueue.numStores(HPT) > 16) {
-                        LB_all = false;
-                        LB_part = false;
-                        numLPTcause = 0;
-                    } else if (lptl2StoreMiss &&
-                            ldstQueue.numStores(HPT) > 16) {
+                    if (lptl2StoreMiss && ldstQueue.numStores(HPT) > 16) {
                         LB_all = true; // for unblocking
                         LB_part = true;
                         numLPTcause = dispatchable[HPT];
+
+                    } else if (hptl2StoreMiss &&
+                            ldstQueue.numStores(HPT) > 16) {
+                        LB_all = false;
+                        LB_part = false;
+                        numLPTcause = 0;
+
                     } else {
                         LB_all = true;
                         LB_part = true;
