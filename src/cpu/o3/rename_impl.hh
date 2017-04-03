@@ -980,20 +980,26 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of LQ\n", renamable[tid]);
         } else if (fullSource[tid] == SQ && calcOwnSQEntries(LPT)) {
-            if (calcOwnSQEntries(LPT) > renamable[HPT] &&
-                    missStat.numL2Miss[LPT] > missStat.numL2MissLoad[LPT]) {
-                LB_all = true; // for unblocking
-                LB_part = true;
-                numLPTcause = renamable[tid];
-                if (missStat.numL2Miss[HPT] > missStat.numL2MissLoad[HPT] &&
-                        calcOwnSQEntries(HPT) > 48) {
-                    // HPT has LLC write miss too
-                    LB_all = false;
-                }
-            } else {
+
+            bool lptl2StoreMiss = missStat.numL2Miss[LPT] >
+                    missStat.numL2MissLoad[LPT];
+            bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
+                    missStat.numL2MissLoad[HPT];
+
+            if (hptl2StoreMiss && calcOwnSQEntries(HPT) > 16) {
+                LB_all = false;
                 LB_part = false;
                 numLPTcause = 0;
+            } else if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 32) {
+                LB_all = true; // for unblocking
+                LB_part = true;
+                numLPTcause = renamable[HPT];
+            } else {
+                LB_all = true;
+                LB_part = true;
+                numLPTcause = renamable[HPT] * calcOwnSQEntries(LPT) / 64;
             }
+
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of SQ\n", renamable[tid]);
         } else {
