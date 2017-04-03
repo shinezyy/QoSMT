@@ -719,6 +719,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
                 LB_all = numLPTcause == shortfall;
                 LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
+                numROBWait[HPT]++;
 
             } else {
                 LB_all = false;
@@ -770,6 +771,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
                 numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
                 LB_part = calcOwnROBEntries(LPT) > 0;
+                numROBWait[HPT]++;
 
             } else {
                 LB_part = false;
@@ -975,22 +977,23 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         DPRINTF(LB, "HPT has more renamable insts\n");
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
         if (fullSource[tid] == LQ && calcOwnLQEntries(LPT)) {
+            numLQWait[HPT]++;
             LB_part = true;
             numLPTcause = renamable[tid];
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of LQ\n", renamable[tid]);
-        } else if (fullSource[tid] == SQ && calcOwnSQEntries(LPT)) {
 
+        } else if (fullSource[tid] == SQ && calcOwnSQEntries(LPT)) {
             bool lptl2StoreMiss = missStat.numL2Miss[LPT] >
                     missStat.numL2MissLoad[LPT];
             bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
                     missStat.numL2MissLoad[HPT];
 
-
-            if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 16) {
+            if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 0) {
+                numSQWait[HPT]++;
                 LB_all = true; // for unblocking
                 LB_part = true;
-                numLPTcause = renamable[HPT] * calcOwnSQEntries(LPT) / 64;
+                numLPTcause = renamable[HPT];
 
             } else if (hptl2StoreMiss && calcOwnSQEntries(HPT) > 16) {
                 LB_all = false;
@@ -998,6 +1001,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 numLPTcause = 0;
 
             } else {
+                numSQWait[HPT]++;
                 LB_all = true;
                 LB_part = true;
                 numLPTcause = renamable[HPT] * calcOwnSQEntries(LPT) / 64;
@@ -1618,6 +1622,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             LB_all = calcOwnROBEntries(LPT) >= renameWidths[HPT];
             LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnROBEntries(LPT), numLPTcause);
+            numROBWait[HPT]++;
 
             DPRINTF(FmtSlot2, "HPT stall because no ROB.\n");
         }
@@ -2253,6 +2258,11 @@ DefaultRename<Impl>::clearFull()
         numLQFull[tid] = 0;
         numSQFull[tid] = 0;
         numIQFull[tid] = 0;
+
+        numROBWait[tid] = 0;
+        numLQWait[tid] = 0;
+        numSQWait[tid] = 0;
+        numIQWait[tid] = 0;
     }
 }
 

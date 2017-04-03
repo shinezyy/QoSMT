@@ -1223,6 +1223,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             if (tid == HPT) {
                 if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
+                    numLQWait[HPT]++;
                     LB_all = true;
                     /**这里这样其实是认为HPT剩下指令里面没有Load Store*/
                     numLPTcause = dispatchable[HPT];
@@ -1236,6 +1237,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                         missStat.numL2MissLoad[HPT];
 
                     if (lptl2StoreMiss && ldstQueue.numStores(HPT) > 16) {
+                        numSQWait[HPT]++;
                         LB_all = true; // for unblocking
                         LB_part = true;
                         numLPTcause = dispatchable[HPT];
@@ -1247,6 +1249,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                         numLPTcause = 0;
 
                     } else {
+                        numSQWait[HPT]++;
                         LB_all = true;
                         LB_part = true;
                         numLPTcause = dispatchable[HPT] *
@@ -2232,6 +2235,9 @@ DefaultIEW<Impl>::clearFull()
         numLQFull[tid] = 0;
         numSQFull[tid] = 0;
         numIQFull[tid] = 0;
+        numLQWait[tid] = 0;
+        numSQWait[tid] = 0;
+        numIQWait[tid] = 0;
     }
 }
 

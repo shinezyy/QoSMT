@@ -603,6 +603,9 @@ class DefaultIEW : public SlotCounter<Impl>
     uint64_t numLQFull[Impl::MaxThreads];
     uint64_t numSQFull[Impl::MaxThreads];
     uint64_t numIQFull[Impl::MaxThreads];
+    uint64_t numLQWait[Impl::MaxThreads];
+    uint64_t numSQWait[Impl::MaxThreads];
+    uint64_t numIQWait[Impl::MaxThreads];
 
     void clearFull();
 };
