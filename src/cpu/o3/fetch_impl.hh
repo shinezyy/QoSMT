@@ -396,17 +396,7 @@ DefaultFetch<Impl>::resetStage()
 
         fetchQueue[tid].clear();
 
-        if (fetchPolicy != Programmable) {
-            DPRINTF(Pard, "Using non-programmable fetch policy\n");
-            priorityList.push_back(tid);
-        }
-        else {
-            DPRINTF(Pard, "Using programmable fetch policy\n");
-            int width = fetchWidth * portion[tid] / denominator;
-            for (int i = 0; i < width; i++) {
-                priorityList.push_back(tid);
-            }
-        }
+        priorityList.push_back(tid);
     }
 
     wroteToTimeBuffer = false;
@@ -1793,16 +1783,16 @@ DefaultFetch<Impl>::updateFetchWidth()
     assert(fetchPolicy == Programmable);
 
     DPRINTF(Fetch, "Updating fetch width\n");
-    priorityList.clear();
+
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (fetchPolicy != Programmable) {
-            priorityList.push_back(tid);
         } else {
             int width = fetchWidth * portion[tid] / denominator;
-            for (int i = 0; i < width; i++) {
-                priorityList.push_back(tid);
+            if (tid == HPT) {
+                this->width = width;
             }
-            DPRINTF(Fetch, "Thread %d fetch width: %d\n",
+            fetchWidths[tid] = width;
+            DPRINTF(Pard, "Thread %d fetch width: %d\n",
                     tid, width);
         }
     }
