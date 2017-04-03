@@ -990,7 +990,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 LB_all = false;
                 LB_part = false;
                 numLPTcause = 0;
-            } else if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 32) {
+            } else if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 16) {
                 LB_all = true; // for unblocking
                 LB_part = true;
                 numLPTcause = renamable[HPT];
