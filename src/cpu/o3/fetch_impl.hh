@@ -1783,15 +1783,22 @@ DefaultFetch<Impl>::updateFetchWidth()
     assert(fetchPolicy == Programmable);
 
     DPRINTF(Fetch, "Updating fetch width\n");
+    priorityList.clear();
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (fetchPolicy != Programmable) {
+            priorityList.push_back(tid);
         } else {
             int width = fetchWidth * portion[tid] / denominator;
+            for (int i = 0; i < width; i++) {
+                priorityList.push_back(tid);
+            }
+#if 0
             if (tid == HPT) {
                 this->width = width;
             }
             fetchWidths[tid] = width;
+#endif
             DPRINTF(Pard, "Thread %d fetch width: %d\n",
                     tid, width);
         }
