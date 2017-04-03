@@ -188,6 +188,14 @@ BaseCPU::BaseCPU(Params *p, bool is_checker)
         }
     }
 
+    if (p->max_insts_hpt_thread != 0) {
+        const char *cause = "hpt thread reached the max instruction count";
+        int *counter = new int;
+        *counter = 1;
+        Event *event = new CountedExitEvent(cause, *counter);
+        comInstEventQueue[0]->schedule(event, p->max_insts_hpt_thread);
+    }
+
     // allocate per-thread load-based event queues
     comLoadEventQueue = new EventQueue *[numThreads];
     for (ThreadID tid = 0; tid < numThreads; ++tid)
