@@ -1226,9 +1226,31 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                     LB_all = true;
                     /**这里这样其实是认为HPT剩下指令里面没有Load Store*/
                     numLPTcause = dispatchable[HPT];
+
                 } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
                     LB_all = true;
-                    numLPTcause = dispatchable[HPT];
+
+                    bool lptl2StoreMiss = missStat.numL2Miss[LPT] >
+                        missStat.numL2MissLoad[LPT];
+                    bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
+                        missStat.numL2MissLoad[HPT];
+
+                    if (hptl2StoreMiss && ldstQueue.numStores(HPT) > 16) {
+                        LB_all = false;
+                        LB_part = false;
+                        numLPTcause = 0;
+                    } else if (lptl2StoreMiss &&
+                            ldstQueue.numStores(HPT) > 16) {
+                        LB_all = true; // for unblocking
+                        LB_part = true;
+                        numLPTcause = dispatchable[HPT];
+                    } else {
+                        LB_all = true;
+                        LB_part = true;
+                        numLPTcause = dispatchable[HPT] *
+                            ldstQueue.numStores(HPT) / 64;
+                    }
+
                 } else {
                     LB_all = false;
                     LB_part = false;

@@ -1797,8 +1797,7 @@ DefaultFetch<Impl>::updateFetchWidth()
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (fetchPolicy != Programmable) {
             priorityList.push_back(tid);
-        }
-        else {
+        } else {
             int width = fetchWidth * portion[tid] / denominator;
             for (int i = 0; i < width; i++) {
                 priorityList.push_back(tid);
