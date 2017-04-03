@@ -984,10 +984,16 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                     missStat.numL2Miss[LPT] > missStat.numL2MissLoad[LPT]) {
                 LB_all = true; // for unblocking
                 LB_part = true;
+                numLPTcause = renamable[tid];
+                if (missStat.numL2Miss[HPT] > missStat.numL2MissLoad[HPT] &&
+                        calcOwnSQEntries(HPT) > 48) {
+                    // HPT has LLC write miss too
+                    LB_all = false;
+                }
             } else {
                 LB_part = false;
+                numLPTcause = 0;
             }
-            numLPTcause = renamable[tid];
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of SQ\n", renamable[tid]);
         } else {
