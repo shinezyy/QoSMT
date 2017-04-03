@@ -980,7 +980,13 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of LQ\n", renamable[tid]);
         } else if (fullSource[tid] == SQ && calcOwnSQEntries(LPT)) {
-            LB_part = true;
+            if (calcOwnSQEntries(LPT) > renamable[HPT] &&
+                    missStat.numL2Miss[LPT] > missStat.numL2MissLoad[LPT]) {
+                LB_all = true; // for unblocking
+                LB_part = true;
+            } else {
+                LB_part = false;
+            }
             numLPTcause = renamable[tid];
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of SQ\n", renamable[tid]);
