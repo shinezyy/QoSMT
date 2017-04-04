@@ -996,11 +996,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                     missStat.numL2MissLoad[LPT];
             bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
                     missStat.numL2MissLoad[HPT];
-            uint64_t past = (curTick() - missStat.oldestStoreTick[HPT])/500;
-
-            DPRINTF(Pard, "%llu cycles since oldest Store, vsq is %f\n",
-                    past, vsq);
 #endif
+            DPRINTF(Pard, "%llu cycles since oldest Store, vsq is %f\n",
+                    (curTick() - missStat.oldestStoreTick[HPT])/500, vsq);
+
             bool m = vsq > 63;
             vsq += storeRate;
 
@@ -1259,8 +1258,10 @@ DefaultRename<Impl>::unblock(ThreadID tid)
 
         DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to Running.\n", tid);
         renameStatus[tid] = Running;
-        vsq = 0;
 
+        if (HPT == tid) {
+            vsq = 0;
+        }
         return true;
     }
     DPRINTF(FmtSlot2, "Rename Status of Thread [%u] unchanged.\n", tid);
@@ -1974,6 +1975,7 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
+    toIEW->storeRate = storeRate;
     switch(renameStatus[tid]) {
         case Blocked:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;

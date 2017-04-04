@@ -608,6 +608,10 @@ class DefaultIEW : public SlotCounter<Impl>
     uint64_t numIQWait[Impl::MaxThreads];
 
     void clearFull();
+
+    float storeRate;
+
+    float vsq;
 };
 
 #endif // __CPU_O3_IEW_HH__

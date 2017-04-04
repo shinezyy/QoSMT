@@ -686,6 +686,9 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
         wroteToTimeBuffer = true;
         DPRINTF(IEW, "[tid:%i]: Done unblocking.\n",tid);
         dispatchStatus[tid] = Running;
+        if (HPT == tid) {
+            vsq = 0;
+        }
     }
 }
 
@@ -1008,6 +1011,8 @@ DefaultIEW<Impl>::sortInsts()
     for (int i = 0; i < insts_from_rename; ++i) {
         insts[fromRename->insts[i]->threadNumber].push(fromRename->insts[i]);
     }
+
+    storeRate = fromRename->storeRate;
 }
 
 template <class Impl>
@@ -1229,33 +1234,26 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                     numLPTcause = dispatchable[HPT];
 
                 } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
-                    LB_all = true;
+                    if (vsq <= 0.001) {
+                        vsq = ldstQueue.numStores(HPT);
+                    }
+                    DPRINTF(Pard, "%llu cycles since oldest Store, vsq is %f\n",
+                            (curTick() - missStat.oldestStoreTick[HPT])/500, vsq);
+                    bool m = vsq > 63;
+                    vsq += storeRate;
 
-                    bool lptl2StoreMiss = missStat.numL2Miss[LPT] >
-                        missStat.numL2MissLoad[LPT];
-                    bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
-                        missStat.numL2MissLoad[HPT];
-
-                    if (lptl2StoreMiss && ldstQueue.numStores(HPT) > 16) {
+                    if (!m) {
                         numSQWait[HPT]++;
                         LB_all = true; // for unblocking
                         LB_part = true;
                         numLPTcause = dispatchable[HPT];
 
-                    } else if (hptl2StoreMiss &&
-                            ldstQueue.numStores(HPT) > 16) {
+                    } else {
                         LB_all = false;
                         LB_part = false;
                         numLPTcause = 0;
 
-                    } else {
-                        numSQWait[HPT]++;
-                        LB_all = true;
-                        LB_part = true;
-                        numLPTcause = dispatchable[HPT] *
-                            ldstQueue.numStores(HPT) / 64;
                     }
-
                 } else {
                     LB_all = false;
                     LB_part = false;

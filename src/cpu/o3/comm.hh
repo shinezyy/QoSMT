@@ -112,6 +112,8 @@ struct DefaultRenameDefaultIEW {
       * 剩下的shadow queue entries没有意义了
       */
     bool shine;
+
+    float storeRate;
 };
 
 /** Struct that defines the information passed from IEW to commit. */
