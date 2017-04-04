@@ -336,6 +336,7 @@ for cpu in system.cpu:
     cpu.smtFetchPolicy = 'Programmable'
     cpu.smtROBPolicy = 'Dynamic'
     cpu.smtLSQPolicy = 'Dynamic'
+    cpu.lptSQEntriesLimit = 20
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()

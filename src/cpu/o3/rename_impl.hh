@@ -99,6 +99,7 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
         nrFreeRegs[i] = 0;
     }
+    lptSQEntriesLimit = params->lptSQEntriesLimit;
 }
 
 template <class Impl>
@@ -989,7 +990,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
                     missStat.numL2MissLoad[HPT];
 
-            if (lptl2StoreMiss && calcOwnSQEntries(LPT) > 0) {
+            if (lptl2StoreMiss && calcOwnSQEntries(LPT) > lptSQEntriesLimit) {
                 numSQWait[HPT]++;
                 LB_all = true; // for unblocking
                 LB_part = true;

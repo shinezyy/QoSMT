@@ -177,6 +177,7 @@ class DerivO3CPU(BaseCPU):
 
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")
+    lptSQEntriesLimit = Param.Int(0, "Low priority thread store queue entries limitation")
 
     fullThreshold = Param.Int(128, 'when full/cycle > threshold,' +
                              'it should be controlled')

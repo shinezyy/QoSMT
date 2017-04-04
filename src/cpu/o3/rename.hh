@@ -650,6 +650,8 @@ class DefaultRename : public SlotCounter<Impl>
     uint64_t numIQWait[Impl::MaxThreads];
 
     void clearFull();
+  public:
+    int lptSQEntriesLimit = 0;
 };
 
 #endif // __CPU_O3_RENAME_HH__
