@@ -652,6 +652,10 @@ class DefaultRename : public SlotCounter<Impl>
     void clearFull();
   public:
     int lptSQEntriesLimit = 0;
+
+    float vsq;
+
+    float storeRate;
 };
 
 #endif // __CPU_O3_RENAME_HH__

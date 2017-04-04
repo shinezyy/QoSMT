@@ -1287,7 +1287,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             // Reserve a spot in the load store queue for this
             // memory access.
-            inst->enLQTick = curTick();
+            inst->enLSQTick = curTick();
             ldstQueue.insertLoad(inst);
 
             ++iewDispLoadInsts;
@@ -1306,6 +1306,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: Memory instruction "
                     "encountered, adding to LSQ.\n", tid);
 
+            inst->enLSQTick = curTick();
             ldstQueue.insertStore(inst);
 
             ++iewDispStoreInsts;

@@ -341,6 +341,13 @@ class DefaultDecode : public SlotCounter<Impl>
         panic("T[%i]: No available insts to next stage!\n", tid);
         return toRename->insts[~0];
     }
+
+    const int sampleLen;
+
+    int storeSample[256];
+    float storeRate;
+    int numStores;
+    int storeIndex;
 };
 
 #endif // __CPU_O3_DECODE_HH__

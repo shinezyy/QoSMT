@@ -156,7 +156,7 @@ BaseO3DynInst<Impl>::initVars()
 
     inShadowSQ = false;
 
-    enLQTick = 0;
+    enLSQTick = 0;
 
     accessTick = 0;
 
@@ -165,6 +165,8 @@ BaseO3DynInst<Impl>::initVars()
     compAccessTick = 0;
 
     concerned = false;
+
+    comTick = 0;
 }
 
 template <class Impl>

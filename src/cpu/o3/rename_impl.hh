@@ -853,6 +853,12 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
                 fullSource[tid] = SQ;
                 incrFullStat(fullSource[tid], tid);
+
+                if (HPT == tid && renameStatus[HPT] != Blocked) {
+                    if (vsq <= 0.001) {
+                        vsq = calcOwnSQEntries(HPT);
+                    }
+                }
                 break;
             }
         }
@@ -985,27 +991,30 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                     " because of LQ\n", renamable[tid]);
 
         } else if (fullSource[tid] == SQ && calcOwnSQEntries(LPT)) {
+#if 0
             bool lptl2StoreMiss = missStat.numL2Miss[LPT] >
                     missStat.numL2MissLoad[LPT];
             bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
                     missStat.numL2MissLoad[HPT];
+            uint64_t past = (curTick() - missStat.oldestStoreTick[HPT])/500;
 
-            if (lptl2StoreMiss && calcOwnSQEntries(LPT) > lptSQEntriesLimit) {
+            DPRINTF(Pard, "%llu cycles since oldest Store, vsq is %f\n",
+                    past, vsq);
+#endif
+            bool m = vsq > 63;
+            vsq += storeRate;
+
+
+            if (!m) {
                 numSQWait[HPT]++;
                 LB_all = true; // for unblocking
                 LB_part = true;
                 numLPTcause = renamable[HPT];
 
-            } else if (hptl2StoreMiss && calcOwnSQEntries(HPT) > 16) {
+            } else{
                 LB_all = false;
                 LB_part = false;
                 numLPTcause = 0;
-
-            } else {
-                numSQWait[HPT]++;
-                LB_all = true;
-                LB_part = true;
-                numLPTcause = renamable[HPT] * calcOwnSQEntries(LPT) / 64;
             }
 
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
@@ -1118,6 +1127,8 @@ DefaultRename<Impl>::sortInsts()
         DPRINTF(FmtSlot2, "Number of insts of Thread %i from decode is %i.\n",
                 tid, insts[tid].size());
     }
+    storeRate = fromDecode->storeRate;
+    DPRINTF(Pard, "storeRate: %f\n", storeRate);
 }
 
 template<class Impl>
@@ -1248,6 +1259,7 @@ DefaultRename<Impl>::unblock(ThreadID tid)
 
         DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to Running.\n", tid);
         renameStatus[tid] = Running;
+        vsq = 0;
 
         return true;
     }

@@ -55,6 +55,7 @@
 #include "debug/O3PipeView.hh"
 #include "debug/FmtSlot2.hh"
 #include "debug/LB.hh"
+#include "debug/Pard.hh"
 #include "debug/InstPass.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/full_system.hh"
@@ -75,7 +76,8 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
       decodeWidths(params->numThreads, params->decodeWidth / params->numThreads),
       toRenameNum(params->numThreads, 0),
       numThreads(params->numThreads),
-      BLBlocal(false)
+      BLBlocal(false),
+      sampleLen(params->sampleLen)
 {
     if (decodeWidth > Impl::MaxWidth)
         fatal("decodeWidth (%d) is larger than compiled limit (%d),\n"
@@ -84,6 +86,10 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
 
     // @todo: Make into a parameter
     skidBufferMax = (fetchToDecodeDelay + 1) *  params->fetchWidth;
+    bzero((void *) storeSample, sizeof(int) * sampleLen);
+    storeRate = 0.0;
+    numStores = 0;
+    storeIndex = 0;
 }
 
 template<class Impl>
@@ -609,6 +615,8 @@ DefaultDecode<Impl>::tick()
 
     passLB(HPT);
 
+    toRename->storeRate = storeRate;
+
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toRenameNum[tid]) {
             DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid, toRenameNum[tid]);
@@ -622,7 +630,7 @@ DefaultDecode<Impl>::tick()
     if (toRenameNum[HPT]) {
         this->assignSlots(HPT, getHeadInst(HPT));
     }
-
+    DPRINTF(Pard, "Index of cur cycles: %i\n", storeIndex);
 }
 
 template<class Impl>
@@ -639,8 +647,16 @@ DefaultDecode<Impl>::decode(bool &status_change, ThreadID tid)
     if (decodeStatus[tid] == Blocked) {
         ++decodeBlockedCycles;
         ++threadDecodeBlockedCycles[tid];
+        DPRINTF(Pard, "Index not move: %i\n", storeIndex);
     } else if (decodeStatus[tid] == Squashing) {
         ++decodeSquashCycles;
+
+        if (HPT == tid) {
+            numStores -= storeSample[storeIndex];
+            storeSample[storeIndex] = 0;
+            storeIndex = (storeIndex + 1)%sampleLen;
+            storeRate = ((float) numStores)/((float)sampleLen);
+        }
     }
 
     // Decode should try to decode as many instructions as its bandwidth
@@ -686,6 +702,13 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
                 " early.\n",tid);
         // Should I change the status to idle?
         ++decodeIdleCycles;
+
+        if (HPT == tid) {
+            numStores -= storeSample[storeIndex];
+            storeSample[storeIndex] = 0;
+            storeIndex = (storeIndex + 1)%sampleLen;
+            storeRate = ((float) numStores)/((float) sampleLen);
+        }
         return;
     } else if (decodeStatus[tid] == Unblocking) {
         DPRINTF(Decode, "[tid:%u] Unblocking, removing insts from skid "
@@ -693,6 +716,11 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         ++decodeUnblockCycles;
     } else if (decodeStatus[tid] == Running) {
         ++decodeRunCycles;
+    }
+
+    if (HPT == tid) {
+        numStores -= storeSample[storeIndex];
+        storeSample[storeIndex] = 0;
     }
 
     DynInstPtr inst;
@@ -739,6 +767,10 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         // see if branches were predicted correctly.
         toRename->insts[toRenameIndex] = inst;
 
+        if (inst->isStore() && HPT == tid) {
+            storeSample[storeIndex]++;
+        }
+
         ++(toRename->size);
         ++toRenameIndex;
         ++toRenameNum[tid];
@@ -784,6 +816,13 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
                 break;
             }
         }
+    }
+
+
+    if (HPT == tid) {
+        numStores += storeSample[storeIndex];
+        storeIndex = (storeIndex + 1)%sampleLen;
+        storeRate = ((float) numStores)/((float)sampleLen);
     }
 
     // If we didn't process all instructions, then we will need to block

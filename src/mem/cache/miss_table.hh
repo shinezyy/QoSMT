@@ -32,6 +32,7 @@ struct MissStat {
     std::vector<int> numL2Miss;
     std::vector<int> numL1MissLoad;
     std::vector<int> numL2MissLoad;
+    std::vector<uint64_t> oldestStoreTick;
 };
 
 extern MissStat missStat;

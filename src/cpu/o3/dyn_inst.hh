@@ -403,7 +403,7 @@ class BaseO3DynInst : public BaseDynInst<Impl>
 
     bool inShadowSQ;
 
-    Tick enLQTick;
+    Tick enLSQTick;
 
     Tick accessTick;
 

@@ -84,6 +84,8 @@ struct DefaultDecodeDefaultRename {
 
     bool frontEndMiss;
 
+    float storeRate;
+
     /** bool FLB; Forward LPT Block HPT  to rename*/
 };
 

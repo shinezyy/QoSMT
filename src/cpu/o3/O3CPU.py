@@ -182,6 +182,8 @@ class DerivO3CPU(BaseCPU):
     fullThreshold = Param.Int(128, 'when full/cycle > threshold,' +
                              'it should be controlled')
 
+    sampleLen = Param.Int(32, 'store Sample len')
+
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:
             from ArmTLB import ArmTLB

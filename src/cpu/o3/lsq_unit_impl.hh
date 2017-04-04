@@ -891,7 +891,7 @@ LSQUnit<Impl>::commitLoad()
 
     if (load_head->concerned && load_head->compAccessTick) {
 
-        overallStopTime += curTick() - load_head->enLQTick;
+        overallStopTime += curTick() - load_head->enLSQTick;
         overallWaitComTime += curTick() - load_head->compAccessTick;
         overallWaitDeLQTime += curTick() - load_head->comTick;
         numConcerned++;
@@ -1367,8 +1367,14 @@ LSQUnit<Impl>::completeStore(int store_idx)
     if (store_idx == storeHead) {
         do {
             incrStIdx(storeHead);
-
             --stores;
+
+            if (stores > 0 && storeQueue[storeHead].inst->comTick) {
+                ThreadID tid = storeQueue[storeHead].inst->threadNumber;
+                missStat.oldestStoreTick[tid] =
+                    storeQueue[storeHead].inst->enLSQTick;
+            }
+
         } while (storeQueue[storeHead].completed &&
                  storeHead != storeTail);
 
