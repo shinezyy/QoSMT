@@ -42,7 +42,6 @@
 #
 # "m5 test.py"
 
-import spec06_benchmarks
 import optparse
 import sys
 import os
@@ -51,6 +50,7 @@ import m5
 from m5.defines import buildEnv
 from m5.objects import *
 from m5.util import addToPath, fatal
+from get_spec_proc import Spec06
 
 addToPath('../common')
 addToPath('../ruby')
@@ -102,113 +102,22 @@ if options.smt:
     numThreads = 2
 
 
-def get_benchmark_process(benchmark_name):
-    spec06_benchmarks.init_env()
-    if benchmark_name == 'perlbench':
-        print '--> perlbench'
-        process = spec06_benchmarks.get_perlbench()
-    elif benchmark_name == 'bzip2':
-        print '--> bzip2'
-        process = spec06_benchmarks.get_bzip2()
-    elif benchmark_name == 'gcc':
-        print '--> gcc'
-        process = spec06_benchmarks.get_gcc()
-    elif benchmark_name == 'bwaves':
-        print '--> bwaves'
-        process = spec06_benchmarks.get_bwaves()
-    elif benchmark_name == 'gamess':
-        print '--> gamess'
-        process = spec06_benchmarks.get_gamess()
-    elif benchmark_name == 'mcf':
-        print '--> mcf'
-        process = spec06_benchmarks.get_mcf()
-    elif benchmark_name == 'milc':
-        print '--> milc'
-        process = spec06_benchmarks.get_milc()
-    elif benchmark_name == 'zeusmp':
-        print '--> zeusmp'
-        process = spec06_benchmarks.get_zeusmp()
-    elif benchmark_name == 'gromacs':
-        print '--> gromacs'
-        process = spec06_benchmarks.get_gromacs()
-    elif benchmark_name == 'cactusADM':
-        print '--> cactusADM'
-        process = spec06_benchmarks.get_cactusADM()
-    elif benchmark_name == 'leslie3d':
-        print '--> leslie3d'
-        process = spec06_benchmarks.get_leslie3d()
-    elif benchmark_name == 'namd':
-        print '--> namd'
-        process = spec06_benchmarks.get_namd()
-    elif benchmark_name == 'gobmk':
-        print '--> gobmk'
-        process = spec06_benchmarks.get_gobmk()
-    elif benchmark_name == 'dealII':
-        print '--> dealII'
-        process = spec06_benchmarks.get_dealII()
-    elif benchmark_name == 'soplex':
-        print '--> soplex'
-        process = spec06_benchmarks.get_soplex()
-    elif benchmark_name == 'povray':
-        print '--> povray'
-        process = spec06_benchmarks.get_povray()
-    elif benchmark_name == 'calculix':
-        print '--> calculix'
-        process = spec06_benchmarks.get_calculix()
-    elif benchmark_name == 'hmmer':
-        print '--> hmmer'
-        process = spec06_benchmarks.get_hmmer()
-    elif benchmark_name == 'sjeng':
-        print '--> sjeng'
-        process = spec06_benchmarks.get_sjeng()
-    elif benchmark_name == 'GemsFDTD':
-        print '--> GemsFDTD'
-        process = spec06_benchmarks.get_GemsFDTD()
-    elif benchmark_name == 'libquantum':
-        print '--> libquantum'
-        process = spec06_benchmarks.get_libquantum()
-    elif benchmark_name == 'h264ref':
-        print '--> h264ref'
-        process = spec06_benchmarks.get_h264ref()
-    elif benchmark_name == 'tonto':
-        print '--> tonto'
-        process = spec06_benchmarks.get_tonto()
-    elif benchmark_name == 'lbm':
-        print '--> lbm'
-        process = spec06_benchmarks.get_lbm()
-    elif benchmark_name == 'omnetpp':
-        print '--> omnetpp'
-        process = spec06_benchmarks.get_omnetpp()
-    elif benchmark_name == 'astar':
-        print '--> astar'
-        process = spec06_benchmarks.get_astar()
-    elif benchmark_name == 'wrf':
-        print '--> wrf'
-        process = spec06_benchmarks.get_wrf()
-    elif benchmark_name == 'sphinx3':
-        print '--> sphinx3'
-        process = spec06_benchmarks.get_sphinx3()
-    elif benchmark_name == 'xalancbmk':
-        print '--> xalancbmk'
-        process = spec06_benchmarks.get_xalancbmk()
-    elif benchmark_name == 'specrand_i':
-        print '--> specrand_i'
-        process = spec06_benchmarks.get_specrand_i()
-    elif benchmark_name == 'specrand_f':
-        print '--> specrand_f'
-        process = spec06_benchmarks.get_specrand_f()
+def get_benchmark_process(spec_obj, benchmark_name):
+    process = spec_obj.gen_proc(benchmark_name)
+    if process:
+        return process
     else:
-        print "No recognized SPEC2006 benchmark selected! Exiting."
+        print "No SPEC2006 benchmark named {}! Exiting.".format(benchmark_name)
         sys.exit(1)
-    return process
 
 multiprocess = []
 benchmarks = options.benchmark.split(';')
 assert(len(benchmarks) < 2 or options.smt)
 if options.smt:
     assert(len(benchmarks) == 2)
+spec06 = Spec06()
 for bm in benchmarks:
-    multiprocess.append(get_benchmark_process(bm))
+    multiprocess.append(get_benchmark_process(spec06, bm))
 
 # Set process stdout/stderr
 for i in range(0, len(multiprocess)):
@@ -345,7 +254,7 @@ for cpu in system.cpu:
     cpu.dcache.tags.thread_0_assoc = 8
 
 system.l2.tags = LRUPartition() # L2 partition
-system.l2.tags.thread_0_assoc = 4
+system.l2.tags.thread_0_assoc = 8
 
 
 # options.take_checkpoints=100000
