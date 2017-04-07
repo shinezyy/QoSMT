@@ -268,6 +268,7 @@ if options.fastmem:
         fatal("You cannot use fastmem in combination with caches!")
 
 if options.simpoint_profile:
+    print 'is doing simpoint_profile'
     if not options.fastmem:
         # Atomic CPU checked with fastmem option already
         fatal("SimPoint generation should be done with atomic cpu and fastmem")
@@ -282,6 +283,9 @@ for i in xrange(np):
         system.cpu[i].workload = multiprocess
     print system.cpu[i].workload
     system.cpu[i].createThreads()
+
+    if options.simpoint_profile:
+        system.cpu[i].addSimPointProbe(options.simpoint_interval)
 
 if options.ruby:
     if not (options.cpu_type == "detailed" or options.cpu_type == "timing"):

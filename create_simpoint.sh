@@ -77,9 +77,11 @@ nohup \
 $GEM5_DIR/build/$arch/gem5.opt\
     --outdir=$output_dir\
     $GEM5_DIR/configs/spec/$conf\
+    --simpoint-profile --simpoint-interval=100000000 --fastmem \
+    -I 1000000000 \
+    --mem-size=4GB\
     --benchmark="$benchmark"\
     --benchmark_stdout=$output_dir\
     --benchmark_stderr=$output_dir\
-    -I 100000000 \
-    --simpoint-profile --simpoint-interval=100000 --fastmem \
+    --cpu-type='AtomicSimpleCPU' \
     > $GEM5_DIR/simpoint/stdout/nohup.$benchmark 2>&1 &
