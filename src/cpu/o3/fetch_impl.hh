@@ -85,13 +85,11 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     : SlotCounter<Impl>(params, params->fetchWidth / params->numThreads),
       denominator(1024),
       cpu(_cpu),
-      numInsts(params->numThreads, 0),
       decodeToFetchDelay(params->decodeToFetchDelay),
       renameToFetchDelay(params->renameToFetchDelay),
       iewToFetchDelay(params->iewToFetchDelay),
       commitToFetchDelay(params->commitToFetchDelay),
       fetchWidth(params->fetchWidth),
-      fetchWidths(params->numThreads, params->fetchWidth / params->numThreads),
       decodeWidth(params->decodeWidth),
       retryPkt(NULL),
       retryTid(InvalidThreadID),
@@ -172,6 +170,7 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     finishTranslationEvents = new FinishTranslationEvent * [numThreads];
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         finishTranslationEvents[tid] = new FinishTranslationEvent(this);
+        fetchWidths[tid] =  fetchWidth / numThreads;
     }
 }
 

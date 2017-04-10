@@ -45,7 +45,7 @@
 #define __CPU_O3_RENAME_HH__
 
 #include <list>
-#include <vector>
+#include <array>
 
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
@@ -454,7 +454,7 @@ class DefaultRename : public SlotCounter<Impl>
     /** Rename width, in instructions. */
     unsigned renameWidth;
 
-    std::vector<unsigned> renameWidths;
+    std::array<unsigned, Impl::MaxThreads> renameWidths;
 
 
     /** Commit width, in instructions.  Used so rename knows how many
@@ -467,7 +467,7 @@ class DefaultRename : public SlotCounter<Impl>
      */
     unsigned toIEWIndex;
 
-    std::vector<unsigned> toIEWNum;
+    std::array<unsigned, Impl::MaxThreads> toIEWNum;
 
     /** Whether or not rename needs to block this cycle. */
     bool blockThisCycle;
@@ -608,7 +608,7 @@ class DefaultRename : public SlotCounter<Impl>
         return toIEW->insts[~0];
     }
 
-    std::vector<int> renamable;
+    std::array<int, Impl::MaxThreads> renamable;
 
     void getRenamable();
 
@@ -620,7 +620,7 @@ class DefaultRename : public SlotCounter<Impl>
     DynInstPtr LQHead[Impl::MaxThreads];
     DynInstPtr SQHead[Impl::MaxThreads];
 
-    std::vector<FullSource> fullSource;
+    std::array<FullSource, Impl::MaxThreads> fullSource;
 
     void genShadow();
 

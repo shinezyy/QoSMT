@@ -73,8 +73,6 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
       commitToDecodeDelay(params->commitToDecodeDelay),
       fetchToDecodeDelay(params->fetchToDecodeDelay),
       decodeWidth(params->decodeWidth),
-      decodeWidths(params->numThreads, params->decodeWidth / params->numThreads),
-      toRenameNum(params->numThreads, 0),
       numThreads(params->numThreads),
       BLBlocal(false),
       sampleLen(params->sampleLen)
@@ -90,6 +88,9 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
     storeRate = 0.0;
     numStores = 0;
     storeIndex = 0;
+    for (ThreadID tid  = 0; tid < numThreads; tid ++) {
+        decodeWidths[tid] = decodeWidth/numThreads;
+    }
 }
 
 template<class Impl>

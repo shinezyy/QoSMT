@@ -17,11 +17,15 @@ ThreadID HPT = 0, LPT = 1;
     template<class Impl>
 SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
     : width((int) _width),
-    numThreads(params->numThreads),
-    wait(params->numThreads, 0),
-    miss(params->numThreads, 0),
-    perCycleSlots(params->numThreads, vector<int> ((int) NumUse, 0))
+    numThreads(params->numThreads)
 {
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        wait[tid] = 0;
+        miss[tid] = 0;
+        for (int i = 0; i < NumUse; i++) {
+            perCycleSlots[tid][i] = 0;
+        }
+    }
 }
 
 template <class Impl>

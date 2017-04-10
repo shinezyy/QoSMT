@@ -44,7 +44,7 @@
 #define __CPU_O3_DECODE_HH__
 
 #include <queue>
-#include <vector>
+#include <array>
 
 #include "base/statistics.hh"
 #include "cpu/timebuf.hh"
@@ -271,12 +271,12 @@ class DefaultDecode : public SlotCounter<Impl>
     /** The width of decode, in instructions. */
     unsigned decodeWidth;
 
-    std::vector<unsigned> decodeWidths;
+    std::array<unsigned, Impl::MaxThreads> decodeWidths;
 
     /** Index of instructions being sent to rename. */
     unsigned toRenameIndex;
 
-    std::vector<unsigned> toRenameNum;
+    std::array<unsigned, Impl::MaxThreads> toRenameNum;
 
     /** number of Active Threads*/
     ThreadID numThreads;

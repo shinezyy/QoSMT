@@ -87,12 +87,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       Programmable(params->iewProgrammable),
       hptInitDispatchWidth(params->hptInitDispatchWidth),
-      dispatched(params->numThreads, 0),
-      squashed(params->numThreads, 0),
-      dispatchable(params->numThreads, 0),
       BLBlocal(false),
-      missRecorded(params->numThreads, false),
-      headInst(params->numThreads, nullptr),
       l1Lat(params->l1Lat),
       localInstMiss(0)
 {
@@ -1786,7 +1781,6 @@ DefaultIEW<Impl>::tick()
     std::fill(dispatched.begin(), dispatched.end(), 0);
     std::fill(squashed.begin(), squashed.end(), 0);
     std::fill(headInst.begin(), headInst.end(), nullptr);
-    std::fill(missRecorded.begin(), missRecorded.end(), false);
 
     // Free function units marked as being freed this cycle.
     fuPool->processFreeUnits();

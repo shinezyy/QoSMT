@@ -46,6 +46,7 @@
 
 #include <queue>
 #include <vector>
+#include <array>
 
 #include "base/statistics.hh"
 #include "cpu/exetrace.hh"
@@ -609,7 +610,7 @@ class DefaultCommit
 
     int numCompLoads;
 
-    std::vector<bool> skipThisCycle;
+    std::array<bool, Impl::MaxThreads> skipThisCycle;
 };
 
 #endif // __CPU_O3_COMMIT_HH__

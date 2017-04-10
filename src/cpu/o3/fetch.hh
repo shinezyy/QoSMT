@@ -44,7 +44,7 @@
 #ifndef __CPU_O3_FETCH_HH__
 #define __CPU_O3_FETCH_HH__
 
-#include <vector>
+#include <array>
 
 #include "arch/decoder.hh"
 #include "arch/utility.hh"
@@ -453,7 +453,7 @@ class DefaultFetch : public SlotCounter<Impl>
     /** Tracks how many instructions has been fetched this cycle. */
     int numInst;
 
-    std::vector<int> numInsts;
+    std::array<int, Impl::MaxThreads> numInsts;
 
     /** Source of possible stalls. */
     struct Stalls {
@@ -478,7 +478,7 @@ class DefaultFetch : public SlotCounter<Impl>
 
     /** The width of fetch in instructions. */
     unsigned fetchWidth;
-    std::vector<unsigned> fetchWidths;
+    std::array<unsigned, Impl::MaxThreads> fetchWidths;
 
 
     /** The width of decode in instructions. */

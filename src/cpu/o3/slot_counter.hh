@@ -3,7 +3,7 @@
 
 
 #include <cstdint>
-#include <vector>
+#include <array>
 #include <string>
 
 #include "base/statistics.hh"
@@ -88,9 +88,9 @@ class SlotCounter
 
     ThreadID numThreads;
 
-    std::vector<int32_t> wait, miss;
+    std::array<int32_t, Impl::MaxThreads> wait, miss;
 
-    std::vector<std::vector<int32_t> > perCycleSlots;
+    std::array<std::array<int32_t, NumUse>, Impl::MaxThreads> perCycleSlots;
 
     public:
 

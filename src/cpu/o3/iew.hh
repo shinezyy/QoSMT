@@ -43,10 +43,10 @@
 #ifndef __CPU_O3_IEW_HH__
 #define __CPU_O3_IEW_HH__
 
-#include <vector>
 #include <algorithm>
 #include <queue>
 #include <set>
+#include <array>
 
 #include "base/statistics.hh"
 #include "cpu/o3/comm.hh"
@@ -553,18 +553,18 @@ class DefaultIEW : public SlotCounter<Impl>
 
     bool LBLC; /**LPT Block HPT in last cycle*/
 
-    std::vector<int> dispatched;
+    std::array<int, Impl::MaxThreads> dispatched;
 
-    std::vector<int> squashed;
+    std::array<int, Impl::MaxThreads> squashed;
 
-    std::vector<int> dispatchable;
+    std::array<int, Impl::MaxThreads> dispatchable;
 
     bool BLBlocal; //For Unblocking
 
-    std::vector<bool> missRecorded;
+    std::array<bool, Impl::MaxThreads> missRecorded;
 
     /**本周期dispatch出去的第一条指令*/
-    std::vector<DynInstPtr> headInst;
+    std::array<DynInstPtr, Impl::MaxThreads> headInst;
 
     DynInstPtr& getHeadInst(ThreadID tid) {
         assert(headInst[tid]);
@@ -575,8 +575,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
     /** 计算本周期不可避免的miss，注意LBLC */
     void computeMiss(ThreadID tid);
-
-    std::vector<int> slotsThisCycle;
 
     int numLPTcause;
 

@@ -77,16 +77,12 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       decodeToRenameDelay(params->decodeToRenameDelay),
       commitToRenameDelay(params->commitToRenameDelay),
       renameWidth(params->renameWidth),
-      renameWidths(params->numThreads, params->renameWidth / params->numThreads),
       commitWidth(params->commitWidth),
-      toIEWNum(params->numThreads, 0),
       numThreads(params->numThreads),
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
       availableInstCount(0),
-      BLBlocal(false),
-      renamable(params->numThreads, 0),
-      fullSource(params->numThreads, NONE)
+      BLBlocal(false)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -98,6 +94,9 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
 
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
         nrFreeRegs[i] = 0;
+    }
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        renameWidths[tid] = renameWidth/numThreads;
     }
     lptSQEntriesLimit = params->lptSQEntriesLimit;
 }

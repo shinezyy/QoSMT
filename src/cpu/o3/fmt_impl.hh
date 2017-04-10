@@ -18,11 +18,6 @@ FMT<Impl>::FMT(O3CPU *cpu_ptr, DerivO3CPUParams *params)
     : cpu(cpu_ptr),
     numThreads(params->numThreads)
 {
-    std::list<BranchEntry> entry;
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        table.push_back(entry);
-    }
-
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         BranchEntry dummy;
         bzero((void *)&dummy, sizeof(BranchEntry));

@@ -4,7 +4,7 @@
 
 #include <cstdint>
 #include <list>
-#include <vector>
+#include <array>
 
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
@@ -55,7 +55,7 @@ class FMT {
 
     IEW *iew;
 
-    std::vector<std::list<BranchEntry> > table;
+    std::array<std::list<BranchEntry>, Impl::MaxThreads> table;
 
     public:
 
