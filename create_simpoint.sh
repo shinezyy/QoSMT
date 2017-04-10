@@ -74,11 +74,11 @@ echo "" | tee -a $SCRIPT_OUT
 ################# detailed
 #gdb --args \
 nohup \
-$GEM5_DIR/build/$arch/gem5.opt\
+$GEM5_DIR/build/$arch/gem5.fast\
     --outdir=$output_dir\
     $GEM5_DIR/configs/spec/$conf\
     --simpoint-profile --simpoint-interval=100000000 --fastmem \
-    -I 1000000000 \
+    -I 1000000000000\
     --mem-size=4GB\
     --benchmark="$benchmark"\
     --benchmark_stdout=$output_dir\

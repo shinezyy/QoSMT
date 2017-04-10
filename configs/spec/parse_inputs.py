@@ -41,5 +41,7 @@ def get_input_dict():
 
 
 if __name__ == '__main__':
-    print get_input_dict()
+    name_map, cmd_map = get_input_dict()
+    for k in name_map:
+        print k
 

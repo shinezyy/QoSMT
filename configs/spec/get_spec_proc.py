@@ -59,7 +59,7 @@ class Spec06:
             for i, c in enumerate(cmds):
                 if not self.skip(c):
                     cmds[i] = pjoin(ref_input_dir, c)
-                    assert(os.path.isfile(cmds[i]))
+                    #assert(os.path.isfile(cmds[i]))
             proc.cmd = [executable] + ['-I{}lib'.format(all_input_dir)] + cmds
 
         elif benchmark_name == 'namd':
@@ -67,7 +67,7 @@ class Spec06:
             for i, c in enumerate(cmds):
                 if not self.skip(c):
                     cmds[i] = pjoin(all_input_dir, c)
-                    assert(os.path.isfile(cmds[i]))
+                    #assert(os.path.isfile(cmds[i]))
             proc.cmd = [executable] + cmds
 
         else:
@@ -75,9 +75,10 @@ class Spec06:
             for i, c in enumerate(cmds):
                 if not self.skip(c):
                     cmds[i] = pjoin(ref_input_dir, c)
-                    assert(os.path.isfile(cmds[i]))
+                    #assert(os.path.isfile(cmds[i]))
             proc.cmd = [executable] + cmds
 
+        print proc.cmd
         return proc
 
 

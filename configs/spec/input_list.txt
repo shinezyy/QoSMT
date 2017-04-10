@@ -131,7 +131,7 @@ povray SPEC-benchmark-ref.ini > povray.ref.out 2> povray.ref.err
 454.calculix (1 input)
 
 reference inputs:
-calculix -i hyperviscoplastic.inp > calculix.ref.out 2> calculix.ref.err
+calculix -i hyperviscoplastic > calculix.ref.out 2> calculix.ref.err
 
 456.hmmer (2 inputs)
 
