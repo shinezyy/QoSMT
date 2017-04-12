@@ -22,3 +22,6 @@ tags
 st_run
 smt_run
 simpoint
+/checkpoint
+/checkpoint_merge
+/smt_checkpoint
