@@ -72,15 +72,25 @@ echo "" | tee -a $SCRIPT_OUT
 echo "" | tee -a $SCRIPT_OUT
 
 ################# detailed
-#gdb --args \
-nohup \
-$GEM5_DIR/build/$arch/gem5.fast\
+#nohup \
+#    > $output_dir/nohup.$benchmark 2>&1 &
+gdb --args \
+$GEM5_DIR/build/$arch/gem5.opt\
     --outdir=$output_dir\
     $GEM5_DIR/configs/spec/$conf\
-    --restore-simpoint-checkpoint -r 1 --checkpoint-dir $output_dir \
-    --mem-size=4GB\
+    $smt \
+    -r 1 --checkpoint-dir $output_dir \
+    --mem-size=8GB\
     --benchmark="$benchmark"\
     --benchmark_stdout=$output_dir\
     --benchmark_stderr=$output_dir\
-    --cpu-type='AtomicSimpleCPU' \
-    > $GEM5_DIR/checkpoint/checkpoint_out/nohup.$benchmark 2>&1 &
+    --cpu-type='detailed' \
+    --caches\
+    --cacheline_size=64\
+    --l1i_size=64kB\
+    --l1d_size=64kB\
+    --l1i_assoc=16\
+    --l1d_assoc=16\
+    --l2cache\
+    --l2_size=4MB\
+    --l2_assoc=16
