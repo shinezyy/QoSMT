@@ -275,4 +275,5 @@ else:
     MemConfig.config_mem(options, system)
 
 root = Root(full_system = False, system = system)
+# print 'FutureClass:', FutureClass
 Simulation.run(options, root, system, FutureClass)
