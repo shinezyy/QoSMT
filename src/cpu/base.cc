@@ -62,6 +62,7 @@
 #include "cpu/thread_context.hh"
 #include "debug/Mwait.hh"
 #include "debug/SyscallVerbose.hh"
+#include "debug/Unserial.hh"
 #include "mem/page_table.hh"
 #include "params/BaseCPU.hh"
 #include "sim/full_system.hh"
@@ -682,6 +683,7 @@ BaseCPU::unserialize(Checkpoint *cp, const std::string &section)
         // Unserialize the threads, this is done by the CPU implementation.
         for (ThreadID i = 0; i < numThreads; ++i)
             unserializeThread(cp, csprintf("%s.xc.%i", section, i), i);
+        DPRINTF(Unserial, "Unserializing thread context\n");
     }
 }
 

@@ -522,6 +522,7 @@ AtomicSimpleCPU::tick()
         // We must have just got suspended by a PC event
         if (_status == Idle) {
             tryCompleteDrain();
+            DPRINTF(SimpleCPU, "Idle and skip\n");
             return;
         }
 
@@ -606,8 +607,10 @@ AtomicSimpleCPU::tick()
             }
 
         }
-        if(fault != NoFault || !stayAtPC)
+        if(fault != NoFault || !stayAtPC) {
+            DPRINTF(SimpleCPU, "fault != NoFault || !stayAtPC\n");
             advancePC(fault);
+        }
     }
 
     if (tryCompleteDrain())
