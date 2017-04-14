@@ -75,7 +75,9 @@ def setCPUClass(options):
         fatal("%s must be used with caches" % options.cpu_type)
 
     if options.checkpoint_restore != None:
-        if options.restore_with_cpu != options.cpu_type:
+        # print options.restore_with_cpu
+        if options.restore_with_cpu != options.cpu_type and \
+           not options.restore_with_cpu is None:
             CPUClass = TmpClass
             TmpClass, test_mem_mode = getCPUClass(options.restore_with_cpu)
     elif options.fast_forward:

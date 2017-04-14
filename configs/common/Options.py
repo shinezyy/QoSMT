@@ -186,8 +186,13 @@ def addCommonOptions(parser):
                       help="checkpoint at specified work end count")
     parser.add_option("--work-cpus-checkpoint-count", action="store", type="int",
                       help="checkpoint and exit when active cpu count is reached")
+    '''
     parser.add_option("--restore-with-cpu", action="store", type="choice",
                       default="atomic", choices=CpuConfig.cpu_names(),
+                      help = "cpu type for restoring from a checkpoint")
+    '''
+    parser.add_option("--restore-with-cpu", action="store", type="choice",
+                      default=None, choices=CpuConfig.cpu_names(),
                       help = "cpu type for restoring from a checkpoint")
 
 
