@@ -29,7 +29,7 @@ class Spec06:
 
     def skip(self, s):
         nofile = ['<', '-', '.', 'gtp', 'reference.dat',
-                  'ctlfile', 'namd.out', '166.s',]
+                  'namd.out', '166.s',]
         if s.isdigit():
             return True
         for p in nofile:
@@ -70,15 +70,29 @@ class Spec06:
                     #assert(os.path.isfile(cmds[i]))
             proc.cmd = [executable] + cmds
 
+        elif benchmark_name == 'tonto':
+            proc.cmd = [executable]
+            proc.input = pjoin(ref_input_dir, 'stdin')
+            print 'stdin:', proc.input
         else:
             cmds = first_cmd_list[1:]
+            skip = False
             for i, c in enumerate(cmds):
+                if skip:
+                    skip = False
+                    pass
                 if not self.skip(c):
                     cmds[i] = pjoin(ref_input_dir, c)
                     #assert(os.path.isfile(cmds[i]))
+                elif '<' == c:
+                    skip = True
+                    proc.input = pjoin(ref_input_dir, cmds[i+1])
+                    print 'stdin:', proc.input
+                    cmds = cmds[:-2]
+                    break
             proc.cmd = [executable] + cmds
 
-        print proc.cmd
+        print 'cmd:', proc.cmd
         return proc
 
 
