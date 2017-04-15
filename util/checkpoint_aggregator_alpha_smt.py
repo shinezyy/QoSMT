@@ -143,6 +143,7 @@ def aggregate(output_dir, cpts, no_compress, memory_size):
     merged_config.set("system", "pagePtr", page_ptr)
     merged_config.set("system", "nextPID", len(cpts))
 
+    '''
     file_size = page_ptr * page_size
     dummy_data = "".zfill(page_size)
     while file_size < memory_size:
@@ -152,6 +153,7 @@ def aggregate(output_dir, cpts, no_compress, memory_size):
             agg_mem_file.write(dummy_data)
         file_size += page_size
         page_ptr += 1
+    '''
 
     print "WARNING: "
     print "Make sure the simulation using this checkpoint has at least ",

@@ -409,21 +409,28 @@ PhysicalMemory::unserializeStore(Checkpoint* cp, const string& section)
     uint8_t* pmem = backingStore[store_id].second;
     AddrRange range = backingStore[store_id].first;
 
-    long range_size;
+    uint64_t range_size;
     UNSERIALIZE_SCALAR(range_size);
 
     DPRINTF(Checkpoint, "Unserializing physical memory %s with size %d\n",
             filename, range_size);
 
-    if (range_size != range.size())
+    if (range_size != range.size()) {
+#if 0
         fatal("Memory range size has changed! Saw %lld, expected %lld\n",
               range_size, range.size());
+#endif
+        fprintf(stderr, "Although %lu memory is claimed,"
+                " checkpoint indicate that only %lu memory has been written."
+                " So rest of memories need not be restore from cpt\n",
+                range.size(), range_size);
+    }
 
     uint64_t curr_size = 0;
     long* temp_page = new long[chunk_size];
     long* pmem_current;
     uint32_t bytes_read;
-    while (curr_size < range.size()) {
+    while (curr_size < range_size) {
         bytes_read = gzread(compressed_mem, temp_page, chunk_size);
         if (bytes_read == 0)
             break;
