@@ -33,6 +33,9 @@ from ConfigParser import ConfigParser
 import gzip
 
 import sys, re, os
+from os.path import join as pjoin
+from os.path import expanduser as pexp
+from multiprocessing import Pool
 
 class myCP(ConfigParser):
     def __init__(self):
@@ -172,10 +175,95 @@ def aggregate(output_dir, cpts, no_compress, memory_size):
     else:
         agg_mem_file.close()
 
+
+def get_cpt(benchmark_cpt_dir):
+    dirs = [d for d in os.listdir(benchmark_cpt_dir) if os.path.isdir(d)]
+    num_cpts = reduce(lambda x, y: x.startswith('cpt.simpoint') + \
+                      y.startswith('cpt.simpoint'), dirs, 0)
+    if num_cpts != 1:
+        print 'Number of checkpoint-like directories is {}!'.format(num_cpts)
+        sys.exit()
+
+    for d in dirs:
+        if d.startswith('cpt.simpoint'):
+            return d
+
+def user_verify():
+    ok = raw_input('Is that OK? (y/n)')
+    if ok != 'y':
+        sys.exit()
+
+
+def has_cpt(cpt_dir):
+    dirs = [d for d in os.listdir(benchmark_cpt_dir) if os.path.isdir(d)]
+    num_cpts = reduce(lambda x, y: x.startswith('cpt.') + \
+                      y.startswith('cpt.'), dirs, 0)
+    return num_cpts != 0
+
+def get_benchmarks():
+    ret = []
+    with open('./all_function_spec.txt') as f:
+        for line in f:
+            ret.append(line.strip('\n'))
+    return ret
+
+
+def batch():
+    memory_size = '4GB'
+    gem5_dir = os.environ['gem5_root']
+    benchmarks = get_benchmarks()
+    solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
+    # merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
+    merged_cpt_dir = pjoin(gem5_dir, 'merge_test')
+    if not os.path.isdir(merged_cpt_dir):
+        print '{} is not directory!\n'.format(merged_cpt_dir)
+        sys.exit()
+
+    cpts = {}
+
+    for b in benchmarks:
+        cpts[b] = get_cpt(pjoin(solo_cpt_dir, b))
+        assert(cpts[b])
+
+    print 'Scanned following checkpoints:',
+    for b in cpts:
+        print b, cpts[b]
+    user_verify()
+
+    p = Pool(16)
+
+    pairs = []
+
+    for x in benchmarks:
+        for y in benchmarks:
+            xy = [x, y]
+            pairs.append(xy)
+            x_y = pjoin(merged_cpt_dir, x + '_' + y)
+            if not os.path.isdir(x_y):
+                os.makedirs(x_y)
+            elif has_cpt(x_y):
+                print 'Checkpoint-like directory already exists in {}!'.format(x_y)
+                sys.exit()
+
+    print 'Will map these pairs to workers:', pairs
+    user_verify()
+    print 'Will output to', merged_cpt_dir
+
+    p.map(lambda pair: aggregate( \
+                                 pjoin(merged_cpt_dir, pair[0]+'_'+pair[1]), \
+                                 [cpts[pair[0]], cpts[pair[1]]], \
+                                 False, memory_size),
+          pairs
+    )
+
+
+
 if __name__ == "__main__":
     from argparse import ArgumentParser
     parser = ArgumentParser("usage: %prog [options] <directory names which "\
                             "hold the checkpoints to be combined>")
+    parser.add_argument("-n", "--no-arg", action='store_true',
+                       help='If set, no other argument is needed')
     parser.add_argument("-o", "--output-dir", action="store",
                         help="Output directory")
     parser.add_argument("-c", "--no-compress", action="store_true")
@@ -185,10 +273,14 @@ if __name__ == "__main__":
     # Assume x86 ISA.  Any other ISAs would need extra stuff in this script
     # to appropriately parse their page tables and understand page sizes.
     options = parser.parse_args()
-    print options.cpts, len(options.cpts)
-    if len(options.cpts) <= 1:
-        parser.error("You must specify atleast two checkpoint files that "\
-                     "need to be combined.")
 
-    aggregate(options.output_dir, options.cpts, options.no_compress,
-              options.memory_size)
+    if options.no_arg:
+        batch()
+    else:
+        print options.cpts, len(options.cpts)
+        if len(options.cpts) <= 1:
+            parser.error("You must specify atleast two checkpoint files that "\
+                         "need to be combined.")
+
+        aggregate(options.output_dir, options.cpts, options.no_compress,
+                  options.memory_size)
