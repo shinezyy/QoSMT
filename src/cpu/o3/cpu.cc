@@ -51,7 +51,6 @@
 #include "cpu/o3/cpu.hh"
 #include "cpu/o3/isa_specific.hh"
 #include "cpu/o3/thread_context.hh"
-#include "cpu/o3/resource_manager.hh"
 #include "cpu/activity.hh"
 #include "cpu/quiesce_event.hh"
 #include "cpu/simple_thread.hh"
@@ -178,7 +177,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       iew(this, params),
       commit(this, params),
 
-      resourceManager(this, params),
       fmt(this, params),
       voc(this, params),
       bmt(this, params),
@@ -281,9 +279,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     commit.setIEWStage(&iew);
     rename.setIEWStage(&iew);
     rename.setCommitStage(&commit);
-    resourceManager.setFetch(&fetch);
-    resourceManager.setIQ(&iew.instQueue);
-    resourceManager.setLSQ(&iew.ldstQueue);
 
     fmt.setStage(&fetch, &decode, &iew);
     fetch.setFmt(&fmt);
@@ -370,11 +365,9 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     rename.setRenameMap(renameMap);
     commit.setRenameMap(commitRenameMap);
     rename.setFreeList(&freeList);
-    resourceManager.setRename(&rename);
 
     // Setup the ROB for whichever stages need it.
     commit.setROB(&rob);
-    resourceManager.setROB(commit.rob);
 
     lastActivatedCycle = 0;
 #if 0
@@ -452,15 +445,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
 
     for (ThreadID tid = 0; tid < this->numThreads; tid++)
         this->thread[tid]->setFuncExeInst(0);
-
-    resourceManager.readConfig();
-    resourceManager.reserveFetch();
-    resourceManager.reserveIQ();
-    resourceManager.reserveROB();
-    resourceManager.reserveLQ();
-    resourceManager.reserveSQ();
-    resourceManager.reserveRename();
-    resourceManager.reconfigIssuePrio();
 
     iew.ldstQueue.init(params);
     rob.init(params);

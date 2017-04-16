@@ -47,7 +47,6 @@
 #include "cpu/o3/rename_map.hh"
 #include "cpu/o3/rob.hh"
 #include "cpu/o3/store_set.hh"
-#include "cpu/o3/resource_manager.hh"
 #include "cpu/o3/fmt.hh"
 #include "cpu/o3/voc.hh"
 #include "cpu/o3/bmt.hh"
@@ -89,9 +88,6 @@ struct SimpleCPUPolicy
     typedef DefaultIEW<Impl> IEW;
     /** Typedef for commit. */
     typedef DefaultCommit<Impl> Commit;
-
-    /** Typedef for resource manager. */
-    typedef ResourceManager<Impl> ResManager;
 
     /** Typedef for front-end miss evnet table */
     typedef FMT<Impl> Fmt;

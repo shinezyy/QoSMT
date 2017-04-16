@@ -54,7 +54,6 @@
 #include "enums/OpClass.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/core.hh"
-#include "cpu/o3/resource_manager.hh"
 
 // clang complains about std::set being overloaded with Packet::set if
 // we open up the entire namespace std

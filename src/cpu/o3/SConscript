@@ -58,7 +58,6 @@ if 'O3CPU' in env['CPU_MODELS']:
     Source('scoreboard.cc')
     Source('store_set.cc')
     Source('thread_context.cc')
-    Source('resource_manager.cc')
     Source('fmt.cc')
     Source('voc.cc')
     Source('bmt.cc')
