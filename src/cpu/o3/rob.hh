@@ -415,6 +415,8 @@ class ROB
     unsigned sampleTime;
 
     unsigned sampleRate;
+
+    const unsigned hptInitPriv;
 };
 
 #endif //__CPU_O3_ROB_HH__

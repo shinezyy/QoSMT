@@ -49,6 +49,7 @@
 
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/inst_queue.hh"
+#include "cpu/o3/slot_counter.hh"
 #include "debug/IQ.hh"
 #include "debug/Pard.hh"
 #include "enums/OpClass.hh"
@@ -96,7 +97,8 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
       numUsedEntries(0),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->policyWindowSize)
+      sampleRate(params->policyWindowSize),
+      hptInitPriv(unsigned(float(numEntries) * params->hptIQPrivProp))
 {
     assert(fuPool);
 
@@ -182,17 +184,14 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
     } else if (policy == "programmable") {
         iqPolicy = Programmable;
 
-        int allocatedNum = 0;
+        portion[HPT] = hptInitPriv * denominator / numEntries;
+        maxEntries[HPT] = hptInitPriv;
+        unsigned portion_other_thread = (denominator - portion[HPT]) / (numThreads - 1);
 
-        ThreadID tid = 0;
-
-        for (; tid < numThreads - 1; tid++) {
-            portion[tid] = denominator / numThreads;
-            maxEntries[tid] = numEntries * portion[tid] / denominator;
-            allocatedNum += maxEntries[tid];
+        for (ThreadID tid = 1; tid < numThreads; tid++) {
+            portion[tid] = portion_other_thread;
+            maxEntries[tid] = numEntries * portion_other_thread / denominator;
         }
-        assert(allocatedNum <= numEntries);
-        maxEntries[tid] = numEntries - allocatedNum;
 
         DPRINTF(IQ, "IQ sharing policy set to Programmable\n");
         DPRINTF(Pard, "IQ sharing policy set to Programmable\n");

@@ -389,6 +389,9 @@ class LSQ {
     DynInstPtr getStoreHeadInst(ThreadID tid) {
         return thread[tid].getStoreHeadInst();
     }
+
+    const unsigned hptInitLQPriv;
+    const unsigned hptInitSQPriv;
 };
 
 template <class Impl>

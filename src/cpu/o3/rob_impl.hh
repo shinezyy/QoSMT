@@ -66,7 +66,8 @@ ROB<Impl>::ROB(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->policyWindowSize)
+      sampleRate(params->policyWindowSize),
+      hptInitPriv(unsigned(float(numEntries) * params->hptROBPrivProp))
 {
 }
 
@@ -116,21 +117,14 @@ ROB<Impl>::init(DerivO3CPUParams *params)
         DPRINTF(Pard, "ROB sharing policy set to Programmable\n");
         DPRINTF(Fetch, "ROB sharing policy set to Programmable\n");
 
-        int allocatedNum = 0, allocatedPortion = 0;
+        portion[HPT] = hptInitPriv * denominator / numEntries;
+        maxEntries[HPT] = hptInitPriv;
+        unsigned portion_other_thread = (denominator - portion[HPT]) / (numThreads - 1);
 
-        ThreadID tid = 0;
-
-        for(; tid < numThreads - 1; ++tid) {
-            portion[tid] = denominator / numThreads;
-            maxEntries[tid] = numEntries / numThreads;
-
-            allocatedNum += maxEntries[tid];
-            allocatedPortion += portion[tid];
+        for (ThreadID tid = 1; tid < numThreads; tid++) {
+            portion[tid] = portion_other_thread;
+            maxEntries[tid] = numEntries * portion_other_thread / denominator;
         }
-
-        assert(allocatedNum <= numEntries);
-        maxEntries[tid] = numEntries - allocatedNum;
-        portion[tid] = denominator - allocatedPortion;
 
         DPRINTF(Pard, "portion[0]: %d, portion[1]: %d\n", portion[0], portion[1]);
     } else {

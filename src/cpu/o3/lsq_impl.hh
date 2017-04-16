@@ -81,11 +81,19 @@ LSQ<Impl>::LSQ(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params)
       sqUptodate(false),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->policyWindowSize)
+      sampleRate(params->policyWindowSize),
+      hptInitLQPriv(unsigned(float(LQEntries) *params->hptLQPrivProp)),
+      hptInitSQPriv(unsigned(float(SQEntries) *params->hptSQPrivProp))
 {
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        LQPortion[tid] = denominator/numThreads;
-        SQPortion[tid] = denominator/numThreads;
+    LQPortion[HPT] = hptInitLQPriv * denominator / LQEntries;
+    SQPortion[HPT] = hptInitSQPriv * denominator / SQEntries;
+
+    unsigned lq_portion_other_thread = (denominator - LQPortion[HPT]) / (numThreads - 1);
+    unsigned sq_portion_other_thread = (denominator - SQPortion[HPT]) / (numThreads - 1);
+
+    for (ThreadID tid = 1; tid < numThreads; tid++) {
+        LQPortion[tid] = lq_portion_other_thread;
+        SQPortion[tid] = sq_portion_other_thread;
     }
 }
 
@@ -154,31 +162,12 @@ LSQ<Impl>::init(DerivO3CPUParams *params)
         DPRINTF(LSQ, "LSQ sharing policy set to Programmable\n");
         DPRINTF(Pard, "LSQ sharing policy set to Programmable\n");
 
-        int allocatedLQNum = 0;
-        int allocatedSQNum = 0;
-
-        ThreadID tid = 0;
-
-        for (;tid < numThreads - 1; ++tid) {
+        for (ThreadID tid = 0; tid < numThreads; ++tid) {
             maxLQEntries[tid] = LQEntries*LQPortion[tid]/denominator;
             maxSQEntries[tid] = SQEntries*SQPortion[tid]/denominator;
-            DPRINTF(Pard, "LQEntries: %d\n", LQEntries);
+            DPRINTF(Pard, "LQEntries[%d]: %d\n", tid, LQEntries);
             DPRINTF(Pard, "LQPortion[%d]: %d\n", tid, LQPortion[tid]);
-            DPRINTF(Pard, "Allocate LQNum[%d]: %d\n", tid, maxLQEntries[tid]);
-            DPRINTF(Pard, "Allocate SQNum[%d]: %d\n", tid, maxSQEntries[tid]);
-
-            allocatedLQNum += maxLQEntries[tid];
-            allocatedSQNum += maxSQEntries[tid];
         }
-        DPRINTF(Pard, "allocatedLQNum: %d. allocatedSQNum: %d\n",
-                allocatedLQNum, allocatedSQNum);
-
-        assert(allocatedLQNum <= LQEntries);
-        assert(allocatedSQNum <= SQEntries);
-
-        maxLQEntries[tid] = LQEntries - allocatedLQNum;
-        maxSQEntries[tid] = SQEntries - allocatedSQNum;
-
     } else {
         assert(0 && "Invalid LSQ Sharing Policy.Options Are:{Dynamic,"
                     "Partitioned, Threshold}");

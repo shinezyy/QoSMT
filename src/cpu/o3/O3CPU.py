@@ -177,10 +177,10 @@ class DerivO3CPU(BaseCPU):
     hptFetchProp = Param.Float(0, "Initial dispatch width of HPT")
     hptDispatchProp = Param.Float(0, "Initial dispatch width of HPT") #
 
-    hptROBProp = Param.Float(0, "Initial dispatch width of HPT")
-    hptIQProp = Param.Float(0, "Initial dispatch width of HPT")
-    hptLQProp = Param.Float(0, "Initial dispatch width of HPT")
-    hptSQProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptROBPrivProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptIQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptLQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptSQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
 
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")

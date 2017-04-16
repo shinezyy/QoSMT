@@ -619,6 +619,8 @@ class InstructionQueue
     unsigned sampleTime;
 
     unsigned sampleRate;
+
+    const unsigned hptInitPriv;
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__
