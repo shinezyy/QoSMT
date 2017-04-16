@@ -173,7 +173,14 @@ class DerivO3CPU(BaseCPU):
     expectedSlowdown = Param.Int(200, "Expected max slowdown 1024 as deno")
 
     iewProgrammable = Param.Bool(True, "Enable programmable dispatch")
-    hptInitDispatchWidth = Param.Unsigned(0, "Initial dispatch width of HPT")
+
+    hptFetchProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptDispatchProp = Param.Float(0, "Initial dispatch width of HPT") #
+
+    hptROBProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptIQProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptLQProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptSQProp = Param.Float(0, "Initial dispatch width of HPT")
 
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")

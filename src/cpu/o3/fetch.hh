@@ -637,6 +637,8 @@ class DefaultFetch : public SlotCounter<Impl>
         panic("T[%i]: No available insts to next stage!\n", tid);
         return toDecode->insts[~0];
     }
+
+    const unsigned hptInitWidth;
 };
 
 #endif //__CPU_O3_FETCH_HH__

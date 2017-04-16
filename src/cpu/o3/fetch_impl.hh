@@ -99,7 +99,8 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
       fetchQueueSize(params->fetchQueueSize),
       numThreads(params->numThreads),
       numFetchingThreads(params->smtNumFetchingThreads),
-      fetchWidthUpToDate(true)
+      fetchWidthUpToDate(true),
+      hptInitWidth(int(float(fetchWidth) * params->hptFetchProp))
 {
     if (numThreads > Impl::MaxThreads)
         fatal("numThreads (%d) is larger than compiled limit (%d),\n"
@@ -171,6 +172,14 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         finishTranslationEvents[tid] = new FinishTranslationEvent(this);
         fetchWidths[tid] =  fetchWidth / numThreads;
+    }
+
+    if (hptInitWidth != 0) {
+        fetchWidths[HPT] = hptInitWidth;
+        for (ThreadID tid = 1; tid < numThreads; tid++) {
+            fetchWidths[tid] =
+                (fetchWidth - hptInitWidth)/(numThreads - 1);
+        }
     }
 }
 

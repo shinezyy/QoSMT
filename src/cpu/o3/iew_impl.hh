@@ -86,7 +86,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       wbWidth(params->wbWidth),
       numThreads(params->numThreads),
       Programmable(params->iewProgrammable),
-      hptInitDispatchWidth(params->hptInitDispatchWidth),
+      hptInitDispatchWidth(int(float(dispatchWidth) * params->hptDispatchProp)),
       BLBlocal(false),
       l1Lat(params->l1Lat),
       localInstMiss(0)
@@ -122,7 +122,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
 
     if (hptInitDispatchWidth != 0) {
         // overwrite assignments to DisWidthin last for statment
-        dispatchWidths[0] = hptInitDispatchWidth;
+        dispatchWidths[HPT] = hptInitDispatchWidth;
         for (ThreadID tid = 1; tid < numThreads; tid++) {
             dispatchWidths[tid] =
                 (dispatchWidth - hptInitDispatchWidth)/(numThreads - 1);
