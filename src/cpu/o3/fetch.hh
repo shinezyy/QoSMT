@@ -478,8 +478,6 @@ class DefaultFetch : public SlotCounter<Impl>
 
     /** The width of fetch in instructions. */
     unsigned fetchWidth;
-    std::array<unsigned, Impl::MaxThreads> fetchWidths;
-
 
     /** The width of decode in instructions. */
     unsigned decodeWidth;
@@ -638,7 +636,9 @@ class DefaultFetch : public SlotCounter<Impl>
         return toDecode->insts[~0];
     }
 
-    const unsigned hptInitWidth;
+    const unsigned numTimeSlice;
+
+    unsigned hptInitSlice;
 };
 
 #endif //__CPU_O3_FETCH_HH__

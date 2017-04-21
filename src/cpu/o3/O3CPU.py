@@ -59,7 +59,7 @@ class DerivO3CPU(BaseCPU):
     iewToFetchDelay = Param.Cycles(1, "Issue/Execute/Writeback to fetch "
                                    "delay")
     commitToFetchDelay = Param.Cycles(1, "Commit to fetch delay")
-    fetchWidth = Param.Unsigned(16, "Fetch width")
+    fetchWidth = Param.Unsigned(8, "Fetch width")
     fetchBufferSize = Param.Unsigned(64, "Fetch buffer size in bytes")
     fetchQueueSize = Param.Unsigned(32, "Fetch queue size in micro-ops "
                                     "per-thread")
@@ -129,7 +129,7 @@ class DerivO3CPU(BaseCPU):
     numIQEntries = Param.Unsigned(64, "Number of instruction queue entries")
     numROBEntries = Param.Unsigned(192, "Number of reorder buffer entries")
 
-    smtNumFetchingThreads = Param.Unsigned(2, "SMT Number of Fetching Threads")
+    smtNumFetchingThreads = Param.Unsigned(1, "SMT Number of Fetching Threads")
 
     smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
     #smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")

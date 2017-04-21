@@ -82,7 +82,7 @@ using namespace std;
 
 template<class Impl>
 DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
-    : SlotCounter<Impl>(params, params->fetchWidth / params->numThreads),
+    : SlotCounter<Impl>(params, params->fetchWidth),
       denominator(1024),
       cpu(_cpu),
       decodeToFetchDelay(params->decodeToFetchDelay),
@@ -100,7 +100,8 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       numFetchingThreads(params->smtNumFetchingThreads),
       fetchWidthUpToDate(true),
-      hptInitWidth(int(float(fetchWidth) * params->hptFetchProp))
+      numTimeSlice(32),
+      hptInitSlice(int(float(numTimeSlice) * params->hptFetchProp))
 {
     if (numThreads > Impl::MaxThreads)
         fatal("numThreads (%d) is larger than compiled limit (%d),\n"
@@ -171,15 +172,6 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     finishTranslationEvents = new FinishTranslationEvent * [numThreads];
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         finishTranslationEvents[tid] = new FinishTranslationEvent(this);
-        fetchWidths[tid] =  fetchWidth / numThreads;
-    }
-
-    if (hptInitWidth != 0) {
-        fetchWidths[HPT] = hptInitWidth;
-        for (ThreadID tid = 1; tid < numThreads; tid++) {
-            fetchWidths[tid] =
-                (fetchWidth - hptInitWidth)/(numThreads - 1);
-        }
     }
 }
 
@@ -742,8 +734,7 @@ DefaultFetch<Impl>::finishTranslation(const Fault &fault, RequestPtr mem_req)
         }
     } else {
         // Don't send an instruction to decode if we can't handle it.
-        if (!(numInst < fetchWidth) || !(fetchQueue[tid].size() < fetchQueueSize) ||
-                !(numInsts[tid] < fetchWidths[tid])) {
+        if (!(numInst < fetchWidth) || !(fetchQueue[tid].size() < fetchQueueSize)) {
             DPRINTF(SmtFetch, "Fault! delayedFetch of Thread [%i].\n", tid);
             assert(!finishTranslationEvents[tid]->scheduled());
             finishTranslationEvents[tid]->setFault(fault);
@@ -1018,10 +1009,6 @@ DefaultFetch<Impl>::tick()
         // Wrap around if at end of active threads list
         if (tid_itr == activeThreads->end())
             tid_itr = activeThreads->begin();
-
-        if (numInsts[tid] >= fetchWidths[tid]) {
-            break;
-        }
     }
 
     // If there was activity this cycle, inform the CPU of it.
@@ -1328,7 +1315,7 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     // Keep issuing while fetchWidth is available and branch is not
     // predicted taken
     while (numInst < fetchWidth && fetchQueue[tid].size() < fetchQueueSize
-           && !predictedBranch && !quiesce && numInsts[tid] < fetchWidths[tid]) {
+           && !predictedBranch && !quiesce) {
         // We need to process more memory if we aren't going to get a
         // StaticInst from the rom, the current macroop, or what's already
         // in the decoder.
@@ -1454,14 +1441,13 @@ DefaultFetch<Impl>::fetch(bool &status_change)
                 break;
             }
         } while ((curMacroop || decoder[tid]->instReady()) &&
-                 numInst < fetchWidth && numInsts[tid] < fetchWidths[tid] &&
-                 fetchQueue[tid].size() < fetchQueueSize);
+                 numInst < fetchWidth && fetchQueue[tid].size() < fetchQueueSize);
     }
 
     if (predictedBranch) {
         DPRINTF(Fetch, "[tid:%i]: Done fetching, predicted branch "
                 "instruction encountered.\n", tid);
-    } else if (numInst >= fetchWidth && numInsts[tid] > fetchWidths[tid]) {
+    } else if (numInst >= fetchWidth) {
         DPRINTF(Fetch, "[tid:%i]: Done fetching, reached fetch bandwidth "
                 "for this cycle.\n", tid);
     } else if (blkOffset >= fetchBufferSize) {
@@ -1801,12 +1787,6 @@ DefaultFetch<Impl>::updateFetchWidth()
             for (int i = 0; i < width; i++) {
                 priorityList.push_back(tid);
             }
-#if 0
-            if (tid == HPT) {
-                this->width = width;
-            }
-            fetchWidths[tid] = width;
-#endif
             DPRINTF(Pard, "Thread %d fetch width: %d\n",
                     tid, width);
         }
@@ -1829,9 +1809,9 @@ _do_block:
             toDecode->frontEndMiss = false;
 
             if (fromDecode->decodeInfo[tid].BLB) {
-                this->incLocalSlots(tid, LaterWait, fetchWidths[tid]);
+                this->incLocalSlots(tid, LaterWait, fetchWidth);
             } else {
-                this->incLocalSlots(tid, LaterMiss, fetchWidths[tid]);
+                this->incLocalSlots(tid, LaterMiss, fetchWidth);
             }
             break;
         case(IcacheAccessComplete):
@@ -1839,17 +1819,17 @@ _do_block:
             if (numInsts[tid]) {
                 toDecode->frontEndMiss = false;
                 this->incLocalSlots(tid, Base, numInsts[tid]);
-                this->incLocalSlots(tid, InstMiss, fetchWidths[tid] - numInsts[tid]);
+                this->incLocalSlots(tid, InstMiss, fetchWidth - numInsts[tid]);
             } else {
                 toDecode->frontEndMiss = true;
-                this->incLocalSlots(tid, InstMiss, fetchWidths[tid]);
+                this->incLocalSlots(tid, InstMiss, fetchWidth);
             }
             break;
         // This should be miss ? case(Idle):
         default: /** Icache miss and branch misPred are both front end miss*/
             toDecode->frontEndMiss = true;
 
-            this->incLocalSlots(tid, InstMiss, fetchWidths[tid]);
+            this->incLocalSlots(tid, InstMiss, fetchWidth);
             break;
     }
 }
