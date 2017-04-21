@@ -1,0 +1,12 @@
+gobmk
+cactusADM
+lbm
+bzip2
+gromacs
+
+gcc
+h264ref
+soplex
+perlbench
+mcf
+omnetpp
