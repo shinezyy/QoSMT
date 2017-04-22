@@ -71,7 +71,7 @@ using namespace std;
 
 template <class Impl>
 DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
-    : SlotCounter<Impl>(params, params->renameWidth / params->numThreads),
+    : SlotCounter<Impl>(params, params->renameWidth),
       cpu(_cpu),
       iewToRenameDelay(params->iewToRenameDelay),
       decodeToRenameDelay(params->decodeToRenameDelay),
@@ -95,10 +95,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
         nrFreeRegs[i] = 0;
     }
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        renameWidths[tid] = renameWidth/numThreads;
-    }
-    lptSQEntriesLimit = params->lptSQEntriesLimit;
 }
 
 template <class Impl>
@@ -820,8 +816,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     int renamed_insts = 0;
 
-    while (insts_available > 0 &&  toIEWIndex < renameWidth &&
-            toIEWNum[tid] < renameWidths[tid]) {
+    while (insts_available > 0 &&  toIEWIndex < renameWidth) {
         DPRINTF(Rename, "[tid:%u]: Sending instructions to IEW.\n", tid);
 
         assert(!insts_to_rename.empty());
@@ -1612,7 +1607,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             default:
                 break;
         }
-        numLPTcause = std::min(numAvailInsts, renameWidths[tid]);
+        numLPTcause = std::min(numAvailInsts, renameWidth);
         DPRINTF(FmtSlot2, "T[0]: %i insts in skidbuffer, %i insts from decode\n",
                 skidBuffer[tid].size(), insts[tid].size());
     }
@@ -1632,7 +1627,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == HPT) {
-            LB_all = calcOwnROBEntries(LPT) >= renameWidths[HPT];
+            LB_all = calcOwnROBEntries(LPT) >= renameWidth;
             LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnROBEntries(LPT), numLPTcause);
             numROBWait[HPT]++;
@@ -1647,7 +1642,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == HPT) {
-            LB_all = calcOwnIQEntries(LPT) >= renameWidths[HPT];
+            LB_all = calcOwnIQEntries(LPT) >= renameWidth;
             LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnIQEntries(LPT), numLPTcause);
 
@@ -2014,7 +2009,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             if (BLBlocal) {
                 DPRINTF(LB, "Send BLB to Decode becaues of BLBlocal\n");
             }
-            if (toIEWNum[tid] < renameWidths[tid] && LBLC) {
+            if (toIEWNum[tid] < renameWidth && LBLC) {
                 DPRINTF(LB, "LPT blocked HPT in last cycle, leads to bandwidth waste,"
                         "in this cycle\n");
             }
@@ -2050,20 +2045,20 @@ DefaultRename<Impl>::getRenamable()
 
             case Blocked:
                 renamable[tid] = std::min((int) skidBuffer[tid].size(),
-                        (int) renameWidths[tid]);
+                        (int) renameWidth);
                 DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
 
             case Unblocking:
                 renamable[tid] = std::min((int) skidBuffer[tid].size(),
-                        (int) renameWidths[tid]);
+                        (int) renameWidth);
                 DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to rename\n",
                         tid, renamable[tid]);
                 /**should rename*/
                 if(!fromDecode->frontEndMiss && LBLC) {
                     DPRINTF(FmtSlot2, "T[%i] has %i insts should rename\n",
-                            tid, renameWidths[tid]);
+                            tid, renameWidth);
                 }
                 break;
 
@@ -2075,7 +2070,7 @@ DefaultRename<Impl>::getRenamable()
 
             case SerializeStall:
                 renamable[tid] = std::min((int) skidBuffer[tid].size(),
-                        (int) renameWidths[tid]);
+                        (int) renameWidth);
                 DPRINTF(FmtSlot2, "T[%i][Serialize Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
@@ -2092,8 +2087,8 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
     switch (renameStatus[tid]) {
         case Running:
         case Idle:
-            if (renamable[tid] < renameWidths[tid]) {
-                int wasted = renameWidths[tid] - renamable[tid];
+            if (renamable[tid] < renameWidth) {
+                int wasted = renameWidth - renamable[tid];
                 this->incLocalSlots(HPT, InstMiss, wasted);
 
                 DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
@@ -2102,8 +2097,8 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
             break;
 
         case Unblocking:
-            if (renamable[tid] < renameWidths[tid]) {
-                int wasted = renameWidths[tid] - renamable[tid];
+            if (renamable[tid] < renameWidth) {
+                int wasted = renameWidth - renamable[tid];
                 if (fromDecode->frontEndMiss || !LBLC) {
                     this->incLocalSlots(HPT, InstMiss, wasted);
                 } else {
@@ -2115,23 +2110,23 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         case Blocked:
             /**block一定导致本周期miss */
             if (fromDecode->frontEndMiss) {
-                this->incLocalSlots(HPT, InstMiss, renameWidths[tid], false);
+                this->incLocalSlots(HPT, InstMiss, renameWidth, false);
 
             } else if (missStat.numL2MissLoad[HPT]) {
-                this->incLocalSlots(HPT, EntryMiss, renameWidths[tid], true);
+                this->incLocalSlots(HPT, EntryMiss, renameWidth, true);
 
             } else if (missStat.numL2MissLoad[LPT]) {
                 LB_all = true;
-                this->incLocalSlots(HPT, EntryWait, renameWidths[tid], true);
+                this->incLocalSlots(HPT, EntryWait, renameWidth, true);
 
             } else if (fromIEW->iewInfo[0].BLB) {
                 this->incLocalSlots(HPT, InstMiss,
-                        renameWidths[tid] - numLPTcause, false);
+                        renameWidth - numLPTcause, false);
                 this->incLocalSlots(HPT, LaterWait, numLPTcause, true);
 
             } else if (LB_all) {
                 this->incLocalSlots(HPT, InstMiss,
-                        renameWidths[tid] - numLPTcause, false);
+                        renameWidth - numLPTcause, false);
                 this->incLocalSlots(HPT, EntryWait, numLPTcause, true);
 
             } else if (LB_part) {
@@ -2139,25 +2134,25 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
                 this->incLocalSlots(HPT, ComputeEntryMiss,
                         renamable[HPT] - numLPTcause, true);
                 this->incLocalSlots(HPT, InstMiss,
-                        renameWidths[HPT] - renamable[HPT], false);
+                        renameWidth - renamable[HPT], false);
             } else {
                 this->incLocalSlots(HPT, EntryMiss, renamable[HPT], true);
                 this->incLocalSlots(HPT, InstMiss,
-                        renameWidths[HPT] - renamable[HPT], false);
+                        renameWidth - renamable[HPT], false);
             }
             break;
 
         case Squashing:
         case StartSquash:
             /**Squash一定导致本周期miss*/
-            this->incLocalSlots(HPT, InstMiss, renameWidths[tid]);
+            this->incLocalSlots(HPT, InstMiss, renameWidth);
 
             DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
-                    tid, renameWidths[tid]);
+                    tid, renameWidth);
             break;
 
         case SerializeStall:
-            this->incLocalSlots(HPT, SerializeMiss, renameWidths[tid]);
+            this->incLocalSlots(HPT, SerializeMiss, renameWidth);
             break;
 
         default:

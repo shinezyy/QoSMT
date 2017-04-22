@@ -375,10 +375,10 @@ class DefaultFetch : public SlotCounter<Impl>
 
     int denominator;
 
-    void reassignFetchWidth(int newWidthVec[],
+    void reassignFetchSlice(int newWidthVec[],
             int lenWidthVec, int newWidthDenominator);
 
-    int getHPTPortion() {return portion[0];}
+    int getHPTPortion() {return portion[HPT];}
 
   private:
     DynInstPtr buildInst(ThreadID tid, StaticInstPtr staticInst,
@@ -610,7 +610,7 @@ class DefaultFetch : public SlotCounter<Impl>
 
   public:
 
-    void updateFetchWidth();
+    void updateFetchSlice();
 
     bool fetchWidthUpToDate;
 
@@ -637,8 +637,6 @@ class DefaultFetch : public SlotCounter<Impl>
     }
 
     const unsigned numTimeSlice;
-
-    unsigned hptInitSlice;
 };
 
 #endif //__CPU_O3_FETCH_HH__

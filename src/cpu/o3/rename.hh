@@ -454,9 +454,6 @@ class DefaultRename : public SlotCounter<Impl>
     /** Rename width, in instructions. */
     unsigned renameWidth;
 
-    std::array<unsigned, Impl::MaxThreads> renameWidths;
-
-
     /** Commit width, in instructions.  Used so rename knows how many
      *  instructions might have freed registers in the previous cycle.
      */

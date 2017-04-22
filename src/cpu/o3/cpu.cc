@@ -735,7 +735,7 @@ FullO3CPU<Impl>::fetchControl()
         if (vec[0] != fetch.getHPTPortion()) {
             DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
-            fetch.reassignFetchWidth(vec, 2, 1024);
+            fetch.reassignFetchSlice(vec, 2, 1024);
         }
 
         vec[0] = iew.getHPTWidth() + 1;
@@ -757,7 +757,7 @@ FullO3CPU<Impl>::fetchControl()
         if (vec[0] != fetch.getHPTPortion()) {
             DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
-            fetch.reassignFetchWidth(vec, 2, 1024);
+            fetch.reassignFetchSlice(vec, 2, 1024);
         }
 
         vec[0] = iew.getHPTWidth() - 1;

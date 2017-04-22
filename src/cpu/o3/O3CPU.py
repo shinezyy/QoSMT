@@ -69,13 +69,13 @@ class DerivO3CPU(BaseCPU):
                                     "delay")
     commitToDecodeDelay = Param.Cycles(1, "Commit to decode delay")
     fetchToDecodeDelay = Param.Cycles(1, "Fetch to decode delay")
-    decodeWidth = Param.Unsigned(16, "Decode width")
+    decodeWidth = Param.Unsigned(8, "Decode width")
 
     iewToRenameDelay = Param.Cycles(1, "Issue/Execute/Writeback to rename "
                                     "delay")
     commitToRenameDelay = Param.Cycles(1, "Commit to rename delay")
     decodeToRenameDelay = Param.Cycles(1, "Decode to rename delay")
-    renameWidth = Param.Unsigned(16, "Rename width")
+    renameWidth = Param.Unsigned(8, "Rename width")
 
     commitToIEWDelay = Param.Cycles(1, "Commit to "
                "Issue/Execute/Writeback delay")
@@ -174,8 +174,8 @@ class DerivO3CPU(BaseCPU):
 
     iewProgrammable = Param.Bool(True, "Enable programmable dispatch")
 
-    hptFetchProp = Param.Float(0, "Initial dispatch width of HPT")
-    hptDispatchProp = Param.Float(0, "Initial dispatch width of HPT") #
+    hptFetchProp = Param.Float(0, "Initial dispatch time slice of HPT")
+    hptDispatchProp = Param.Float(0, "Initial dispatch time slice of HPT") #
 
     hptROBPrivProp = Param.Float(0, "Initial dispatch width of HPT")
     hptIQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
@@ -184,7 +184,6 @@ class DerivO3CPU(BaseCPU):
 
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")
-    lptSQEntriesLimit = Param.Int(0, "Low priority thread store queue entries limitation")
 
     fullThreshold = Param.Int(128, 'when full/cycle > threshold,' +
                              'it should be controlled')

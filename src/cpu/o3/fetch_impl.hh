@@ -100,8 +100,7 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads(params->numThreads),
       numFetchingThreads(params->smtNumFetchingThreads),
       fetchWidthUpToDate(true),
-      numTimeSlice(32),
-      hptInitSlice(int(float(numTimeSlice) * params->hptFetchProp))
+      numTimeSlice(32)
 {
     if (numThreads > Impl::MaxThreads)
         fatal("numThreads (%d) is larger than compiled limit (%d),\n"
@@ -923,7 +922,7 @@ DefaultFetch<Impl>::tick()
 
     wroteToTimeBuffer = false;
 
-    updateFetchWidth();
+    updateFetchSlice();
 
     for (ThreadID i = 0; i < numThreads; ++i) {
         issuePipelinedIfetch[i] = false;
@@ -1702,7 +1701,7 @@ DefaultFetch<Impl>::pipelineIcacheAccesses(ThreadID tid)
 
 template<class Impl>
 void
-DefaultFetch<Impl>::reassignFetchWidth(int newWidthVec[],
+DefaultFetch<Impl>::reassignFetchSlice(int newWidthVec[],
         int lenWidthVec, int newWidthDenominator)
 {
     //assert(lenWidthVec == numThreads);
@@ -1715,7 +1714,6 @@ DefaultFetch<Impl>::reassignFetchWidth(int newWidthVec[],
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         portion[tid] = newWidthVec[tid];
     }
-
     denominator = newWidthDenominator;
 }
 
@@ -1770,7 +1768,7 @@ DefaultFetch<Impl>::profileStall(ThreadID tid) {
 
 template <class Impl>
 void
-DefaultFetch<Impl>::updateFetchWidth()
+DefaultFetch<Impl>::updateFetchSlice()
 {
     if (fetchWidthUpToDate)
         return;
@@ -1779,16 +1777,20 @@ DefaultFetch<Impl>::updateFetchWidth()
     DPRINTF(Fetch, "Updating fetch width\n");
     priorityList.clear();
 
-    for (ThreadID tid = 0; tid < numThreads; ++tid) {
-        if (fetchPolicy != Programmable) {
+    if (fetchPolicy != Programmable) {
+        for (ThreadID tid = 0; tid < numThreads; ++tid) {
             priorityList.push_back(tid);
-        } else {
-            int width = fetchWidth * portion[tid] / denominator;
-            for (int i = 0; i < width; i++) {
-                priorityList.push_back(tid);
+        }
+    } else {
+        float hptSlice = 0;
+        float hptProp = float(portion[HPT]) / float(denominator);
+
+        for (unsigned t = 0; t < numTimeSlice; t++) {
+            if (hptSlice / (float(numTimeSlice)) < hptProp) {
+                priorityList.push_back(HPT);
+            } else {
+                priorityList.push_back(HPT + 1);
             }
-            DPRINTF(Pard, "Thread %d fetch width: %d\n",
-                    tid, width);
         }
     }
 

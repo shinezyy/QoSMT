@@ -66,7 +66,7 @@ using std::list;
 
 template<class Impl>
 DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
-    : SlotCounter<Impl>(params, params->decodeWidth / params->numThreads),
+    : SlotCounter<Impl>(params, params->decodeWidth),
       cpu(_cpu),
       renameToDecodeDelay(params->renameToDecodeDelay),
       iewToDecodeDelay(params->iewToDecodeDelay),
@@ -88,9 +88,6 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
     storeRate = 0.0;
     numStores = 0;
     storeIndex = 0;
-    for (ThreadID tid  = 0; tid < numThreads; tid ++) {
-        decodeWidths[tid] = decodeWidth/numThreads;
-    }
 }
 
 template<class Impl>
@@ -732,8 +729,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
     DPRINTF(Decode, "[tid:%u]: Sending instruction to rename.\n",tid);
 
-    while (insts_available > 0 && toRenameIndex < decodeWidth &&
-            toRenameNum[tid] < decodeWidths[tid]) {
+    while (insts_available > 0 && toRenameIndex < decodeWidth) {
         assert(!insts_to_decode.empty());
 
         inst = insts_to_decode.front();
@@ -852,11 +848,11 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             }
 
             if (fromFetch->frontEndMiss) {
-                this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
+                this->incLocalSlots(tid, InstMiss, decodeWidth);
             } else if (fromRename->renameInfo[tid].BLB){
-                this->incLocalSlots(tid, LaterWait, decodeWidths[tid]);
+                this->incLocalSlots(tid, LaterWait, decodeWidth);
             } else {
-                this->incLocalSlots(tid, LaterMiss, decodeWidths[tid]);
+                this->incLocalSlots(tid, LaterMiss, decodeWidth);
             }
 
             break;
@@ -867,7 +863,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             toFetch->decodeInfo[tid].BLB = false;
             DPRINTF(LB, "No BLB because of Squashign\n");
 
-            this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
+            this->incLocalSlots(tid, InstMiss, decodeWidth);
             break;
 
         case(Running):
@@ -880,9 +876,9 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             if (toRenameNum[tid]) {
                 this->incLocalSlots(tid, Base, toRenameNum[tid]);
                 this->incLocalSlots(tid, InstMiss,
-                        decodeWidths[tid] - toRenameNum[tid]);
+                        decodeWidth - toRenameNum[tid]);
             } else {
-                this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
+                this->incLocalSlots(tid, InstMiss, decodeWidth);
             }
 
             break;
@@ -896,9 +892,9 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             if (toRenameNum[tid]) {
                 this->incLocalSlots(tid, Base, toRenameNum[tid]);
                 this->incLocalSlots(tid, InstMiss,
-                        decodeWidths[tid] - toRenameNum[tid]);
+                        decodeWidth - toRenameNum[tid]);
             } else {
-                this->incLocalSlots(tid, InstMiss, decodeWidths[tid]);
+                this->incLocalSlots(tid, InstMiss, decodeWidth);
             }
 
             if (BLBlocal) {

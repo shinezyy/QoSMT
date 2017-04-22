@@ -271,8 +271,6 @@ class DefaultDecode : public SlotCounter<Impl>
     /** The width of decode, in instructions. */
     unsigned decodeWidth;
 
-    std::array<unsigned, Impl::MaxThreads> decodeWidths;
-
     /** Index of instructions being sent to rename. */
     unsigned toRenameIndex;
 
