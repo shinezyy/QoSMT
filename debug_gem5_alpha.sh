@@ -72,11 +72,11 @@ echo "" | tee -a $SCRIPT_OUT
 ################# detailed
 # --debug-start=1000000\
 # --debug-file=trace.out\
-#gdb --args \
+#    --debug-flags="Pard,missTry"\
+gdb --args \
 $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --outdir=$output_dir\
-    --debug-flags="Pard,missTry"\
-    $GEM5_DIR/configs/spec/run_spec.py\
+    $GEM5_DIR/configs/spec/sim_st.py\
     --benchmark="$benchmark"\
     --benchmark_stdout=$output_dir\
     --benchmark_stderr=$output_dir\
@@ -91,5 +91,5 @@ $GEM5_DIR/build/$arch/gem5.$gem5_ver\
     --l2cache\
     --l2_size=4MB\
     --l2_assoc=16\
-    $smt\
-    > stdout/debug.$benchmark 2>&1 &
+    $smt
+#    > stdout/debug.$benchmark 2>&1 &

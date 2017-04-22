@@ -25,3 +25,4 @@ simpoint
 /checkpoint
 /checkpoint_merge
 /smt_checkpoint
+merge_test
