@@ -242,12 +242,16 @@ for cpu in system.cpu:
 
     # configs for control
     cpu.controlPolicy = 'Combined'
-    cpu.iewProgrammable = True
-    hptInitDispatchWidth = 4
+
     cpu.smtFetchPolicy = 'Programmable'
+    cpu.hptFetchProp = 0.5
+
+    cpu.iewProgrammable = True
+    cpu.hptDispatchProp = 0.5
+
     cpu.smtROBPolicy = 'Programmable'
+    cpu.smtIQPolicy = 'Programmable'
     cpu.smtLSQPolicy = 'Programmable'
-    cpu.lptSQEntriesLimit = 20
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()

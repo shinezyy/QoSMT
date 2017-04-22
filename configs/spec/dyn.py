@@ -240,10 +240,15 @@ for cpu in system.cpu:
 
     # configs for dynamic
     cpu.controlPolicy = 'None'
-    cpu.iewProgrammable = False
-    cpu.hptInitDispatchWidth = 4
+
     cpu.smtFetchPolicy = 'RoundRobin'
+    cpu.hptFetchProp = 0.5
+
+    cpu.iewProgrammable = False
+    cpu.hptDispatchProp = 0.5
+
     cpu.smtROBPolicy = 'Dynamic'
+    cpu.smtIQPolicy = 'Dynamic'
     cpu.smtLSQPolicy = 'Dynamic'
 
 

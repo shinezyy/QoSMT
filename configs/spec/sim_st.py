@@ -242,10 +242,11 @@ for cpu in system.cpu:
 
     # configs for simulate st
     cpu.controlPolicy = 'None'
-    cpu.iewProgrammable = False
-    cpu.hptInitDispatchWidth = 8
+
     cpu.smtFetchPolicy = 'RoundRobin'
+    cpu.iewProgrammable = False
     cpu.smtROBPolicy = 'Dynamic'
+    cpu.smtIQPolicy = 'Dynamic'
     cpu.smtLSQPolicy = 'Dynamic'
 
 for cpu in system.cpu:
