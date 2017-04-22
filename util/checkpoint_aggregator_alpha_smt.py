@@ -177,16 +177,22 @@ def aggregate(output_dir, cpts, no_compress, memory_size):
 
 
 def get_cpt(benchmark_cpt_dir):
-    dirs = [d for d in os.listdir(benchmark_cpt_dir) if os.path.isdir(d)]
-    num_cpts = reduce(lambda x, y: x.startswith('cpt.simpoint') + \
-                      y.startswith('cpt.simpoint'), dirs, 0)
+    dirs = [d for d in os.listdir(benchmark_cpt_dir) \
+            if os.path.isdir(pjoin(benchmark_cpt_dir,d))]
+
+    num_cpts = 0
+    for d in dirs:
+        if d.startswith('cpt.simpoint'):
+            num_cpts += 1
+
     if num_cpts != 1:
-        print 'Number of checkpoint-like directories is {}!'.format(num_cpts)
+        print 'Number of checkpoint-like directories in {} is {}!'.format(
+            benchmark_cpt_dir, num_cpts)
         sys.exit()
 
     for d in dirs:
         if d.startswith('cpt.simpoint'):
-            return d
+            return pjoin(benchmark_cpt_dir,d)
 
 def user_verify():
     ok = raw_input('Is that OK? (y/n)')
@@ -194,18 +200,31 @@ def user_verify():
         sys.exit()
 
 
-def has_cpt(cpt_dir):
+def has_cpt(benchmark_cpt_dir):
     dirs = [d for d in os.listdir(benchmark_cpt_dir) if os.path.isdir(d)]
     num_cpts = reduce(lambda x, y: x.startswith('cpt.') + \
                       y.startswith('cpt.'), dirs, 0)
     return num_cpts != 0
 
+
 def get_benchmarks():
     ret = []
-    with open('./all_function_spec.txt') as f:
+    bm_file = './test_bm.txt'
+    #bm_file = './all_function_spec.txt'
+    with open(bm_file) as f:
         for line in f:
             ret.append(line.strip('\n'))
     return ret
+
+
+def make_aggregator(cpts, merged_cpt_dir, memory_size, no_compress):
+    def aggregator(pair):
+        aggregate(pjoin(merged_cpt_dir, pair[0]+'_'+pair[1]+'/cpt.0'),
+                  [cpts[pair[0]], cpts[pair[1]]],
+                  no_compress,
+                  memory_size
+                 )
+    return aggregator
 
 
 def batch():
@@ -249,12 +268,10 @@ def batch():
     user_verify()
     print 'Will output to', merged_cpt_dir
 
-    p.map(lambda pair: aggregate( \
-                                 pjoin(merged_cpt_dir, pair[0]+'_'+pair[1]), \
-                                 [cpts[pair[0]], cpts[pair[1]]], \
-                                 False, memory_size),
-          pairs
-    )
+    aggregator = make_aggregator(cpts, merged_cpt_dir, memory_size, False)
+
+    #p.map(aggregator, pairs)
+    map(aggregator, pairs)
 
 
 
@@ -284,3 +301,4 @@ if __name__ == "__main__":
 
         aggregate(options.output_dir, options.cpts, options.no_compress,
                   options.memory_size)
+
