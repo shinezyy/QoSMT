@@ -18,10 +18,12 @@ num_thread = 18
 
 def get_spec():
     x = []
+    print 'This script should not be used again, check please'
+    assert(0)
     with open('./simpointed_spec.txt') as f:
         for line in f:
-            if not line.startswith('#'):
-                x.append(line.strip('\n'))
+            if line.startswith('#'):
+                x.append(line.lstrip('#').strip('\n'))
     return x
 
 
@@ -83,7 +85,6 @@ def take_checkpoint(benchmark):
             benchmark, num_gem5)
         time.sleep(180)
 
-
     gem5_dir = os.environ['gem5_root']
     all_checkpoing_dir = pjoin(gem5_dir, 'checkpoint')
     all_simpoint_dir = pjoin(gem5_dir, 'simpoint')
@@ -122,6 +123,7 @@ def take_checkpoint(benchmark):
 
 if __name__ == '__main__':
     global num_thread
+    num_thread = 18
     p = Pool(num_thread)
     p.map(take_checkpoint, get_spec())
     #map(take_checkpoint, ['sjeng'])
