@@ -1138,9 +1138,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
     // Loop through the instructions, putting them in the instruction
     // queuedis_num_inst
-    for ( ; dis_num_inst < insts_to_add &&
-              dis_num_inst < dispatchWidths[tid];
-          ++dis_num_inst)
+    for ( ; dis_num_inst < insts_to_add; ++dis_num_inst)
     {
         inst = insts_to_dispatch.front();
 
