@@ -93,7 +93,7 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     skidBufferMax = (decodeToRenameDelay + 1) * params->decodeWidth;
 
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
-        nrFreeRegs[i] = 0;
+        nrFreeRegs[i] = params->numPhysIntRegs;
     }
 }
 
