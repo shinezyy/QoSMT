@@ -32,7 +32,7 @@
 from ConfigParser import ConfigParser
 import gzip
 
-import sys, re, os
+import sys, re, os, sh
 from os.path import join as pjoin
 from os.path import expanduser as pexp
 from multiprocessing import Pool
@@ -209,31 +209,48 @@ def has_cpt(benchmark_cpt_dir):
 
 def get_benchmarks():
     ret = []
-    bm_file = './test_bm.txt'
-    #bm_file = './all_function_spec.txt'
+    #bm_file = './test_bm.txt'
+    bm_file = './checkpointed.txt'
     with open(bm_file) as f:
         for line in f:
             ret.append(line.strip('\n'))
     return ret
 
 
-def make_aggregator(cpts, merged_cpt_dir, memory_size, no_compress):
-    def aggregator(pair):
-        aggregate(pjoin(merged_cpt_dir, pair[0]+'_'+pair[1]+'/cpt.0'),
-                  [cpts[pair[0]], cpts[pair[1]]],
-                  no_compress,
-                  memory_size
-                 )
-    return aggregator
-
-
-def batch():
-    memory_size = '4GB'
+def aggregator(pair):
+    memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
     benchmarks = get_benchmarks()
     solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
-    # merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
-    merged_cpt_dir = pjoin(gem5_dir, 'merge_test')
+    merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
+    no_compress = False
+
+    cpts = {}
+
+    for b in benchmarks:
+        cpts[b] = get_cpt(pjoin(solo_cpt_dir, b))
+        assert(cpts[b])
+
+    print 'Aggregating', pair
+    output_dir = pjoin(merged_cpt_dir, pair[0]+'_'+pair[1])
+    if os.path.isdir(output_dir) and os.path.isfile(pjoin(output_dir, 'done')):
+        print 'Skip {} because it has been done'.format(pair)
+        return
+    aggregate(pjoin(merged_cpt_dir, pair[0]+'_'+pair[1]+'/cpt.0'),
+              [cpts[pair[0]], cpts[pair[1]]],
+              no_compress,
+              memory_size
+             )
+    sh.touch(pjoin(output_dir, 'done'))
+
+
+def batch():
+    memory_size = '8GB'
+    gem5_dir = os.environ['gem5_root']
+    benchmarks = get_benchmarks()
+    solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
+    merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
+    # merged_cpt_dir = pjoin(gem5_dir, 'merge_test')
     if not os.path.isdir(merged_cpt_dir):
         print '{} is not directory!\n'.format(merged_cpt_dir)
         sys.exit()
@@ -244,12 +261,13 @@ def batch():
         cpts[b] = get_cpt(pjoin(solo_cpt_dir, b))
         assert(cpts[b])
 
-    print 'Scanned following checkpoints:',
+    print 'Scanned following {} checkpoints:'.format(len(cpts)),
     for b in cpts:
         print b, cpts[b]
     user_verify()
 
-    p = Pool(16)
+    num_threads = 12
+    p = Pool(num_threads)
 
     pairs = []
 
@@ -264,14 +282,15 @@ def batch():
                 print 'Checkpoint-like directory already exists in {}!'.format(x_y)
                 sys.exit()
 
-    print 'Will map these pairs to workers:', pairs
+    print 'Will map {} pairs to {} workers'.format(len(pairs), num_threads)
     user_verify()
     print 'Will output to', merged_cpt_dir
+    user_verify()
 
-    aggregator = make_aggregator(cpts, merged_cpt_dir, memory_size, False)
+    # aggregator = make_aggregator(cpts, merged_cpt_dir, memory_size, False)
 
-    #p.map(aggregator, pairs)
-    map(aggregator, pairs)
+    p.map(aggregator, pairs)
+    #map(aggregator, pairs)
 
 
 
