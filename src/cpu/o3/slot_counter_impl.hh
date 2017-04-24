@@ -82,7 +82,7 @@ SlotCounter<Impl>::checkSlots(ThreadID tid)
             it++;
         }
         DPRINTFR(LB, "\n");
-        panic("Cycle slot checking not satisified!\n");
+        panic("Cycle slot in %s checking not satisified!\n", this->name().c_str());
         return false;
     }
 }
