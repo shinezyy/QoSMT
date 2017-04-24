@@ -918,6 +918,7 @@ template <class Impl>
 void
 DefaultFetch<Impl>::tick()
 {
+    fetchThread = InvalidThreadID;
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
     bool status_change = false;
@@ -1227,6 +1228,8 @@ DefaultFetch<Impl>::fetch(bool &status_change)
     }
 
     DPRINTF(Fetch, "Attempting to fetch from [tid:%i]\n", tid);
+
+    fetchThread = tid;
     // avoid to fetch from same thread in one cycle
     fetchedThisCycle[tid] = true;
 
@@ -1824,6 +1827,19 @@ _do_block:
                 toDecode->frontEndMiss = false;
                 this->incLocalSlots(tid, Base, numInsts[tid]);
                 this->incLocalSlots(tid, InstMiss, fetchWidth - numInsts[tid]);
+
+            } else if (fromDecode->decodeInfo[tid].BLB) {
+                toDecode->frontEndMiss = false;
+                this->incLocalSlots(tid, LaterWait, fetchWidth);
+
+            } else if (stalls[HPT].decode) {
+                toDecode->frontEndMiss = false;
+                this->incLocalSlots(tid, LaterMiss, fetchWidth);
+
+            } else if (fetchThread == LPT){
+                toDecode->frontEndMiss = false;
+                this->incLocalSlots(tid, WidthWait, fetchWidth);
+
             } else {
                 toDecode->frontEndMiss = true;
                 this->incLocalSlots(tid, InstMiss, fetchWidth);

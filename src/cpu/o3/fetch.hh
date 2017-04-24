@@ -637,6 +637,8 @@ class DefaultFetch : public SlotCounter<Impl>
     }
 
     const unsigned numTimeSlice;
+
+    ThreadID fetchThread;
 };
 
 #endif //__CPU_O3_FETCH_HH__
