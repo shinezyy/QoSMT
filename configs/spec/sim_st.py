@@ -243,7 +243,9 @@ for cpu in system.cpu:
     # configs for simulate st
     cpu.controlPolicy = 'None'
 
-    cpu.smtFetchPolicy = 'RoundRobin'
+    cpu.smtFetchPolicy = 'Programmable'
+    cpu.hptFetchProp = 1.0
+
     cpu.iewProgrammable = False
     cpu.smtROBPolicy = 'Dynamic'
     cpu.smtIQPolicy = 'Dynamic'

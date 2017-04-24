@@ -174,7 +174,7 @@ class DerivO3CPU(BaseCPU):
 
     iewProgrammable = Param.Bool(True, "Enable programmable dispatch")
 
-    hptFetchProp = Param.Float(0, "Initial dispatch time slice of HPT")
+    hptFetchProp = Param.Float(0, "Initial fetch time slice of HPT")
     hptDispatchProp = Param.Float(0, "Initial dispatch time slice of HPT") #
 
     hptROBPrivProp = Param.Float(0, "Initial dispatch width of HPT")

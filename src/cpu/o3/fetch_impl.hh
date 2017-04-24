@@ -99,7 +99,7 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
       fetchQueueSize(params->fetchQueueSize),
       numThreads(params->numThreads),
       numFetchingThreads(params->smtNumFetchingThreads),
-      fetchWidthUpToDate(true),
+      fetchWidthUpToDate(false),
       numTimeSlice(32)
 {
     if (numThreads > Impl::MaxThreads)
@@ -172,6 +172,9 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         finishTranslationEvents[tid] = new FinishTranslationEvent(this);
     }
+
+    portion[HPT] = int(params->hptFetchProp * denominator);
+    portion[LPT] = int((1.0 - params->hptFetchProp) * denominator);
 }
 
 template <class Impl>
@@ -394,9 +397,8 @@ DefaultFetch<Impl>::resetStage()
         fetchBufferValid[tid] = false;
 
         fetchQueue[tid].clear();
-
-        priorityList.push_back(tid);
     }
+    updateFetchSlice();
 
     wroteToTimeBuffer = false;
     _status = Inactive;
