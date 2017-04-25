@@ -12,7 +12,7 @@ from os.path import join as pjoin
 from os.path import expanduser as uexp
 from multiprocessing import Pool
 
-from checkpoint_aggregator_alpha_smt import user_verify
+from common import user_verify
 
 
 def get_spec():
@@ -23,43 +23,6 @@ def get_spec():
             if not line.startswith('#'):
                 x.append(line.strip('\n'))
     return x
-
-
-def get_checkpointed():
-    x = []
-    with open('./checkpointed.txt') as f:
-        for line in f:
-            x.append(line.strip('\n'))
-    return x
-
-
-def num_running_gem5():
-    cmds = []
-    running_benchmark = []
-    num = 0
-    for process in psutil.process_iter():
-        cmds.append(process.cmdline())
-    for cmd in cmds:
-        if len(cmd):
-            exe = cmd[0]
-            if exe.endswith('gem5_exe') or exe.endswith('gem5.fast'):
-                num += 1
-
-    return num
-
-
-def get_running_checkpoint():
-    cmds = []
-    running_benchmark = []
-    for process in psutil.process_iter():
-        cmds.append(process.cmdline())
-    p = re.compile('simpoint/(.*)/simpoints')
-    for cmd in cmds:
-        if len(cmd):
-            exe = cmd[0]
-            if exe.endswith('gem5_exe'):
-                running_benchmark.append(p.search(cmd[3]).group(1))
-    return running_benchmark
 
 
 def smt_run(pair):
@@ -96,7 +59,7 @@ def smt_run(pair):
 
     print options
 
-    # user_verify()
+    user_verify()
 
     # sys.exit()
 
@@ -111,11 +74,11 @@ if __name__ == '__main__':
     global num_thread
     num_thread  = 21
     targets = get_spec()
-    pairs = [[x, x] for x in targets]
+    pairs = [[x, 'gcc'] for x in targets]
     print 'Following {} pairs will be run'.format(len(targets)), pairs
     user_verify()
 
-    p = Pool(num_thread)
-    p.map(smt_run, pairs)
-    #map(smt_run, pairs)
+    #p = Pool(num_thread)
+    #p.map(smt_run, pairs)
+    map(smt_run, pairs)
 
