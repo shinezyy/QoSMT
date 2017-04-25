@@ -36,6 +36,7 @@ import sys, re, os, sh
 from os.path import join as pjoin
 from os.path import expanduser as pexp
 from multiprocessing import Pool
+from common import *
 
 class myCP(ConfigParser):
     def __init__(self):
@@ -194,11 +195,6 @@ def get_cpt(benchmark_cpt_dir):
         if d.startswith('cpt.simpoint'):
             return pjoin(benchmark_cpt_dir,d)
 
-def user_verify():
-    ok = raw_input('Is that OK? (y/n)')
-    if ok != 'y':
-        sys.exit()
-
 
 def has_cpt(benchmark_cpt_dir):
     dirs = [d for d in os.listdir(benchmark_cpt_dir) if os.path.isdir(d)]
@@ -207,20 +203,10 @@ def has_cpt(benchmark_cpt_dir):
     return num_cpts != 0
 
 
-def get_benchmarks():
-    ret = []
-    #bm_file = './test_bm.txt'
-    bm_file = './checkpointed.txt'
-    with open(bm_file) as f:
-        for line in f:
-            ret.append(line.strip('\n'))
-    return ret
-
-
 def aggregator(pair):
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
-    benchmarks = get_benchmarks()
+    benchmarks = get_benchmarks('simpointed_spec.txt')
     solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
     merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
     no_compress = False
@@ -247,7 +233,7 @@ def aggregator(pair):
 def batch():
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
-    benchmarks = get_benchmarks()
+    benchmarks = get_benchmarks('simpointed_spec.txt')
     solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
     merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
     # merged_cpt_dir = pjoin(gem5_dir, 'merge_test')
