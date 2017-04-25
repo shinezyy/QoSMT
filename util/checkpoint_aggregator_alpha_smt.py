@@ -196,19 +196,11 @@ def get_cpt(benchmark_cpt_dir):
             return pjoin(benchmark_cpt_dir,d)
 
 
-def has_cpt(benchmark_cpt_dir):
-    dirs = [d for d in os.listdir(benchmark_cpt_dir) if os.path.isdir(d)]
-    num_cpts = reduce(lambda x, y: x.startswith('cpt.') + \
-                      y.startswith('cpt.'), dirs, 0)
-    return num_cpts != 0
-
-
 def aggregator(pair):
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
-    benchmarks = get_benchmarks('simpointed_spec.txt')
+    benchmarks = get_benchmarks('checkpointed.txt')
     solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
-    merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
     no_compress = False
 
     cpts = {}
@@ -218,11 +210,11 @@ def aggregator(pair):
         assert(cpts[b])
 
     print 'Aggregating', pair
-    output_dir = pjoin(merged_cpt_dir, pair[0]+'_'+pair[1])
+    output_dir = pjoin(merged_cpt_dir(), pair[0]+'_'+pair[1])
     if os.path.isdir(output_dir) and os.path.isfile(pjoin(output_dir, 'done')):
         print 'Skip {} because it has been done'.format(pair)
         return
-    aggregate(pjoin(merged_cpt_dir, pair[0]+'_'+pair[1]+'/cpt.0'),
+    aggregate(pjoin(merged_cpt_dir(), pair[0]+'_'+pair[1]+'/cpt.0'),
               [cpts[pair[0]], cpts[pair[1]]],
               no_compress,
               memory_size
@@ -233,12 +225,10 @@ def aggregator(pair):
 def batch():
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
-    benchmarks = get_benchmarks('simpointed_spec.txt')
+    benchmarks = get_benchmarks('checkpointed.txt')
     solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
-    merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge')
-    # merged_cpt_dir = pjoin(gem5_dir, 'merge_test')
-    if not os.path.isdir(merged_cpt_dir):
-        print '{} is not directory!\n'.format(merged_cpt_dir)
+    if not os.path.isdir(merged_cpt_dir()):
+        print '{} is not directory!\n'.format(merged_cpt_dir())
         sys.exit()
 
     cpts = {}
@@ -247,34 +237,37 @@ def batch():
         cpts[b] = get_cpt(pjoin(solo_cpt_dir, b))
         assert(cpts[b])
 
-    print 'Scanned following {} checkpoints:'.format(len(cpts)),
-    for b in cpts:
-        print b, cpts[b]
+    print 'Scanned following {} checkpoints:'.format(len(cpts))
+    print_list(list(cpts))
+
     user_verify()
 
     num_threads = 12
-    p = Pool(num_threads)
 
     pairs = []
+    num_skipped = 0
 
     for x in benchmarks:
         for y in benchmarks:
             xy = [x, y]
-            pairs.append(xy)
-            x_y = pjoin(merged_cpt_dir, x + '_' + y)
+            x_y = pjoin(merged_cpt_dir(), x + '_' + y)
+
             if not os.path.isdir(x_y):
                 os.makedirs(x_y)
-            elif has_cpt(x_y):
-                print 'Checkpoint-like directory already exists in {}!'.format(x_y)
-                sys.exit()
+            elif has_merged_cpt(x, y):
+                num_skipped += 1
+                continue
+            pairs.append(xy)
 
-    print 'Will map {} pairs to {} workers'.format(len(pairs), num_threads)
+    print '{} pairs have been skipped because done'.format(num_skipped)
+    print 'Will map following {} pairs to {} workers'.format(len(pairs), num_threads)
+    print_list(pairs)
     user_verify()
-    print 'Will output to', merged_cpt_dir
+
+    print 'Will output to', merged_cpt_dir()
     user_verify()
 
-    # aggregator = make_aggregator(cpts, merged_cpt_dir, memory_size, False)
-
+    p = Pool(num_threads)
     p.map(aggregator, pairs)
     #map(aggregator, pairs)
 
