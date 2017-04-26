@@ -40,3 +40,14 @@ def print_list(l):
         print x,
         cur_line_len += len(str(x))
     print ''
+
+
+def print_option(opt):
+    cur_line_len = 0
+    for line in opt:
+        if line.startswith('-') or cur_line_len + len(line) > 80:
+            print ''
+            cur_line_len = 0
+        cur_line_len += len(line)
+        print line,
+    print ''

@@ -37,7 +37,6 @@ def cpt_filter(pairs):
 
 
 def smt_run(pair):
-    memory_size = '4GB'
     gem5_dir = os.environ['gem5_root']
     pair_dir = pair[0] + '_' + pair[1]
     merged_cpt_dir_ = pjoin(merged_cpt_dir(), pair_dir)
@@ -54,7 +53,7 @@ def smt_run(pair):
         '--smt',
         '-r', 1,
         '--checkpoint-dir', merged_cpt_dir_,
-        '--mem-size=4GB',
+        '--mem-size=8GB',
         '--benchmark={};{}'.format(pair[0], pair[1]),
         '--benchmark_stdout=' + outdir,
         '--benchmark_stderr=' + outdir,
