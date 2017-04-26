@@ -44,7 +44,7 @@ def num_running_gem5():
     for cmd in cmds:
         if len(cmd):
             exe = cmd[0]
-            if exe.endswith('gem5_exe') or exe.endswith('gem5.fast'):
+            if exe.endswith('gem5_fast') or exe.endswith('gem5.fast'):
                 num += 1
 
     return num
@@ -59,7 +59,7 @@ def get_running_checkpoint():
     for cmd in cmds:
         if len(cmd):
             exe = cmd[0]
-            if exe.endswith('gem5_exe'):
+            if exe.endswith('gem5_fast'):
                 running_benchmark.append(p.search(cmd[3]).group(1))
     return running_benchmark
 
@@ -115,7 +115,7 @@ def take_checkpoint(benchmark):
         '--cpu-type=AtomicSimpleCPU',
     )
 
-    sh.gem5_exe(options)
+    sh.gem5_fast(options)
     os.chdir(script_dir)
     with open('all_function_spec.txt', 'a') as of:
         of.write('\n'+benchmark)

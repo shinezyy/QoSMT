@@ -76,7 +76,7 @@ def smt_run(pair):
 
     # sys.exit()
 
-    sh.gem5_exe(
+    sh.gem5_fast(
         _out=pjoin(outdir, 'gem5_out.txt'),
         _err=pjoin(outdir, 'gem5_err.txt'),
         *options
