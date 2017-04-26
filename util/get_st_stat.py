@@ -17,7 +17,7 @@ from common import user_verify
 
 def get_spec():
     x = []
-    with open('./checkpointed.txt') as f:
+    with open('./all_function_spec.txt') as f:
     #with open('./test_bm.txt') as f:
         for line in f:
             if not line.startswith('#'):

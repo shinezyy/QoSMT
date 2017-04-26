@@ -21,7 +21,7 @@ def get_spec():
     x = []
     print 'This script should not be used again, check please'
     assert(0)
-    with open('./checkpointed.txt') as f:
+    with open('./all_function_spec.txt') as f:
         for line in f:
             if not line.startswith('#'):
                 x.append(line.strip('\n'))

@@ -20,7 +20,7 @@ def get_spec():
     x = []
     print 'This script should not be used again, check please'
     assert(0)
-    with open('./simpointed_spec.txt') as f:
+    with open('./all_function_spec.txt') as f:
         for line in f:
             if line.startswith('#'):
                 x.append(line.lstrip('#').strip('\n'))
@@ -29,7 +29,7 @@ def get_spec():
 
 def get_checkpointed():
     x = []
-    with open('./checkpointed.txt') as f:
+    with open('./all_function_spec.txt') as f:
         for line in f:
             x.append(line.strip('\n'))
     return x
@@ -117,7 +117,7 @@ def take_checkpoint(benchmark):
 
     sh.gem5_exe(options)
     os.chdir(script_dir)
-    with open('checkpointed.txt', 'a') as of:
+    with open('all_function_spec.txt', 'a') as of:
         of.write('\n'+benchmark)
 
 

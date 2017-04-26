@@ -199,7 +199,7 @@ def get_cpt(benchmark_cpt_dir):
 def aggregator(pair):
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
-    benchmarks = get_benchmarks('checkpointed.txt')
+    benchmarks = get_benchmarks('all_function_spec.txt')
     solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
     no_compress = False
 
@@ -225,7 +225,7 @@ def aggregator(pair):
 def batch():
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
-    benchmarks = get_benchmarks('checkpointed.txt')
+    benchmarks = get_benchmarks('all_function_spec.txt')
     solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
     if not os.path.isdir(merged_cpt_dir()):
         print '{} is not directory!\n'.format(merged_cpt_dir())
