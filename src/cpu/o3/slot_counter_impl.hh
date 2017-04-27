@@ -73,15 +73,15 @@ SlotCounter<Impl>::checkSlots(ThreadID tid)
                 perCycleSlots[tid].end(), 0) == width) {
         return true;
     } else {
-        DPRINTF(LB, "Cycle slot checking not satisified!\n");
         int it = 0; // avoid to use [] unnecessarily
         for (auto slot : perCycleSlots[tid]) {
             if (slot) {
-                DPRINTFR(LB, "%s: %d | ", getSlotUseStr(it), slot);
+                printf("%s: %d | ", getSlotUseStr(it), slot);
             }
             it++;
         }
-        DPRINTFR(LB, "\n");
+        printf("\n");
+        fflush(stdout);
         panic("Cycle slot in %s checking not satisified!\n", this->name().c_str());
         return false;
     }

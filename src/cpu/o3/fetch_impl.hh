@@ -1777,7 +1777,7 @@ DefaultFetch<Impl>::updateFetchSlice()
 {
     if (fetchWidthUpToDate)
         return;
-    assert(fetchPolicy == Programmable);
+    // assert(fetchPolicy == Programmable);
 
     DPRINTF(Fetch, "Updating fetch width\n");
     priorityList.clear();
