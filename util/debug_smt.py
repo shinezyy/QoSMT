@@ -19,6 +19,17 @@ def smt_run(pair, use_fast, checkpoint_tick, resume_checkpoint):
     outdir = pjoin(uexp('~/debug_gem5'), pair_dir)
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
+
+    stat_file = pjoin(outdir, 'stats.txt')
+    if use_fast:
+        gem5_bin = pjoin(os.environ['gem5_build'], 'gem5.fast')
+    else:
+        gem5_bin = pjoin(os.environ['gem5_build'], 'gem5.opt')
+
+    if os.path.isfile(stat_file) and left_is_older(gem5_bin, stat_file):
+        print 'Gem5 is older than stats.txt!!!'
+        user_verify()
+
     exec_dir = pjoin(gem5_dir, 'smt_run')
     os.chdir(exec_dir)
 

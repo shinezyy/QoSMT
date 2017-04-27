@@ -51,3 +51,7 @@ def print_option(opt):
         cur_line_len += len(line)
         print line,
     print ''
+
+
+def left_is_older(x, y):
+    return os.path.getmtime(x) < os.path.getmtime(y)
