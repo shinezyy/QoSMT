@@ -11,7 +11,7 @@ from argparse import ArgumentParser
 from common import *
 
 
-def smt_run(pair, use_fast):
+def smt_run(pair, use_fast, checkpoint_tick, resume_checkpoint):
     memory_size = '4GB'
     gem5_dir = os.environ['gem5_root']
     pair_dir = pair[0] + '_' + pair[1]
@@ -22,13 +22,12 @@ def smt_run(pair, use_fast):
     exec_dir = pjoin(gem5_dir, 'smt_run')
     os.chdir(exec_dir)
 
-    options = (
+    options = [
         '--outdir=' + outdir,
         #'--debug-flags=LB',
         pjoin(gem5_dir, 'configs/spec/dyn.py'),
         '--smt',
         '-r', '1',
-        '--checkpoint-dir', merged_cpt_dir_,
         '--mem-size=8GB',
         '--benchmark={};{}'.format(pair[0], pair[1]),
         '--benchmark_stdout=' + outdir,
@@ -42,8 +41,16 @@ def smt_run(pair, use_fast):
         '--l1d_assoc=16',
         '--l2cache',
         '--l2_size=4MB',
-        '--l2_assoc=16'
-    )
+        '--l2_assoc=16',
+    ]
+
+    if checkpoint_tick:
+        options.append('--take-checkpoints={},1000000'.format(checkpoint_tick))
+        options.append('--max-checkpoints=1')
+    elif resume_checkpoint:
+        pass
+    else:
+        options.append('--checkpoint-dir={}'.format(merged_cpt_dir_))
 
     print_option(options)
     user_verify()
@@ -69,6 +76,10 @@ if __name__ == '__main__':
                        help='If set, use gem5.fast; default gem5.opt') # opt default
     parser.add_argument('-p', '--pair', action='store',
                        help='pairs of benchmark, split by ,')
+    parser.add_argument('-c', '--checkpoint-tick', action='store',
+                       help='tick to take checkpoint')
+    parser.add_argument('-r', '--resume-checkpoint', action='store_true',
+                       help='resume from checkpoint from outdir')
 
     opt = parser.parse_args()
 
@@ -80,5 +91,5 @@ if __name__ == '__main__':
 
     print 'Pair of {} {} will be run'.format(x, y)
 
-    smt_run((x, y), opt.fast)
+    smt_run((x, y), opt.fast, opt.checkpoint_tick, opt.resume_checkpoint)
 
