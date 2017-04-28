@@ -2038,7 +2038,8 @@ DefaultRename<Impl>::getRenamable()
         switch (renameStatus[tid]) {
             case Running:
             case Idle:
-                renamable[tid] = insts[tid].size();
+                renamable[tid] = std::min((int) insts[tid].size(),
+                        (int) renameWidth);
                 DPRINTF(FmtSlot2, "T[%i][Running] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
