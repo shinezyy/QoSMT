@@ -1,3 +1,4 @@
+mcf povray
 leslie3d bzip2
 povray soplex
 soplex libquantum
@@ -43,6 +44,5 @@ gromacs hmmer
 gromacs sjeng
 astar bzip2
 lbm GemsFDTD
-mcf povray
 lbm zeusmp
 bzip2 sphinx3
