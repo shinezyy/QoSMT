@@ -5,17 +5,17 @@ import re
 import sys
 import random
 import sh
-import operator
-import psutil
 import time
 from os.path import join as pjoin
 from os.path import expanduser as uexp
 from multiprocessing import Pool
+from argparse import ArgumentParser
 
 from common import *
 
 
-output_dir = '~/dyn_0425'
+output_dir = None
+command = None
 
 
 def get_pairs():
@@ -63,6 +63,7 @@ def smt_run(pair):
     pair_dir = pair[0] + '_' + pair[1]
     merged_cpt_dir_ = pjoin(merged_cpt_dir(), pair_dir)
     global output_dir
+    global script
     outdir = pjoin(uexp(output_dir), pair_dir)
 
     if not os.path.isdir(outdir):
@@ -73,7 +74,7 @@ def smt_run(pair):
     options = (
         '--outdir=' + outdir,
         #'--debug-flags=LB',
-        pjoin(gem5_dir, 'configs/spec/dyn.py'),
+        pjoin(gem5_dir, 'configs/spec/' + script),
         '--smt',
         '-r', 1,
         '--checkpoint-dir', merged_cpt_dir_,
@@ -108,8 +109,33 @@ def smt_run(pair):
     sh.touch(pjoin(outdir, 'done'))
 
 
+def set_conf(opt):
+    global script
+    global output_dir
+    script = opt.command
+    output_dir = opt.output_dir
+    print 'Use script: {}, output to {},' \
+            ' {} workers'.format(script, output_dir, opt.thread_number)
+
 if __name__ == '__main__':
-    num_thread  = 10
+    parser = ArgumentParser(usage='specify output directory and number of threads')
+    parser.add_argument('-j', '--thread-number', action='store', required=True,
+                        type=int,
+                        help='Number of threads of gem5 instance'
+                       )
+
+    parser.add_argument('-c', '--command', action='store', required=True,
+                        choices=['dyn.py', 'cc.py', 'fc.py'],
+                        help='gem5 script to use'
+                       )
+
+    parser.add_argument('-o', '--output-dir', action='store', required=True,
+                        help='gem5 output directory'
+                       )
+
+    opt = parser.parse_args()
+    set_conf(opt)
+    num_thread = opt.thread_number
 
     targets = get_pairs()
     targets = cpt_filter(targets)
@@ -118,6 +144,7 @@ if __name__ == '__main__':
 
     print 'Following {} pairs will be run'.format(len(targets))
     print_list(targets)
+
     user_verify()
 
     p = Pool(num_thread)
