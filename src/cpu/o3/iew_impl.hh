@@ -921,7 +921,7 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
         ret_val = true;
     } else if (instQueue.isFull(tid)) {
         if (tid == HPT) {
-            LB_all = instQueue.numBusyEntries(LPT) >= numLPTcause;
+            LB_all = numLPTcause > 0 && instQueue.numBusyEntries(LPT) >= numLPTcause;
             LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
             /**TODO检查后面用到这个numLPTcause的情况，
              * 以确定应该使用dispatchWidth，还是dispatchWidths
@@ -1200,7 +1200,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: IQ has become full.\n", tid);
 
             if (tid == HPT) {
-                LB_all = instQueue.numBusyEntries(LPT) >= dispatchable[HPT];
+                LB_all = dispatchable[HPT] > 0 &&
+                    instQueue.numBusyEntries(LPT) >= dispatchable[HPT];
                 LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
                 numLPTcause = std::min((int) instQueue.numBusyEntries(LPT),
                         dispatchable[HPT]);
