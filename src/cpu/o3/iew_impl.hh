@@ -89,7 +89,8 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       hptInitDispatchWidth(int(float(dispatchWidth) * params->hptDispatchProp)),
       BLBlocal(false),
       l1Lat(params->l1Lat),
-      localInstMiss(0)
+      localInstMiss(0),
+      blockCycles(0)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -645,6 +646,10 @@ DefaultIEW<Impl>::block(ThreadID tid)
         toRename->iewBlock[tid] = true;
         wroteToTimeBuffer = true;
 
+        if (tid == HPT) {
+            blockCycles++;
+        }
+
         if (tid == HPT && instQueue.isFull(HPT) &&
                 instQueue.numBusyEntries(LPT) > 0) {
             if (!fromRename->genShadow) {
@@ -672,6 +677,9 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
 {
     DPRINTF(IEW, "[tid:%i]: Reading instructions out of the skid "
             "buffer %u.\n",tid, tid);
+
+    blockedCycles = blockCycles;
+    blockCycles = 0;
 
     // If the skid buffer is empty, signal back to previous stages to unblock.
     // Also switch status to running.
@@ -1220,6 +1228,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: %s has become full.\n",tid,
                     inst->isLoad() ? "LQ" : "SQ");
 
+
             if (tid == HPT) {
                 if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
                     numLQWait[HPT]++;
@@ -1373,6 +1382,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             if (HPT == tid && inShadow) {
                 inst->inShadowIQ = true;
+                inst->blockedCycles = blockedCycles;
+                blockCycles = 0;
                 shadowIQ--;
             }
         }
@@ -1762,6 +1773,7 @@ DefaultIEW<Impl>::tick()
 
     wroteToTimeBuffer = false;
     updatedQueues = false;
+    blockedCycles = 0;
 
     sortInsts();
 

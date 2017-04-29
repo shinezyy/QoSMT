@@ -416,6 +416,8 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     Tick markCompTick;
 
     Tick comTick;
+
+    int blockedCycles;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

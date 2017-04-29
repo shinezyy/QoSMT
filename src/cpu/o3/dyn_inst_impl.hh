@@ -167,6 +167,8 @@ BaseO3DynInst<Impl>::initVars()
     concerned = false;
 
     comTick = 0;
+
+    blockedCycles = 0;
 }
 
 template <class Impl>

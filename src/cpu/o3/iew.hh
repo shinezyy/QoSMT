@@ -610,6 +610,10 @@ class DefaultIEW : public SlotCounter<Impl>
     float storeRate;
 
     float vsq;
+
+    int blockCycles;
+
+    int blockedCycles;
 };
 
 #endif // __CPU_O3_IEW_HH__
