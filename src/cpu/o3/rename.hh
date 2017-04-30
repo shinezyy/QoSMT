@@ -653,6 +653,9 @@ class DefaultRename : public SlotCounter<Impl>
     float vsq;
 
     float storeRate;
+
+    int blockCycles;
+    int blockedCycles;
 };
 
 #endif // __CPU_O3_RENAME_HH__

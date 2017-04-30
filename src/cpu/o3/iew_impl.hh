@@ -678,7 +678,8 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
     DPRINTF(IEW, "[tid:%i]: Reading instructions out of the skid "
             "buffer %u.\n",tid, tid);
 
-    blockedCycles = blockCycles;
+    if (blockCycles != 0)
+        blockedCycles = blockCycles;
     blockCycles = 0;
 
     // If the skid buffer is empty, signal back to previous stages to unblock.
@@ -1383,7 +1384,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             if (HPT == tid && inShadow) {
                 inst->inShadowIQ = true;
-                inst->blockedCycles = blockedCycles;
+                inst->blockedCycles += blockedCycles;
                 blockCycles = 0;
                 shadowIQ--;
             }

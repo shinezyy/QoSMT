@@ -82,7 +82,8 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs),
       availableInstCount(0),
-      BLBlocal(false)
+      BLBlocal(false),
+      blockCycles(0)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -451,6 +452,7 @@ DefaultRename<Impl>::tick()
     LB_all = false;
     LB_part = false;
     numLPTcause = 0;
+    blockedCycles = 0;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
     std::fill(fullSource.begin(), fullSource.end(), NONE);
@@ -708,12 +710,12 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             if (fullSource[tid] == IQ && calcOwnIQEntries(LPT)) {
                 // 如果空闲项足够，那么矫正值为0
                 numLPTcause = std::min(calcOwnIQEntries(LPT), shortfall);
-                LB_all = numLPTcause == shortfall;
+                LB_all = numLPTcause == shortfall && shortfall > 0;
                 LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
 
             } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
                 numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
-                LB_all = numLPTcause == shortfall;
+                LB_all = numLPTcause == shortfall && shortfall > 0;
                 LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
                 numROBWait[HPT]++;
 
@@ -1038,6 +1040,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     if (HPT == tid && inShadow) {
         inst->inShadowROB = true;
         shadowROB -= renamed_insts;
+        inst->blockedCycles += blockedCycles;
+        blockCycles = 0;
         if (shadowROB <= 0) {
             toIEW->shine = true;
             shine("use up ROB");
@@ -1202,6 +1206,10 @@ DefaultRename<Impl>::block(ThreadID tid)
             toDecode->renameUnblock[tid] = false;
             wroteToTimeBuffer = true;
 
+            if (tid == HPT) {
+                blockCycles++;
+            }
+
             if (HPT == tid && (LB_all || LB_part)) {
                 if (!fromIEW->iewInfo[HPT].genShadow) {
                     toIEW->genShadow = true;
@@ -1240,6 +1248,10 @@ DefaultRename<Impl>::unblock(ThreadID tid)
 {
     DPRINTF(Rename, "[tid:%u]: Trying to unblock.\n", tid);
     DPRINTF(FmtSlot2, "[tid:%u]: Trying to unblock.\n", tid);
+
+    if (blockCycles != 0)
+        blockedCycles = blockCycles;
+    blockCycles = 0;
 
     // Rename is done unblocking if the skid buffer is empty.
     if (skidBuffer[tid].empty() && renameStatus[tid] != SerializeStall) {

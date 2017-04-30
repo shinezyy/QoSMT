@@ -1560,7 +1560,7 @@ DefaultCommit<Impl>::updateComInstStats(DynInstPtr &inst)
 
         if (!dep && (inst->inShadowLQ || inst->inShadowSQ) &&
                 inst->inShadowIQ && inst->inShadowROB) {
-            int rectSlots = 8 * inst->blockedCycles; //depend on ClockFreq
+            int rectSlots = 8 * inst->blockedCycles;
             fmt->incMissDirect(inst->threadNumber, -rectSlots, false);
             fmt->incWaitDirect(inst->threadNumber, rectSlots);
         }
