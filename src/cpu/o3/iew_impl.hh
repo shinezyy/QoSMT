@@ -1193,6 +1193,13 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 headInst[tid] = inst;
             }
 
+            if (HPT == tid) {
+                DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d].\n", tid);
+                this->incLocalSlots(HPT, InstMiss, 1);
+                dispatchable[HPT]--;
+            }
+
+
             continue;
         }
 

@@ -20,7 +20,7 @@ def get_spec():
     with open('./all_function_spec.txt') as f:
     #with open('./test_bm.txt') as f:
         for line in f:
-            if line.startswith('#'):
+            if not line.startswith('#'):
                 x.append(line.lstrip('#').strip('\n'))
     return x
 
@@ -30,7 +30,7 @@ def smt_run(pair):
     gem5_dir = os.environ['gem5_root']
     pair_dir = pair[0] + '_' + pair[1]
     merged_cpt_dir = pjoin(gem5_dir, 'checkpoint_merge/' + pair_dir)
-    outdir = pjoin(uexp('~/sim_st_0421'), pair[0])
+    outdir = pjoin(uexp('~/sim_st_0430'), pair[0])
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
 
@@ -74,7 +74,7 @@ def smt_run(pair):
 
 
 if __name__ == '__main__':
-    num_thread  = 3
+    num_thread  = 12
     targets = get_spec()
     pairs = [[x, 'gcc'] for x in targets]
     print 'Following {} pairs will be run'.format(len(targets)), pairs
