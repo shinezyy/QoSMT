@@ -647,15 +647,27 @@ class DefaultRename : public SlotCounter<Impl>
     uint64_t numIQWait[Impl::MaxThreads];
 
     void clearFull();
+
   public:
-    int lptSQEntriesLimit = 0;
 
-    float vsq;
-
+    float VSQ, VLQ;
     float storeRate;
 
     int blockCycles;
     int blockedCycles;
+
+    Stats::Vector numROBWaitStat;
+    Stats::Vector numIQWaitStat;
+    Stats::Vector numLQWaitStat;
+    Stats::Vector numSQWaitStat;
+
+    void dumpStats();
+
+  private:
+
+    int VIQ, VROB;
+    int maxROB, maxIQ, maxLQ, maxSQ;
+
 };
 
 #endif // __CPU_O3_RENAME_HH__
