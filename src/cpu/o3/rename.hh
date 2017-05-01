@@ -656,6 +656,13 @@ class DefaultRename : public SlotCounter<Impl>
 
     int blockCycles;
     int blockedCycles;
+
+    Stats::Vector numROBWaitStat;
+    Stats::Vector numIQWaitStat;
+    Stats::Vector numLQWaitStat;
+    Stats::Vector numSQWaitStat;
+
+    void dumpStats();
 };
 
 #endif // __CPU_O3_RENAME_HH__

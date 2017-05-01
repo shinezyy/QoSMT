@@ -219,6 +219,30 @@ DefaultRename<Impl>::regStats()
         .name(name() + ".floatPhyReg_utilization")
         .desc("Utilization of float registers")
         .flags(Stats::display);
+
+    numROBWaitStat
+        .init(numThreads)
+        .name(name() + ".ROBWaits")
+        .desc("ROBWaits")
+        ;
+
+    numIQWaitStat
+        .init(numThreads)
+        .name(name() + ".IQWaits")
+        .desc("IQWaits")
+        ;
+
+    numLQWaitStat
+        .init(numThreads)
+        .name(name() + ".LQWaits")
+        .desc("LQWaits")
+        ;
+
+    numSQWaitStat
+        .init(numThreads)
+        .name(name() + ".SQWaits")
+        .desc("SQWaits")
+        ;
 }
 
 template <class Impl>
@@ -712,12 +736,15 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 numLPTcause = std::min(calcOwnIQEntries(LPT), shortfall);
                 LB_all = numLPTcause == shortfall && shortfall > 0;
                 LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
+                if (LB_all || LB_part)
+                    numIQWait[HPT]++;
 
             } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
                 numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
                 LB_all = numLPTcause == shortfall && shortfall > 0;
                 LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
-                numROBWait[HPT]++;
+                if (LB_all || LB_part)
+                    numROBWait[HPT]++;
 
             } else {
                 LB_all = false;
@@ -765,11 +792,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             if (fullSource[tid] == IQ && calcOwnIQEntries(LPT)) {
                 numLPTcause = std::min(calcOwnIQEntries(LPT), shortfall);
                 LB_part = calcOwnIQEntries(LPT) > 0;
+                if (LB_part)
+                    numIQWait[HPT]++;
 
             } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
                 numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
                 LB_part = calcOwnROBEntries(LPT) > 0;
-                numROBWait[HPT]++;
+                if (LB_part)
+                    numROBWait[HPT]++;
 
             } else {
                 LB_part = false;
@@ -1642,7 +1672,8 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             LB_all = calcOwnROBEntries(LPT) >= renameWidth;
             LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnROBEntries(LPT), numLPTcause);
-            numROBWait[HPT]++;
+            if (LB_all || LB_part)
+                numROBWait[HPT]++;
 
             DPRINTF(FmtSlot2, "HPT stall because no ROB.\n");
         }
@@ -1657,6 +1688,8 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             LB_all = calcOwnIQEntries(LPT) >= renameWidth;
             LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
             numLPTcause = std::min(calcOwnIQEntries(LPT), numLPTcause);
+            if (LB_all || LB_part)
+                numIQWait[HPT]++;
 
             DPRINTF(FmtSlot2, "HPT stall because no IQ.\n");
         }
@@ -2288,5 +2321,16 @@ DefaultRename<Impl>::clearFull()
     }
 }
 
+template<class Impl>
+void
+DefaultRename<Impl>::dumpStats()
+{
+    for(ThreadID tid = 0; tid < numThreads; tid++) {
+        numROBWaitStat[tid] += numROBWait[tid];
+        numIQWaitStat[tid] += numIQWait[tid];
+        numLQWaitStat[tid] += numLQWait[tid];
+        numSQWaitStat[tid] += numSQWait[tid];
+    }
+}
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

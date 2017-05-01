@@ -701,9 +701,6 @@ FullO3CPU<Impl>::combinedControl()
                 sqf * base < policyWindowSize * fullThreshold,
                 /*inc = */false);
     }
-
-    iew.clearFull();
-    rename.clearFull();
 }
 
 template <class Impl>
@@ -810,6 +807,11 @@ FullO3CPU<Impl>::tick()
         } else if (controlPolicy == Combined) {
             combinedControl();
         }
+
+        rename.dumpStats();
+        rename.clearFull();
+        iew.clearFull();
+
         policyCycles = 0;
     }
 
