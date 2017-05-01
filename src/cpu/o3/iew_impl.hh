@@ -90,7 +90,10 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       BLBlocal(false),
       l1Lat(params->l1Lat),
       localInstMiss(0),
-      blockCycles(0)
+      blockCycles(0),
+      maxIQ(params->numIQEntries),
+      maxLQ(params->LQEntries),
+      maxSQ(params->SQEntries)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -691,7 +694,9 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
         DPRINTF(IEW, "[tid:%i]: Done unblocking.\n",tid);
         dispatchStatus[tid] = Running;
         if (HPT == tid) {
-            vsq = 0;
+            VIQ = 0;
+            VLQ = 0.0;
+            VSQ = 0.0;
         }
     }
 }
@@ -922,12 +927,14 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
         ret_val = true;
     } else if (instQueue.isFull(tid)) {
         if (tid == HPT) {
-            LB_all = numLPTcause > 0 && instQueue.numBusyEntries(LPT) >= numLPTcause;
-            LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
-            /**TODO检查后面用到这个numLPTcause的情况，
-             * 以确定应该使用dispatchWidth，还是dispatchWidths
-             */
-            numLPTcause = std::min((int) instQueue.numBusyEntries(LPT), numLPTcause);
+            if (VIQ == 0) {
+                VIQ = instQueue.numBusyEntries(HPT);
+            }
+            if (VIQ < maxIQ) {
+                VIQ += dispatchWidth;
+                LB_all = true;
+                numIQWait[tid]++;
+            }
             DPRINTF(FmtSlot2, "HPT Stall: IQ  is full.\n",tid);
         }
         DPRINTF(IEW,"[tid:%i]: Stall: IQ  is full.\n",tid);
@@ -1208,11 +1215,15 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: IQ has become full.\n", tid);
 
             if (tid == HPT) {
-                LB_all = dispatchable[HPT] > 0 &&
-                    instQueue.numBusyEntries(LPT) >= dispatchable[HPT];
-                LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
-                numLPTcause = std::min((int) instQueue.numBusyEntries(LPT),
-                        dispatchable[HPT]);
+                if (VIQ == 0) {
+                    VIQ = instQueue.numBusyEntries(HPT);
+                }
+                if (VIQ < maxIQ) {
+                    VIQ += dispatchWidth;
+                    LB_part = true;
+                    numIQWait[tid]++;
+                    numLPTcause = dispatchable[tid];
+                }
             }
 
             // Call function to start blocking.
@@ -1246,17 +1257,17 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                     numLPTcause = dispatchable[HPT];
 
                 } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
-                    if (vsq <= 0.001) {
-                        vsq = ldstQueue.numStores(HPT);
+                    if (VSQ <= 0.001) {
+                        VSQ = ldstQueue.numStores(HPT);
                     }
-                    DPRINTF(Pard, "%llu cycles since oldest Store, vsq is %f\n",
-                            (curTick() - missStat.oldestStoreTick[HPT])/500, vsq);
-                    bool m = vsq > 63;
-                    vsq += storeRate;
+                    DPRINTF(Pard, "%llu cycles since oldest Store, VSQ is %f\n",
+                            (curTick() - missStat.oldestStoreTick[HPT])/500, VSQ);
+                    bool m = VSQ >= maxSQ;
+                    VSQ += storeRate;
 
                     if (!m) {
                         numSQWait[HPT]++;
-                        LB_all = true; // for unblocking
+                        LB_all = false; // for unblocking
                         LB_part = true;
                         numLPTcause = dispatchable[HPT];
 
@@ -1441,14 +1452,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         if (fromRename->frontEndMiss) {
             this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
 
-        } else if (dispatchStatus[tid] == Blocked && missStat.numL2MissLoad[HPT]) {
-            this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
-
-        } else if (dispatchStatus[tid] == Blocked && missStat.numL2MissLoad[LPT]) {
-            LB_all = true;
-            this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
-
-        }else if (LB_all) {
+        } else if (LB_all) {
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
 
         } else if (LB_part) {
@@ -2153,13 +2157,6 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
             /**block一定导致本周期miss */
             if (fromRename->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, dispatchWidth);
-
-            } else if (missStat.numL2MissLoad[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, dispatchWidth);
-
-            } else if (missStat.numL2MissLoad[LPT]) {
-                LB_all = true;
-                this->incLocalSlots(tid, EntryWait, dispatchWidth);
 
             } else if (LB_all) {
                 this->incLocalSlots(tid, InstMiss,
