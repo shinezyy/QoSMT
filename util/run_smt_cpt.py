@@ -16,11 +16,12 @@ from common import *
 
 output_dir = None
 command = None
+ST = False
 
 
-def get_pairs():
+def get_pairs(inf):
     x = []
-    with open('./selected_pairs') as f:
+    with open(inf) as f:
         for line in f:
             a, b = line.strip('\n').split()
             x.append([a, b])
@@ -41,11 +42,15 @@ def cpt_filter(pairs):
 
 def time_stamp_filter(pairs):
     global output_dir
+    global ST
     gem5_m_time = os.path.getmtime(pjoin(os.environ['gem5_build'], 'gem5.fast'))
     ret = []
 
     for pair in pairs:
-        pair_dir = pair[0] + '_' + pair[1]
+        if not ST:
+            pair_dir = pair[0] + '_' + pair[1]
+        else:
+            pair_dir = pair[0]
         benchmark_dir = pjoin(uexp(output_dir), pair_dir)
         time_stamp_file = pjoin(uexp(benchmark_dir), 'done')
         if os.path.isdir(benchmark_dir) and os.path.isfile(time_stamp_file):
@@ -60,10 +65,16 @@ def time_stamp_filter(pairs):
 
 def smt_run(pair):
     gem5_dir = os.environ['gem5_root']
-    pair_dir = pair[0] + '_' + pair[1]
-    merged_cpt_dir_ = pjoin(merged_cpt_dir(), pair_dir)
+
+    if not ST:
+        pair_dir = pair[0] + '_' + pair[1]
+    else:
+        pair_dir = pair[0]
+
     global output_dir
     global script
+
+    merged_cpt_dir_ = pjoin(merged_cpt_dir(), pair[0] + '_' + pair[1])
     outdir = pjoin(uexp(output_dir), pair_dir)
 
     if not os.path.isdir(outdir):
@@ -97,7 +108,6 @@ def smt_run(pair):
     print options
 
     # user_verify()
-
     # sys.exit()
 
     sh.gem5_fast(
@@ -112,10 +122,13 @@ def smt_run(pair):
 def set_conf(opt):
     global script
     global output_dir
+    global ST
     script = opt.command
     output_dir = opt.output_dir
+    ST = opt.single_thread
+    assert ST == (script == 'sim_st.py')
     print 'Use script: {}, output to {},' \
-            ' {} workers'.format(script, output_dir, opt.thread_number)
+            ' {} workers, sim st: {}'.format(script, output_dir, opt.thread_number, ST)
 
 if __name__ == '__main__':
     parser = ArgumentParser(usage='specify output directory and number of threads')
@@ -125,7 +138,7 @@ if __name__ == '__main__':
                        )
 
     parser.add_argument('-c', '--command', action='store', required=True,
-                        choices=['dyn.py', 'cc.py', 'fc.py'],
+                        choices=['dyn.py', 'cc.py', 'fc.py', 'sim_st.py'],
                         help='gem5 script to use'
                        )
 
@@ -133,11 +146,19 @@ if __name__ == '__main__':
                         help='gem5 output directory'
                        )
 
+    parser.add_argument('-i', '--input', action='store', required=True,
+                        help='Specify benchmark pairs'
+                       )
+
+    parser.add_argument('-s', '--single_thread', action='store_true',
+                        help='use st config'
+                       )
+
     opt = parser.parse_args()
     set_conf(opt)
     num_thread = opt.thread_number
 
-    targets = get_pairs()
+    targets = get_pairs(opt.input)
     targets = cpt_filter(targets)
     targets = time_stamp_filter(targets)
 
@@ -149,5 +170,5 @@ if __name__ == '__main__':
 
     p = Pool(num_thread)
     p.map(smt_run, targets)
-    #map(smt_run, targets)
+    # map(smt_run, targets)
 
