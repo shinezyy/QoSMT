@@ -83,7 +83,11 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
                       + params->numPhysCCRegs),
       availableInstCount(0),
       BLBlocal(false),
-      blockCycles(0)
+      blockCycles(0),
+      maxROB(params->numROBEntries),
+      maxIQ(params->numIQEntries),
+      maxLQ(params->LQEntries),
+      maxSQ(params->SQEntries)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -690,29 +694,21 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     DynInstPtr inst;
 
+    int shortfall = 0;
+
     // Will have to do a different calculation for the number of free
     // entries.
     int free_rob_entries = calcFreeROBEntries(tid);
     int free_iq_entries  = calcFreeIQEntries(tid);
     int min_free_entries = free_rob_entries;
 
-    int ROBcause = 0, IQcause = 0;
-    // 当ROB或者IQ瓶颈时，造成的无法重命名的指令的数量
-
     fullSource[tid] = ROB;
-    int shortfall = 0;
 
     if (free_iq_entries < min_free_entries) {
         min_free_entries = free_iq_entries;
         fullSource[tid] = IQ;
-        // 如果空闲项足够，那么cause设置为0
-        IQcause = std::max(renamable[tid] - min_free_entries, 0);
-        shortfall = IQcause;
-    } else {
-        ROBcause = std::max(renamable[tid] - min_free_entries, 0);
-        shortfall = ROBcause;
     }
-
+	shortfall = std::max(renamable[tid] - min_free_entries, 0);
 
     // Check if there's any space left.
     if (min_free_entries <= 0) {
@@ -732,46 +728,34 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         if (tid == HPT) {
             if (fullSource[tid] == IQ && calcOwnIQEntries(LPT)) {
-                // 如果空闲项足够，那么矫正值为0
-                numLPTcause = std::min(calcOwnIQEntries(LPT), shortfall);
-                LB_all = numLPTcause == shortfall && shortfall > 0;
-                LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
-                if (LB_all || LB_part)
+                if (VIQ == 0) {
+                    VIQ = calcOwnIQEntries(HPT);
+                }
+                if (VIQ < maxIQ) {
+                    VIQ += renameWidth;
+                    LB_part = true;
                     numIQWait[HPT]++;
-
+                }
             } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
-                numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
-                LB_all = numLPTcause == shortfall && shortfall > 0;
-                LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
-                if (LB_all || LB_part)
+                if (VROB == 0) {
+                    VROB = calcOwnROBEntries(HPT);
+                }
+                if (VROB < maxROB) {
+                    VROB += renameWidth;
+                    LB_part = true;
                     numROBWait[HPT]++;
-
+                }
             } else {
                 LB_all = false;
                 LB_part = false;
             }
 
-            /**Must has been blocked, verbose on*/
-
-            if (missStat.numL2MissLoad[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, shortfall);
-
-            } else if (missStat.numL2MissLoad[LPT]) {
-                LB_all = true;
-                this->incLocalSlots(tid, EntryWait, shortfall);
-
-            } else if (LB_all) {
-                this->incLocalSlots(tid, EntryWait, shortfall);
-
-            } else if (LB_part) {
-                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
-                this->incLocalSlots(tid, ComputeEntryMiss,
-                        shortfall - numLPTcause);
+            if (LB_part) {
+                this->incLocalSlots(tid, EntryWait, renamable[tid]);
             } else {
-                this->incLocalSlots(tid, EntryMiss, shortfall);
+                this->incLocalSlots(tid, EntryMiss, renamable[tid]);
             }
-
-            renamable[tid] -= shortfall;
+            renamable[tid] = 0;
         }
 
         return;
@@ -790,36 +774,34 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         if (tid == HPT) {
             if (fullSource[tid] == IQ && calcOwnIQEntries(LPT)) {
-                numLPTcause = std::min(calcOwnIQEntries(LPT), shortfall);
-                LB_part = calcOwnIQEntries(LPT) > 0;
-                if (LB_part)
+                if (VIQ == 0) {
+                    VIQ = calcOwnIQEntries(HPT);
+                }
+                if (VIQ < maxIQ) {
+                    VIQ += renameWidth;
+                    LB_part = true;
                     numIQWait[HPT]++;
+                }
 
             } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
-                numLPTcause = std::min(calcOwnROBEntries(LPT), shortfall);
-                LB_part = calcOwnROBEntries(LPT) > 0;
-                if (LB_part)
+                if (VROB == 0) {
+                    VROB = calcOwnROBEntries(HPT);
+                }
+                if (VROB < maxROB) {
+                    VROB += renameWidth;
+                    LB_part = true;
                     numROBWait[HPT]++;
-
+                }
             } else {
+                LB_all = false;
                 LB_part = false;
             }
 
-            if (missStat.numL2MissLoad[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, shortfall);
-
-            } else if (missStat.numL2MissLoad[LPT] && numLPTcause) {
-                LB_all = true;
+            if (LB_part) {
                 this->incLocalSlots(tid, EntryWait, shortfall);
-
-            } else if (LB_part) {
-                this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
-                this->incLocalSlots(tid, ComputeEntryMiss,
-                        shortfall - numLPTcause);
             } else {
                 this->incLocalSlots(tid, EntryMiss, shortfall);
             }
-
             renamable[tid] -= shortfall;
         }
     }
@@ -881,8 +863,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 incrFullStat(fullSource[tid], tid);
 
                 if (HPT == tid && renameStatus[HPT] != Blocked) {
-                    if (vsq <= 0.001) {
-                        vsq = calcOwnSQEntries(HPT);
+                    if (VSQ <= 0.001) {
+                        VSQ = calcOwnSQEntries(HPT);
                     }
                 }
                 break;
@@ -1009,6 +991,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     if (tid == HPT && renamable[tid]) {
         DPRINTF(LB, "HPT has more renamable insts\n");
         //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
+
+        bool VMiss = false; //根据 Virtual Queue 推断出来会发生miss
         if (fullSource[tid] == LQ && calcOwnLQEntries(LPT)) {
             numLQWait[HPT]++;
             LB_part = true;
@@ -1023,14 +1007,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
                     missStat.numL2MissLoad[HPT];
 #endif
-            DPRINTF(Pard, "%llu cycles since oldest Store, vsq is %f\n",
-                    (curTick() - missStat.oldestStoreTick[HPT])/500, vsq);
+            DPRINTF(Pard, "%llu cycles since oldest Store, VSQ is %f\n",
+                    (curTick() - missStat.oldestStoreTick[HPT])/500, VSQ);
 
-            bool m = vsq > 63;
-            vsq += storeRate;
+            VMiss = VSQ >= maxSQ;
+            VSQ += storeRate;
 
 
-            if (!m) {
+            if (!VMiss) {
                 numSQWait[HPT]++;
                 LB_all = true; // for unblocking
                 LB_part = true;
@@ -1044,6 +1028,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
                     " because of SQ\n", renamable[tid]);
+
         } else {
             LB_part = false;
         }
@@ -1296,7 +1281,10 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         renameStatus[tid] = Running;
 
         if (HPT == tid) {
-            vsq = 0;
+            VSQ = 0.0;
+            VLQ = 0.0;
+            VIQ = 0;
+            VROB = 0;
         }
         return true;
     }
@@ -1659,7 +1647,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         fullSource[tid] = IEWStage;
         ret_val = true;
         if (tid == HPT) {
-            LB_all = fromIEW->iewInfo[0].BLB;
             DPRINTF(FmtSlot2, "HPT stall from IEW stage detected.\n");
         }
 
@@ -1669,12 +1656,14 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == HPT) {
-            LB_all = calcOwnROBEntries(LPT) >= renameWidth;
-            LB_part = !LB_all && calcOwnROBEntries(LPT) > 0;
-            numLPTcause = std::min(calcOwnROBEntries(LPT), numLPTcause);
-            if (LB_all || LB_part)
+            if (VROB == 0) {
+                VROB = calcOwnROBEntries(HPT);
+            }
+            if (VROB < maxROB) {
+                VROB += renameWidth;
+                LB_part = true;
                 numROBWait[HPT]++;
-
+            }
             DPRINTF(FmtSlot2, "HPT stall because no ROB.\n");
         }
 
@@ -1685,12 +1674,14 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (tid == HPT) {
-            LB_all = calcOwnIQEntries(LPT) >= renameWidth;
-            LB_part = !LB_all && calcOwnIQEntries(LPT) > 0;
-            numLPTcause = std::min(calcOwnIQEntries(LPT), numLPTcause);
-            if (LB_all || LB_part)
+            if (VIQ == 0) {
+                VIQ = calcOwnIQEntries(HPT);
+            }
+            if (VIQ < maxIQ) {
+                VIQ += renameWidth;
+                LB_part = true;
                 numIQWait[HPT]++;
-
+            }
             DPRINTF(FmtSlot2, "HPT stall because no IQ.\n");
         }
 
@@ -2158,11 +2149,7 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
             if (fromDecode->frontEndMiss) {
                 this->incLocalSlots(HPT, InstMiss, renameWidth, false);
 
-            } else if (missStat.numL2MissLoad[HPT]) {
-                this->incLocalSlots(HPT, EntryMiss, renameWidth, true);
-
-            } else if (missStat.numL2MissLoad[LPT]) {
-                LB_all = true;
+            } else if (LB_all) {
                 this->incLocalSlots(HPT, EntryWait, renameWidth, true);
 
             } else if (fromIEW->iewInfo[0].BLB) {
