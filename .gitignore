@@ -25,4 +25,5 @@ simpoint
 /checkpoint
 /checkpoint_merge
 /smt_checkpoint
+/smt_run_bak
 merge_test

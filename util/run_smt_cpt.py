@@ -79,7 +79,7 @@ def smt_run(pair):
 
     if not os.path.isdir(outdir):
         os.makedirs(outdir)
-    exec_dir = pjoin(gem5_dir, 'smt_run')
+    exec_dir = os.environ['gem5_run_dir']
     os.chdir(exec_dir)
 
     options = (
@@ -107,7 +107,7 @@ def smt_run(pair):
 
     print options
 
-    # user_verify()
+    user_verify()
     # sys.exit()
 
     sh.gem5_fast(
@@ -168,7 +168,7 @@ if __name__ == '__main__':
 
     user_verify()
 
-    p = Pool(num_thread)
-    p.map(smt_run, targets)
-    # map(smt_run, targets)
+    # p = Pool(num_thread)
+    # p.map(smt_run, targets)
+    map(smt_run, targets)
 
