@@ -609,15 +609,11 @@ class DefaultIEW : public SlotCounter<Impl>
 
     float storeRate;
 
-    float VSQ, VLQ;
+    float vsq;
 
     int blockCycles;
 
     int blockedCycles;
-
-  private:
-    int VIQ;
-    int maxIQ, maxLQ, maxSQ;
 };
 
 #endif // __CPU_O3_IEW_HH__
