@@ -38,6 +38,10 @@ from os.path import expanduser as pexp
 from multiprocessing import Pool
 from common import *
 
+
+solo_cpt_dir = os.environ['st_checkpoint_dir']
+
+
 class myCP(ConfigParser):
     def __init__(self):
         ConfigParser.__init__(self)
@@ -200,7 +204,7 @@ def aggregator(pair):
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
     benchmarks = get_benchmarks('all_function_spec.txt')
-    solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
+    global solo_cpt_dir
     no_compress = False
 
     cpts = {}
@@ -226,7 +230,7 @@ def batch():
     memory_size = '8GB'
     gem5_dir = os.environ['gem5_root']
     benchmarks = get_benchmarks('all_function_spec.txt')
-    solo_cpt_dir = pjoin(gem5_dir, 'checkpoint')
+    global solo_cpt_dir
     if not os.path.isdir(merged_cpt_dir()):
         print '{} is not directory!\n'.format(merged_cpt_dir())
         sys.exit()

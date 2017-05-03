@@ -107,7 +107,7 @@ def smt_run(pair):
 
     print options
 
-    user_verify()
+    #user_verify()
     # sys.exit()
 
     sh.gem5_fast(
@@ -168,7 +168,9 @@ if __name__ == '__main__':
 
     user_verify()
 
-    # p = Pool(num_thread)
-    # p.map(smt_run, targets)
-    map(smt_run, targets)
+    if num_thread > 1:
+        p = Pool(num_thread)
+        p.map(smt_run, targets)
+    else:
+        smt_run(targets[0])
 
