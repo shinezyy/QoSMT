@@ -210,6 +210,7 @@ struct TimeBufStruct {
 
         DynInstPtr LQHead;
         DynInstPtr SQHead;
+        DynInstPtr IQHead;
 
         bool genShadow; // to rename
 

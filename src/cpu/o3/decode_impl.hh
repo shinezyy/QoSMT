@@ -628,7 +628,7 @@ DefaultDecode<Impl>::tick()
     if (toRenameNum[HPT]) {
         this->assignSlots(HPT, getHeadInst(HPT));
     }
-    DPRINTF(Pard, "Index of cur cycles: %i\n", storeIndex);
+    // DPRINTF(Pard, "Index of cur cycles: %i\n", storeIndex);
 }
 
 template<class Impl>
@@ -645,7 +645,7 @@ DefaultDecode<Impl>::decode(bool &status_change, ThreadID tid)
     if (decodeStatus[tid] == Blocked) {
         ++decodeBlockedCycles;
         ++threadDecodeBlockedCycles[tid];
-        DPRINTF(Pard, "Index not move: %i\n", storeIndex);
+        //DPRINTF(Pard, "Index not move: %i\n", storeIndex);
     } else if (decodeStatus[tid] == Squashing) {
         ++decodeSquashCycles;
 

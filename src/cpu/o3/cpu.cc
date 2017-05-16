@@ -60,7 +60,7 @@
 #include "debug/O3CPU.hh"
 #include "debug/Quiesce.hh"
 #include "debug/Pard.hh"
-#include "debug/FmtCtrl.hh"
+#include "debug/QoSCtrl.hh"
 #include "debug/FMT.hh"
 #include "enums/MemoryMode.hh"
 #include "sim/core.hh"
@@ -642,7 +642,7 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
         vec[1] = 1024 - vec[0];
 
         if (vec[0] != commit.rob->getHPTPortion()) {
-            DPRINTF(Pard, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
                     inc ? "Reserving":"Releasing", vec[0], vec[1]);
             commit.rob->reassignPortion(vec, 2, 1024);
         }
@@ -653,7 +653,7 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
         vec[0] = std::max(vec[0], 512);
         vec[1] = 1024 - vec[0];
         if (vec[0] != iew.ldstQueue.getHPTLQPortion()) {
-            DPRINTF(Pard, "%s [LQ], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "%s [LQ], vec[0]: %d, vec[1]: %d\n",
                     inc ? "Reserving":"Releasing", vec[0], vec[1]);
             iew.ldstQueue.reassignLQPortion(vec, 2, 1024);
         }
@@ -664,11 +664,11 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
         vec[0] = std::max(vec[0], 512);
         vec[1] = 1024 - vec[0];
         if (vec[0] != iew.ldstQueue.getHPTSQPortion()) {
-            DPRINTF(Pard, "%s [SQ], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "%s [SQ], vec[0]: %d, vec[1]: %d\n",
                     inc ? "Reserving":"Releasing", vec[0], vec[1]);
             iew.ldstQueue.reassignSQPortion(vec, 2, 1024);
         } else {
-            DPRINTF(Pard, "No need to %s, HPTPortion: %d",
+            DPRINTF(QoSCtrl, "No need to %s, HPTPortion: %d\n",
                     inc ? "Reserving":"Releasing",
                     iew.ldstQueue.getHPTSQPortion());
         }
@@ -714,7 +714,7 @@ FullO3CPU<Impl>::fetchControl()
         fmt.getHptNonWait();
     uint64_t real = predicted + fmt.globalWait[hpt] + fmt.getHptWait();
 
-    DPRINTF(Pard, "Fetch Control Working -----------------------\n");
+    DPRINTF(QoSCtrl, "Fetch Control Working -----------------------\n");
 
     bool nsat = predicted*1024 < real*(1024 - expectedSlowdown);
 
@@ -730,7 +730,7 @@ FullO3CPU<Impl>::fetchControl()
         vec[1] = 1024 - vec[0];
 
         if (vec[0] != fetch.getHPTPortion()) {
-            DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
             fetch.reassignFetchSlice(vec, 2, 1024);
         }
@@ -741,7 +741,7 @@ FullO3CPU<Impl>::fetchControl()
         vec[1] = 8 - vec[0];
 
         if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d,"
+            DPRINTF(QoSCtrl, "Reserving [Dispatch], vec[0]: %d,"
                     " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
@@ -752,7 +752,7 @@ FullO3CPU<Impl>::fetchControl()
         vec[1] = 1024 - vec[0];
 
         if (vec[0] != fetch.getHPTPortion()) {
-            DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
             fetch.reassignFetchSlice(vec, 2, 1024);
         }
@@ -763,7 +763,7 @@ FullO3CPU<Impl>::fetchControl()
         vec[1] = 8 - vec[0];
 
         if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d,"
+            DPRINTF(QoSCtrl, "Reserving [Dispatch], vec[0]: %d,"
                     " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }

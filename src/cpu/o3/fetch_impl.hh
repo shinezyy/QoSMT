@@ -70,6 +70,7 @@
 #include "debug/FmtSlot2.hh"
 #include "debug/LB.hh"
 #include "debug/InstPass.hh"
+#include "debug/QoSCtrl.hh"
 #include "mem/packet.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/byteswap.hh"
@@ -1789,12 +1790,16 @@ DefaultFetch<Impl>::updateFetchSlice()
     } else {
         float hptSlice = 0;
         float hptProp = float(portion[HPT]) / float(denominator);
+        DPRINTF(QoSCtrl, "hptProp is %f\n", hptProp);
 
         for (unsigned t = 0; t < numTimeSlice; t++) {
             if (hptSlice / (float(numTimeSlice)) < hptProp) {
                 priorityList.push_back(HPT);
+                hptSlice += 1;
+                DPRINTF(QoSCtrl, "Thread %i slice inc 1\n", HPT);
             } else {
                 priorityList.push_back(HPT + 1);
+                DPRINTF(QoSCtrl, "Thread %i slice inc 1\n", HPT + 1);
             }
         }
     }

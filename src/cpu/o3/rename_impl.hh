@@ -1140,7 +1140,7 @@ DefaultRename<Impl>::sortInsts()
                 tid, insts[tid].size());
     }
     storeRate = fromDecode->storeRate;
-    DPRINTF(Pard, "storeRate: %f\n", storeRate);
+    //DPRINTF(Pard, "storeRate: %f\n", storeRate);
 }
 
 template<class Impl>
