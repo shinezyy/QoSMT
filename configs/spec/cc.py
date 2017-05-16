@@ -234,8 +234,8 @@ for cpu in system.cpu:
     cpu.dumpWindowSize = (10**3)*10000
     cpu.policyWindowSize = (10**3)*20
 
-    cpu.expectedSlowdown = 1 * 1024 / 10 # 0~1024, lower -> higher qos
-    cpu.fullThreshold = 64 # 0~1024: lower -> more strict -> higher qos
+    cpu.expectedQoS = 75 * 1024 / 100 # 0~1024
+    cpu.fullThreshold = 64
 
     cpu.LQEntries = 64
     cpu.SQEntries = 64

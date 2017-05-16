@@ -211,7 +211,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       system(params->system),
       drainManager(NULL),
       lastRunningCycle(curCycle()),
-      expectedSlowdown(params->expectedSlowdown),
+      expectedQoS(params->expectedQoS),
       robReserved(false),
       lqReserved(false),
       sqReserved(false),
@@ -693,7 +693,7 @@ FullO3CPU<Impl>::combinedControl()
                 robf * base > policyWindowSize * fullThreshold,
                 lqf * base > policyWindowSize * fullThreshold,
                 sqf * base > policyWindowSize * fullThreshold,
-                true);
+                /*inc = */true);
     } else {
         incResource(
                 robf * base < policyWindowSize * fullThreshold,
@@ -710,21 +710,27 @@ FullO3CPU<Impl>::fetchControl()
     // Treat thread 0 as high-prio as usual
     ThreadID hpt = 0;
 
-    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt] +
+    uint64_t predicted_st_slots = fmt.globalBase[hpt] + fmt.globalMiss[hpt] +
         fmt.getHptNonWait();
-    uint64_t real = predicted + fmt.globalWait[hpt] + fmt.getHptWait();
+    uint64_t smt_slots= predicted_st_slots + fmt.globalWait[hpt] + fmt.getHptWait();
 
     DPRINTF(QoSCtrl, "Fetch Control Working -----------------------\n");
 
-    bool nsat = predicted*1024 < real*(1024 - expectedSlowdown);
+    bool nsat = predicted_st_slots*1024 < smt_slots*expectedQoS;
 
-    bool above = predicted*1024 > real*(1024 - expectedSlowdown + 64);
+    DPRINTF(QoSCtrl, "predicted_st_slots: %i, SMT slots: %i, expectedQoS: %i"
+            ", not satisfied: %i\n", predicted_st_slots,
+            smt_slots, expectedQoS, nsat);
+
+    bool above = predicted_st_slots*1024 > smt_slots*(expectedQoS + 64);
 
     int vec[2];
 
+    int grain = 32;
+
     if (nsat) {
 
-        vec[0] = fetch.getHPTPortion() + 128;
+        vec[0] = fetch.getHPTPortion() + grain;
         vec[0] = std::min(vec[0], 1024);
         vec[0] = std::max(vec[0], 512);
         vec[1] = 1024 - vec[0];
@@ -735,6 +741,7 @@ FullO3CPU<Impl>::fetchControl()
             fetch.reassignFetchSlice(vec, 2, 1024);
         }
 
+#if 0
         vec[0] = iew.getHPTWidth() + 1;
         vec[0] = std::min(vec[0], 8);
         vec[0] = std::max(vec[0], 4);
@@ -745,8 +752,9 @@ FullO3CPU<Impl>::fetchControl()
                     " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
+#endif
     } else if (above) {
-        vec[0] = fetch.getHPTPortion() - 128;
+        vec[0] = fetch.getHPTPortion() - grain;
         vec[0] = std::min(vec[0], 1024);
         vec[0] = std::max(vec[0], 512);
         vec[1] = 1024 - vec[0];
@@ -757,6 +765,7 @@ FullO3CPU<Impl>::fetchControl()
             fetch.reassignFetchSlice(vec, 2, 1024);
         }
 
+#if 0
         vec[0] = iew.getHPTWidth() - 1;
         vec[0] = std::min(vec[0], 8);
         vec[0] = std::max(vec[0], 4);
@@ -767,6 +776,7 @@ FullO3CPU<Impl>::fetchControl()
                     " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
+#endif
     }
 
     return nsat;
