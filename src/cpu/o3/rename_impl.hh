@@ -677,7 +677,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // Instructions can be either in the skid buffer or the queue of
     // instructions coming from decode, depending on the status.
     int insts_available = renameStatus[tid] == Unblocking ?
-        skidBuffer[tid].size() : insts[tid].size();
+                          (int) skidBuffer[tid].size() : (int) insts[tid].size();
 
     // Check the decode queue to see if instructions are available.
     // If there are no available instructions to rename, then do nothing.
@@ -1628,11 +1628,11 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             //这里的状态是周期开始时的状态
             case Running:
             case Idle:
-                numAvailInsts = insts[tid].size();
+                numAvailInsts = (unsigned) insts[tid].size();
                 break;
             case Blocked:
             case Unblocking:
-                numAvailInsts = skidBuffer[tid].size();
+                numAvailInsts = (unsigned) skidBuffer[tid].size();
                 break;
             default:
                 break;
@@ -1665,24 +1665,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
                 numROBWait[HPT]++;
             }
             DPRINTF(FmtSlot2, "HPT stall because no ROB.\n");
-        }
-
-    } else if (calcFreeIQEntries(tid) <= 0) {
-        /**为什么这里要检测？可不可以不检测？*/
-        DPRINTF(Rename,"[tid:%i]: Stall: IQ has 0 free entries.\n", tid);
-        fullSource[tid] = IQ;
-        ret_val = true;
-
-        if (tid == HPT) {
-            if (VIQ == 0) {
-                VIQ = calcOwnIQEntries(HPT);
-            }
-            if (VIQ < maxIQ) {
-                VIQ += renameWidth;
-                LB_part = true;
-                numIQWait[HPT]++;
-            }
-            DPRINTF(FmtSlot2, "HPT stall because no IQ.\n");
         }
 
     } else if (renameMap[tid]->numFreeEntries() <= 0) {
@@ -2318,6 +2300,43 @@ DefaultRename<Impl>::dumpStats()
         numLQWaitStat[tid] += numLQWait[tid];
         numSQWaitStat[tid] += numSQWait[tid];
     }
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::
+cleanSlots()
+{
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        std::fill(slotConsumption[tid].begin(),
+                  slotConsumption[tid].end(), NotConsumed);
+        std::fill(queueHeadState[tid].begin(),
+                  queueHeadState[tid].end(), NoState);
+        std::fill(vqState.begin(), vqState.end(), NoVQ);
+    }
+    std::fill(slotIndex.begin(), slotIndex.end(), NotConsumed);
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::
+consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs)
+{
+    for (int x = 0; x < numSlots; x++) {
+        slotConsumption[who][slotIndex[who] + x] = wocs;
+        slotConsumption[another(who)][slotIndex[another(who)] + x]
+                = OtherThreadsUsed;
+    }
+    slotIndex[who] += numSlots;
+    slotIndex[another(who)] += numSlots;
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::
+addUpSlots()
+{
+
 }
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

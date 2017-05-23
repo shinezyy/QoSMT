@@ -51,6 +51,8 @@
 #include "config/the_isa.hh"
 #include "cpu/timebuf.hh"
 #include "cpu/o3/slot_counter.hh"
+#include "../../base/types.hh"
+#include "../../base/statistics.hh"
 
 struct DerivO3CPUParams;
 
@@ -667,6 +669,62 @@ class DefaultRename : public SlotCounter<Impl>
 
     int VIQ, VROB;
     int maxROB, maxIQ, maxLQ, maxSQ;
+
+
+    enum WayOfConsumeSlots {
+        NotConsumed,
+        EffectUsed, // effectively used: renamed instructions
+        NoInstrSup, // no instruction supply
+        NoROB, // no reorder buffer entries
+        NoPF, // no physical register
+        NoIQ, // no instruction queue entries
+        NoLQ, // no load queue entries
+        NoSQ, // no store queue entries
+        IEWBlock,
+        WaitingSI, // waiting serializing instructions
+        DoingSquash,
+        OtherThreadsUsed
+    };
+
+    enum NoInstrReason {
+        NoReason,
+        IntrinsicICacheMiss,
+        ExtrinsicICacheMiss,
+        BranchMissPrediction,
+        Fetching,
+        AnotherThreadFetch
+    };
+
+    enum HeadInstrState {
+        NoState,
+        Normal, // L1 hitting
+        L1DCacheMiss,
+        L2DCacheMiss
+    };
+
+    enum VQState {
+        NoVQ,
+        VQNotFull,
+        VQFull
+    };
+
+    std::array<std::array<HeadInstrState, 4>, Impl::MaxThreads> queueHeadState;
+
+    std::array<std::array<VQState, 4>, Impl::MaxThreads> vqState;
+
+    // way of slots consumed by each thread
+    std::array<std::array<WayOfConsumeSlots, Impl::MaxWidth>,
+            Impl::MaxThreads> slotConsumption;
+
+    std::array<int, Impl::MaxThreads> slotIndex;
+
+    void cleanSlots();
+
+    void consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs);
+
+    void addUpSlots();
+
+    ThreadID another(ThreadID tid) {return LPT - tid;}
 
 };
 
