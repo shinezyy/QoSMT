@@ -100,6 +100,7 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
         nrFreeRegs[i] = params->numPhysIntRegs;
     }
+    cleanSlots();
 }
 
 template <class Impl>
