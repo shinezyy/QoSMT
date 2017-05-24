@@ -561,6 +561,7 @@ DefaultRename<Impl>::tick()
     }
 
     passLB(HPT);
+    cleanSlots();
 }
 
 template<class Impl>
@@ -2315,7 +2316,7 @@ cleanSlots()
                   queueHeadState[tid].end(), NoState);
         std::fill(vqState[tid].begin(), vqState[tid].end(), NoVQ);
     }
-    std::fill(slotIndex.begin(), slotIndex.end(), NotConsumed);
+    std::fill(slotIndex.begin(), slotIndex.end(), 0);
 }
 
 template<class Impl>
