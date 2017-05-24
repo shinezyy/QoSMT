@@ -375,8 +375,7 @@ class DefaultFetch : public SlotCounter<Impl>
 
     int denominator;
 
-    void reassignFetchSlice(int newWidthVec[],
-            int lenWidthVec, int newWidthDenominator);
+    void reassignFetchSlice(int newWidthVec[], int newWidthDenominator);
 
     int getHPTPortion() {return portion[HPT];}
 
@@ -639,6 +638,10 @@ class DefaultFetch : public SlotCounter<Impl>
     const unsigned numTimeSlice;
 
     ThreadID fetchThread;
+
+  private:
+
+    bool AnotherThreadCauseCurrentMiss();
 };
 
 #endif //__CPU_O3_FETCH_HH__

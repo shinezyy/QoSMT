@@ -1707,8 +1707,7 @@ DefaultFetch<Impl>::pipelineIcacheAccesses(ThreadID tid)
 
 template<class Impl>
 void
-DefaultFetch<Impl>::reassignFetchSlice(int newWidthVec[],
-        int lenWidthVec, int newWidthDenominator)
+DefaultFetch<Impl>::reassignFetchSlice(int newWidthVec[], int newWidthDenominator)
 {
     //assert(lenWidthVec == numThreads);
     if (fetchPolicy != Programmable) {
@@ -1811,52 +1810,56 @@ template <class Impl>
 void
 DefaultFetch<Impl>::passLB(ThreadID tid)
 {
-    if (fetchQueue[tid].size() == fetchQueueSize) {
-        goto _do_block;
-    }
 
-    switch(fetchStatus[tid]) {
-        case(Blocked): /** 传下去就行了*/
-_do_block:
-            toDecode->frontEndMiss = false;
-
+    if (numInsts[tid] > 0) {
+        this->incLocalSlots(tid, Base, numInsts[tid]);
+        this->incLocalSlots(tid, WidthWait, numInsts[this->another(tid)]);
+        // 这种情况比较少，所以算作miss，其中实际上可能有wait，暂时不管了
+        this->incLocalSlots(tid, InstSupMiss, fetchWidth - numInst);
+    } else {
+        if (stalls[tid].decode){
             if (fromDecode->decodeInfo[tid].BLB) {
                 this->incLocalSlots(tid, LaterWait, fetchWidth);
             } else {
                 this->incLocalSlots(tid, LaterMiss, fetchWidth);
             }
-            break;
-        case(IcacheAccessComplete):
-        case(Running):
-            if (numInsts[tid]) {
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, Base, numInsts[tid]);
-                this->incLocalSlots(tid, InstMiss, fetchWidth - numInsts[tid]);
-
-            } else if (fromDecode->decodeInfo[tid].BLB) {
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, LaterWait, fetchWidth);
-
-            } else if (stalls[HPT].decode) {
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, LaterMiss, fetchWidth);
-
-            } else if (fetchThread == LPT){
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, WidthWait, fetchWidth);
-
+        } else {
+            if (fetchThread == tid) {
+                this->incLocalSlots(tid, InstSupMiss, fetchWidth);
             } else {
-                toDecode->frontEndMiss = true;
-                this->incLocalSlots(tid, InstMiss, fetchWidth);
+                bool intrinsic_miss =
+                        fetchStatus[tid] == Squashing ||
+                        fetchStatus[tid] == TrapPending ||
+                        fetchStatus[tid] == QuiescePending ||
+                        fetchStatus[tid] == ItlbWait;
+                bool cache_miss =
+                        fetchStatus[tid] == IcacheWaitResponse ||
+                        fetchStatus[tid] == IcacheWaitRetry;
+                if (intrinsic_miss) {
+                    this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                } else {
+                    if (AnotherThreadCauseCurrentMiss()) {
+                        this->incLocalSlots(tid, InstSupWait, fetchWidth);
+                    } else {
+                        this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                    }
+                }
             }
-            break;
-        // This should be miss ? case(Idle):
-        default: /** Icache miss and branch misPred are both front end miss*/
-            toDecode->frontEndMiss = true;
+        }
+    }
 
-            this->incLocalSlots(tid, InstMiss, fetchWidth);
-            break;
+    if (perCycleSlots[HPT][InstSupMiss] == fetchWidth ||
+            perCycleSlots[HPT][LaterMiss] == fetchWidth) {
+        toDecode->frontEndMiss = true;
     }
 }
+
+template <class Impl>
+bool
+DefaultFetch<Impl>::AnotherThreadCauseCurrentMiss()
+{
+    return false;
+}
+
 
 #endif//__CPU_O3_FETCH_IMPL_HH__
