@@ -738,7 +738,7 @@ FullO3CPU<Impl>::fetchControl()
         if (vec[0] != fetch.getHPTPortion()) {
             DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
-            fetch.reassignFetchSlice(vec, 2, 1024);
+            fetch.reassignFetchSlice(vec, 1024);
         }
 
 #if 0
@@ -762,7 +762,7 @@ FullO3CPU<Impl>::fetchControl()
         if (vec[0] != fetch.getHPTPortion()) {
             DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
-            fetch.reassignFetchSlice(vec, 2, 1024);
+            fetch.reassignFetchSlice(vec, 1024);
         }
 
 #if 0

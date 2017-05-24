@@ -91,16 +91,15 @@ template <class Impl>
 void
 SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
 {
-    miss[tid] += perCycleSlots[tid][InstMiss];
+    miss[tid] += perCycleSlots[tid][InstSupMiss];
     miss[tid] += perCycleSlots[tid][EntryMiss];
-    miss[tid] += perCycleSlots[tid][ComputeEntryMiss];
     miss[tid] += perCycleSlots[tid][LaterMiss];
     miss[tid] += perCycleSlots[tid][SerializeMiss];
+    miss[tid] += perCycleSlots[tid][SquashMiss];
 
-    wait[tid] += perCycleSlots[tid][EarlierWait];
+    wait[tid] += perCycleSlots[tid][InstSupWait];
     wait[tid] += perCycleSlots[tid][WidthWait];
     wait[tid] += perCycleSlots[tid][EntryWait];
-    wait[tid] += perCycleSlots[tid][ComputeEntryWait];
     wait[tid] += perCycleSlots[tid][LaterWait];
     wait[tid] += perCycleSlots[tid][LBLCWait];
 
@@ -127,18 +126,16 @@ SlotCounter<Impl>::regStats()
         .desc("number of HPT wait slots in " + name())
         ;
 
-    waitSlots = slots[EarlierWait] + slots[LBLCWait] +
-        slots[WidthWait] + slots[EntryWait] +
-        slots[ComputeEntryWait] + slots[LaterWait];
+    waitSlots = slots[InstSupWait] + slots[WidthWait] +
+        slots[EntryWait] + slots[LaterWait] + slots[LBLCWait];
 
     missSlots
         .name(name() + ".local_miss_slots")
         .desc("number of HPT miss slots in " + name())
         ;
 
-    missSlots = slots[InstMiss] + slots[EntryMiss] +
-        slots[ComputeEntryMiss] + slots[LaterMiss] +
-        slots[SerializeMiss];
+    missSlots = slots[InstSupMiss] + slots[EntryMiss] +
+        slots[LaterMiss] + slots[SerializeMiss] + slots[SquashMiss];
 
     baseSlots
         .name(name() + ".local_base_slots")

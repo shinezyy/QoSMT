@@ -1838,8 +1838,12 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
                 if (intrinsic_miss) {
                     this->incLocalSlots(tid, InstSupMiss, fetchWidth);
                 } else {
-                    if (AnotherThreadCauseCurrentMiss()) {
-                        this->incLocalSlots(tid, InstSupWait, fetchWidth);
+                    if (cache_miss) {
+                        if (AnotherThreadCauseCurrentMiss()) {
+                            this->incLocalSlots(tid, InstSupWait, fetchWidth);
+                        } else {
+                            this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                        }
                     } else {
                         this->incLocalSlots(tid, InstSupMiss, fetchWidth);
                     }
@@ -1848,8 +1852,8 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
         }
     }
 
-    if (perCycleSlots[HPT][InstSupMiss] == fetchWidth ||
-            perCycleSlots[HPT][LaterMiss] == fetchWidth) {
+    if (this->perCycleSlots[HPT][InstSupMiss] == fetchWidth ||
+            this->perCycleSlots[HPT][LaterMiss] == fetchWidth) {
         toDecode->frontEndMiss = true;
     }
 }

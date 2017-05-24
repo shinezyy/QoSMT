@@ -19,12 +19,12 @@ enum SlotsUse {
     /** Doesn't have enough insts because of
      * front end miss (iTLB miss, icache miss, miss prediction)
      */
-    InstMiss,
+    InstSupMiss,
 
     /** Doesn't have enough insts because of instrutions of HPT
      * were blocked in earlier stage by LPT
      */
-    EarlierWait,
+    InstSupWait,
 
     /**
      * Have insts to process , but other thread occupied some dispatchWidth
@@ -40,15 +40,6 @@ enum SlotsUse {
      * Have insts to process , but there's no enough entries because of itself (HPT)
      */
     EntryMiss,
-
-    /**
-     * Have insts to process , but there's no enough entries
-     * partly because of itself (HPT), while also because of LPT
-     * ComputeEntryMiss is because of HPT, ComputeEntryWait is because of LPT
-     */
-    ComputeEntryMiss,
-
-    ComputeEntryWait,
 
     /** process insts*/
     Base,
@@ -69,6 +60,8 @@ enum SlotsUse {
     LBLCWait,
 
     SerializeMiss,
+
+    SquashMiss,
 
     NumUse
 };
@@ -108,18 +101,17 @@ class SlotCounter
 
     static const char* getSlotUseStr(int index) {
         static const char* slotUseStr[] = {
-            "InstMiss",
-            "EarlierWait",
+            "InstSupMiss",
+            "InstSupWait",
             "WidthWait",
             "EntryWait",
             "EntryMiss",
-            "ComputeEntryMiss",
-            "ComputeEntryWait",
             "Base",
             "LaterMiss",
             "LaterWait",
             "LBLCWait",
             "SerializeMiss",
+            "SquashMiss",
         };
         return slotUseStr[index];
     }
@@ -141,6 +133,8 @@ class SlotCounter
     void incLocalSlots(ThreadID tid, SlotsUse su, int32_t num);
 
     void incLocalSlots(ThreadID tid, SlotsUse su, int32_t num, bool verbose);
+
+    ThreadID another(ThreadID tid) {return LPT - tid;}
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__

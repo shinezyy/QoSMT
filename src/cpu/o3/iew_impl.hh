@@ -1195,7 +1195,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             if (HPT == tid) {
                 DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d].\n", tid);
-                this->incLocalSlots(HPT, InstMiss, 1);
+                this->incLocalSlots(HPT, InstSupMiss, 1);
                 dispatchable[HPT]--;
             }
 
@@ -1439,7 +1439,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
     if (HPT == tid && dispatchable[HPT] > 0) {
 
         if (fromRename->frontEndMiss) {
-            this->incLocalSlots(tid, InstMiss, dispatchable[HPT]);
+            this->incLocalSlots(tid, InstSupMiss, dispatchable[HPT]);
 
         } else if (dispatchStatus[tid] == Blocked && missStat.numL2MissLoad[HPT]) {
             this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
@@ -1452,8 +1452,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
 
         } else if (LB_part) {
-            this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
-            this->incLocalSlots(tid, ComputeEntryMiss,
+            this->incLocalSlots(tid, EntryWait, numLPTcause);
+            this->incLocalSlots(tid, EntryMiss,
                     dispatchable[tid] - numLPTcause);
 
         } else if (dispatchStatus[tid] == Blocked){
@@ -1830,7 +1830,7 @@ DefaultIEW<Impl>::tick()
 
     if (this->checkSlots(HPT)) {
         //only inst miss should be counted
-        localInstMiss += this->perCycleSlots[HPT][InstMiss];
+        localInstMiss += this->perCycleSlots[HPT][InstSupMiss];
         this->sumLocalSlots(HPT);
     }
 
@@ -2141,7 +2141,7 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
                     this->incLocalSlots(HPT, LBLCWait, wasted);
 
                 } else {
-                    this->incLocalSlots(HPT, InstMiss, wasted);
+                    this->incLocalSlots(HPT, InstSupMiss, wasted);
                 }
 
                 DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
@@ -2152,7 +2152,7 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
         case Blocked:
             /**block一定导致本周期miss */
             if (fromRename->frontEndMiss) {
-                this->incLocalSlots(HPT, InstMiss, dispatchWidth);
+                this->incLocalSlots(HPT, InstSupMiss, dispatchWidth);
 
             } else if (missStat.numL2MissLoad[HPT]) {
                 this->incLocalSlots(tid, EntryMiss, dispatchWidth);
@@ -2162,7 +2162,7 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
                 this->incLocalSlots(tid, EntryWait, dispatchWidth);
 
             } else if (LB_all) {
-                this->incLocalSlots(tid, InstMiss,
+                this->incLocalSlots(tid, InstSupMiss,
                         dispatchWidth - numLPTcause);
                 this->incLocalSlots(tid, EntryWait, numLPTcause);
 
@@ -2170,11 +2170,11 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
                 this->incLocalSlots(tid, EntryWait, numLPTcause);
                 this->incLocalSlots(tid, EntryMiss,
                         dispatchable[tid] - numLPTcause);
-                this->incLocalSlots(tid, InstMiss,
+                this->incLocalSlots(tid, InstSupMiss,
                         dispatchWidth - dispatchable[tid]);
             } else {
                 this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
-                this->incLocalSlots(tid, InstMiss,
+                this->incLocalSlots(tid, InstSupMiss,
                         dispatchWidth - dispatchable[tid]);
             }
 
@@ -2184,7 +2184,7 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
         case StartSquash:
             /**Squash一定导致本周期miss*/
 
-            this->incLocalSlots(HPT, InstMiss, dispatchWidth);
+            this->incLocalSlots(HPT, InstSupMiss, dispatchWidth);
 
             DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
                     tid, dispatchWidths[tid]);

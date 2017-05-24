@@ -839,6 +839,23 @@ template <class Impl>
 void
 DefaultDecode<Impl>::passLB(ThreadID tid)
 {
+    fromRename->renameInfo[tid].BLB;
+    toRename->frontEndMiss;
+    toFetch->decodeInfo[tid].BLB;
+    fromFetch->frontEndMiss;
+
+
+
+
+
+
+
+
+
+
+
+
+
     switch(decodeStatus[tid]) {
         case(Blocked):
             toRename->frontEndMiss = fromFetch->frontEndMiss;
@@ -848,7 +865,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             }
 
             if (fromFetch->frontEndMiss) {
-                this->incLocalSlots(tid, InstMiss, decodeWidth);
+                this->incLocalSlots(tid, InstSupMiss, decodeWidth);
             } else if (fromRename->renameInfo[tid].BLB){
                 this->incLocalSlots(tid, LaterWait, decodeWidth);
             } else {
@@ -863,7 +880,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             toFetch->decodeInfo[tid].BLB = false;
             DPRINTF(LB, "No BLB because of Squashign\n");
 
-            this->incLocalSlots(tid, InstMiss, decodeWidth);
+            this->incLocalSlots(tid, InstSupMiss, decodeWidth);
             break;
 
         case(Running):
@@ -875,10 +892,10 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
 
             if (toRenameNum[tid]) {
                 this->incLocalSlots(tid, Base, toRenameNum[tid]);
-                this->incLocalSlots(tid, InstMiss,
+                this->incLocalSlots(tid, InstSupMiss,
                         decodeWidth - toRenameNum[tid]);
             } else {
-                this->incLocalSlots(tid, InstMiss, decodeWidth);
+                this->incLocalSlots(tid, InstSupMiss, decodeWidth);
             }
 
             break;
@@ -891,10 +908,10 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
 
             if (toRenameNum[tid]) {
                 this->incLocalSlots(tid, Base, toRenameNum[tid]);
-                this->incLocalSlots(tid, InstMiss,
+                this->incLocalSlots(tid, InstSupMiss,
                         decodeWidth - toRenameNum[tid]);
             } else {
-                this->incLocalSlots(tid, InstMiss, decodeWidth);
+                this->incLocalSlots(tid, InstSupMiss, decodeWidth);
             }
 
             if (BLBlocal) {

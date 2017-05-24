@@ -890,7 +890,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             --renamable[tid];
 
             if (tid == HPT) {
-                this->incLocalSlots(HPT, InstMiss, 1);
+                this->incLocalSlots(HPT, InstSupMiss, 1);
             }
             continue;
         }
@@ -1041,11 +1041,11 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             this->incLocalSlots(tid, EntryWait, renamable[tid]);
 
         } else if(LB_part) {
-            this->incLocalSlots(tid, ComputeEntryWait, numLPTcause);
-            this->incLocalSlots(tid, ComputeEntryMiss,
+            this->incLocalSlots(tid, EntryWait, numLPTcause);
+            this->incLocalSlots(tid, EntryMiss,
                     renamable[tid] - numLPTcause);
         } else {
-            this->incLocalSlots(tid, ComputeEntryMiss, renamable[tid]);
+            this->incLocalSlots(tid, EntryMiss, renamable[tid]);
         }
     }
 
@@ -2108,7 +2108,8 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         case Idle:
             if (renamable[tid] < renameWidth) {
                 int wasted = renameWidth - renamable[tid];
-                this->incLocalSlots(HPT, InstMiss, wasted);
+                this->incLocalSlots(HPT, InstSupMiss, wasted);
+                consumeSlots(wasted, HPT, NoInstrSup);
 
                 DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
                         tid, wasted);
@@ -2119,7 +2120,7 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
             if (renamable[tid] < renameWidth) {
                 int wasted = renameWidth - renamable[tid];
                 if (fromDecode->frontEndMiss || !LBLC) {
-                    this->incLocalSlots(HPT, InstMiss, wasted);
+                    this->incLocalSlots(HPT, InstSupMiss, wasted);
                 } else {
                     this->incLocalSlots(HPT, LBLCWait, wasted);
                 }
@@ -2129,30 +2130,30 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         case Blocked:
             /**block一定导致本周期miss */
             if (fromDecode->frontEndMiss) {
-                this->incLocalSlots(HPT, InstMiss, renameWidth, false);
+                this->incLocalSlots(HPT, InstSupMiss, renameWidth, false);
 
             } else if (LB_all) {
                 this->incLocalSlots(HPT, EntryWait, renameWidth, true);
 
             } else if (fromIEW->iewInfo[0].BLB) {
-                this->incLocalSlots(HPT, InstMiss,
+                this->incLocalSlots(HPT, InstSupMiss,
                         renameWidth - numLPTcause, false);
                 this->incLocalSlots(HPT, LaterWait, numLPTcause, true);
 
             } else if (LB_all) {
-                this->incLocalSlots(HPT, InstMiss,
+                this->incLocalSlots(HPT, InstSupMiss,
                         renameWidth - numLPTcause, false);
                 this->incLocalSlots(HPT, EntryWait, numLPTcause, true);
 
             } else if (LB_part) {
-                this->incLocalSlots(HPT, ComputeEntryWait, numLPTcause, true);
-                this->incLocalSlots(HPT, ComputeEntryMiss,
+                this->incLocalSlots(HPT, EntryWait, numLPTcause, true);
+                this->incLocalSlots(HPT, EntryMiss,
                         renamable[HPT] - numLPTcause, true);
-                this->incLocalSlots(HPT, InstMiss,
+                this->incLocalSlots(HPT, InstSupMiss,
                         renameWidth - renamable[HPT], false);
             } else {
                 this->incLocalSlots(HPT, EntryMiss, renamable[HPT], true);
-                this->incLocalSlots(HPT, InstMiss,
+                this->incLocalSlots(HPT, InstSupMiss,
                         renameWidth - renamable[HPT], false);
             }
             break;
@@ -2160,7 +2161,7 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         case Squashing:
         case StartSquash:
             /**Squash一定导致本周期miss*/
-            this->incLocalSlots(HPT, InstMiss, renameWidth);
+            this->incLocalSlots(HPT, InstSupMiss, renameWidth);
 
             DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
                     tid, renameWidth);
@@ -2312,7 +2313,7 @@ cleanSlots()
                   slotConsumption[tid].end(), NotConsumed);
         std::fill(queueHeadState[tid].begin(),
                   queueHeadState[tid].end(), NoState);
-        std::fill(vqState.begin(), vqState.end(), NoVQ);
+        std::fill(vqState[tid].begin(), vqState[tid].end(), NoVQ);
     }
     std::fill(slotIndex.begin(), slotIndex.end(), NotConsumed);
 }
