@@ -1004,7 +1004,6 @@ DefaultFetch<Impl>::tick()
             wroteToTimeBuffer = true;
             fetchQueue[tid].pop_front();
             insts_to_decode_all++;
-            numInsts[tid]++;
             available_insts--;
         }
 
