@@ -2325,6 +2325,8 @@ DefaultRename<Impl>::
 consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs)
 {
     for (int x = 0; x < numSlots; x++) {
+        DPRINTF(LB, "TID[%i], slot index = %i",
+                who, slotIndex[who] + x);
         slotConsumption[who][slotIndex[who] + x] = wocs;
         slotConsumption[another(who)][slotIndex[another(who)] + x]
                 = OtherThreadsUsed;
