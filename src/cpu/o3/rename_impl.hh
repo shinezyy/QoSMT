@@ -328,6 +328,7 @@ DefaultRename<Impl>::resetStage()
         serializeOnNextInst[tid] = false;
     }
     clearFull();
+    cleanSlots();
 }
 
 template<class Impl>
