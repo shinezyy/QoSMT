@@ -551,9 +551,11 @@ DefaultRename<Impl>::tick()
 
     increaseFreeEntries();
 
+#if 0
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
+#endif
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toIEWNum[tid]) {
@@ -676,7 +678,6 @@ template <class Impl>
 void
 DefaultRename<Impl>::renameInsts(ThreadID tid)
 {
-    LB_part = tid == HPT ? false : LB_part;
     // Instructions can be either in the skid buffer or the queue of
     // instructions coming from decode, depending on the status.
     int insts_available = renameStatus[tid] == Unblocking ?
@@ -702,109 +703,40 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // Will have to do a different calculation for the number of free
     // entries.
     int free_rob_entries = calcFreeROBEntries(tid);
-    int free_iq_entries  = calcFreeIQEntries(tid);
-    int min_free_entries = free_rob_entries;
-
     fullSource[tid] = ROB;
 
-    if (free_iq_entries < min_free_entries) {
-        min_free_entries = free_iq_entries;
-        fullSource[tid] = IQ;
-    }
-	shortfall = std::max(renamable[tid] - min_free_entries, 0);
+	shortfall = std::max(renamable[tid] - free_rob_entries, 0);
 
     // Check if there's any space left.
-    if (min_free_entries <= 0) {
-        DPRINTF(FmtSlot2, "[tid:%u]: Blocking due to no free ROB/IQ/ "
-                "entries.\n"
-                "ROB has %i free entries.\n"
-                "IQ has %i free entries.\n",
-                tid,
-                free_rob_entries,
-                free_iq_entries);
+    if (free_rob_entries <= 0) {
+        DPRINTF(FmtSlot2, "[tid:%u]: Blocking due to no free ROB "
+                "entries.\nROB has %i free entries.\n",
+                tid, free_rob_entries);
 
         blockThisCycle = true;
-
         block(tid);
-
         incrFullStat(fullSource[tid], tid);
 
         if (tid == HPT) {
-            if (fullSource[tid] == IQ && calcOwnIQEntries(LPT)) {
-                if (VIQ == 0) {
-                    VIQ = calcOwnIQEntries(HPT);
-                }
-                if (VIQ < maxIQ) {
-                    VIQ += renameWidth;
-                    LB_part = true;
-                    numIQWait[HPT]++;
-                }
-            } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
-                if (VROB == 0) {
-                    VROB = calcOwnROBEntries(HPT);
-                }
-                if (VROB < maxROB) {
-                    VROB += renameWidth;
-                    LB_part = true;
-                    numROBWait[HPT]++;
-                }
-            } else {
-                LB_all = false;
-                LB_part = false;
-            }
-
-            if (LB_part) {
-                this->incLocalSlots(tid, EntryWait, renamable[tid]);
-            } else {
-                this->incLocalSlots(tid, EntryMiss, renamable[tid]);
-            }
-            renamable[tid] = 0;
+            consumeSlots(renamable[HPT], HPT, NoROB);
+            renamable[HPT] = 0;
         }
 
         return;
 
-    } else if (min_free_entries < insts_available) {
+    } else if (free_rob_entries < insts_available) {
         DPRINTF(FmtSlot2, "[tid:%u]: Will have to block this cycle."
                 "%i insts available, but only %i insts can be "
-                "renamed due to ROB/IQ/LSQ limits.\n",
-                tid, insts_available, min_free_entries);
+                "renamed due to ROB limits.\n",
+                tid, insts_available, free_rob_entries);
 
-        insts_available = min_free_entries;
+        insts_available = free_rob_entries;
 
         blockThisCycle = true;
-
         incrFullStat(fullSource[tid], tid);
 
         if (tid == HPT) {
-            if (fullSource[tid] == IQ && calcOwnIQEntries(LPT)) {
-                if (VIQ == 0) {
-                    VIQ = calcOwnIQEntries(HPT);
-                }
-                if (VIQ < maxIQ) {
-                    VIQ += renameWidth;
-                    LB_part = true;
-                    numIQWait[HPT]++;
-                }
-
-            } else if (fullSource[tid] == ROB && calcOwnROBEntries(LPT)) {
-                if (VROB == 0) {
-                    VROB = calcOwnROBEntries(HPT);
-                }
-                if (VROB < maxROB) {
-                    VROB += renameWidth;
-                    LB_part = true;
-                    numROBWait[HPT]++;
-                }
-            } else {
-                LB_all = false;
-                LB_part = false;
-            }
-
-            if (LB_part) {
-                this->incLocalSlots(tid, EntryWait, shortfall);
-            } else {
-                this->incLocalSlots(tid, EntryMiss, shortfall);
-            }
+            consumeSlots(shortfall, HPT, NoROB);
             renamable[tid] -= shortfall;
         }
     }
@@ -833,46 +765,13 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     int renamed_insts = 0;
 
+    //<editor-fold desc="Main loop to rename instructions">
     while (insts_available > 0 &&  toIEWIndex < renameWidth) {
         DPRINTF(Rename, "[tid:%u]: Sending instructions to IEW.\n", tid);
 
         assert(!insts_to_rename.empty());
 
         inst = insts_to_rename.front();
-
-        //For all kind of instructions, check ROB and IQ first
-
-        //For load instruction, check LQ size
-        //and take into account the inflight loads
-
-        //For store instruction, check SQ size
-        //and take into account the inflight stores
-
-        if (inst->isLoad()) {
-            if(calcFreeLQEntries(tid) <= 0) {
-                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free LQ\n", tid);
-
-                fullSource[tid] = LQ;
-                incrFullStat(fullSource[tid], tid);
-                break;
-            }
-        }
-
-        if (inst->isStore()) {
-            if(calcFreeSQEntries(tid) <= 0) {
-                DPRINTF(FmtSlot2, "[tid:%u]: Cannot rename due to no free SQ\n", tid);
-
-                fullSource[tid] = SQ;
-                incrFullStat(fullSource[tid], tid);
-
-                if (HPT == tid && renameStatus[HPT] != Blocked) {
-                    if (VSQ <= 0.001) {
-                        VSQ = calcOwnSQEntries(HPT);
-                    }
-                }
-                break;
-            }
-        }
 
         insts_to_rename.pop_front();
 
@@ -893,7 +792,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             --renamable[tid];
 
             if (tid == HPT) {
-                this->incLocalSlots(HPT, InstSupMiss, 1);
+                consumeSlots(1, HPT, SquashedInst);
             }
             continue;
         }
@@ -914,6 +813,9 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             ++renameFullRegistersEvents;
             fullSource[tid] = Register;
 
+            if (tid == HPT) {
+                consumeSlots(renamable[HPT], HPT, NoPR);
+            }
             break;
         }
 
@@ -927,6 +829,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         // instructions.  This is mainly due to lack of support for
         // out-of-order operations of either of those classes of
         // instructions.
+        //<editor-fold desc="SI related process">
         if ((inst->isIprAccess() || inst->isSerializeBefore()) &&
             !inst->isSerializeHandled()) {
             DPRINTF(FmtSlot2, "Serialize before instruction encountered.\n");
@@ -949,6 +852,9 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             blockThisCycle = true;
 
+            if (tid == HPT) {
+                consumeSlots(renamable[HPT], HPT, WaitingSI);
+            }
             break;
         } else if ((inst->isStoreConditional() || inst->isSerializeAfter()) &&
                    !inst->isSerializeHandled()) {
@@ -960,6 +866,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
             serializeAfter(insts_to_rename, tid);
         }
+        //</editor-fold>
 
         renameSrcRegs(inst, inst->threadNumber);
 
@@ -983,74 +890,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         ++toIEWNum[tid];
 
         if (tid == HPT) {
-            this->incLocalSlots(HPT, Base, 1);
+            consumeSlots(1, HPT, EffectUsed);
         }
 
         // Decrement how many instructions are available.
         --insts_available;
         --renamable[tid];
     }
-
-    if (tid == HPT && renamable[tid]) {
-        DPRINTF(LB, "HPT has more renamable insts\n");
-        //可能有很多指令因为LSQ满了而无法rename，要在此处进行判断
-
-        bool VMiss = false; //根据 Virtual Queue 推断出来会发生miss
-        if (fullSource[tid] == LQ && calcOwnLQEntries(LPT)) {
-            numLQWait[HPT]++;
-            LB_part = true;
-            numLPTcause = renamable[tid];
-            DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
-                    " because of LQ\n", renamable[tid]);
-
-        } else if (fullSource[tid] == SQ && calcOwnSQEntries(LPT)) {
-#if 0
-            bool lptl2StoreMiss = missStat.numL2Miss[LPT] >
-                    missStat.numL2MissLoad[LPT];
-            bool hptl2StoreMiss = missStat.numL2Miss[HPT] >
-                    missStat.numL2MissLoad[HPT];
-#endif
-            DPRINTF(Pard, "%llu cycles since oldest Store, VSQ is %f\n",
-                    (curTick() - missStat.oldestStoreTick[HPT])/500, VSQ);
-
-            VMiss = VSQ >= maxSQ;
-            VSQ += storeRate;
-
-
-            if (!VMiss) {
-                numSQWait[HPT]++;
-                LB_all = true; // for unblocking
-                LB_part = true;
-                numLPTcause = renamable[HPT];
-
-            } else{
-                LB_all = false;
-                LB_part = false;
-                numLPTcause = 0;
-            }
-
-            DPRINTF(FmtSlot2, "[Block reason] %i insts cannot be renamed,"
-                    " because of SQ\n", renamable[tid]);
-
-        } else {
-            LB_part = false;
-        }
-
-        if (missStat.numL2MissLoad[HPT]) {
-            this->incLocalSlots(tid, EntryMiss, renamable[tid]);
-
-        } else if (missStat.numL2MissLoad[LPT] && numLPTcause) {
-            LB_all = true;
-            this->incLocalSlots(tid, EntryWait, renamable[tid]);
-
-        } else if(LB_part) {
-            this->incLocalSlots(tid, EntryWait, numLPTcause);
-            this->incLocalSlots(tid, EntryMiss,
-                    renamable[tid] - numLPTcause);
-        } else {
-            this->incLocalSlots(tid, EntryMiss, renamable[tid]);
-        }
-    }
+    //</editor-fold>
 
     instsInProgress[tid] += renamed_insts;
     renameRenamedInsts += renamed_insts;
@@ -1228,7 +1075,7 @@ DefaultRename<Impl>::block(ThreadID tid)
                 blockCycles++;
             }
 
-            if (HPT == tid && (LB_all || LB_part)) {
+            if (HPT == tid && (LB_all)) {
                 if (!fromIEW->iewInfo[HPT].genShadow) {
                     toIEW->genShadow = true;
                 }
@@ -1664,7 +1511,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             }
             if (VROB < maxROB) {
                 VROB += renameWidth;
-                LB_part = true;
                 numROBWait[HPT]++;
             }
             DPRINTF(FmtSlot2, "HPT stall because no ROB.\n");
@@ -1997,8 +1843,6 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 
             toDecode->renameInfo[tid].BLB = fromIEW->iewInfo[tid].BLB || LB_all;
 
-            /**如果LB_part，那么这个周期没有LPT也会阻塞，肯定会阻塞上一个stage*/
-
             if (toDecode->renameInfo[tid].BLB) {
                 if (LB_all) {
                     DPRINTF(LB, "Send BLB to Decode because of local detection\n");
@@ -2012,7 +1856,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         case Idle:
             toIEW->frontEndMiss = fromDecode->frontEndMiss;
             assert(!fromIEW->iewInfo[tid].BLB);
-            assert(!(LB_all || LB_part));
+            assert(!LB_all);
             toDecode->renameInfo[tid].BLB = false;
             /** 在rename或者decode的running阶段，有可能带宽是没有用满的，
               * 但是没关系，因为如果是wait，下面的指令一定记录了，
@@ -2109,75 +1953,37 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
     switch (renameStatus[tid]) {
         case Running:
         case Idle:
-            if (renamable[tid] < renameWidth) {
-                int wasted = renameWidth - renamable[tid];
-                this->incLocalSlots(HPT, InstSupMiss, wasted);
-                consumeSlots(wasted, HPT, NoInstrSup);
-
-                DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
-                        tid, wasted);
-            }
-            break;
-
         case Unblocking:
             if (renamable[tid] < renameWidth) {
                 int wasted = renameWidth - renamable[tid];
-                if (fromDecode->frontEndMiss || !LBLC) {
-                    this->incLocalSlots(HPT, InstSupMiss, wasted);
-                } else {
-                    this->incLocalSlots(HPT, LBLCWait, wasted);
-                }
+                consumeSlots(wasted, HPT, NoInstrSup);
             }
             break;
 
         case Blocked:
-            /**block一定导致本周期miss */
-            if (fromDecode->frontEndMiss) {
-                this->incLocalSlots(HPT, InstSupMiss, renameWidth, false);
-
-            } else if (LB_all) {
-                this->incLocalSlots(HPT, EntryWait, renameWidth, true);
-
-            } else if (fromIEW->iewInfo[0].BLB) {
-                this->incLocalSlots(HPT, InstSupMiss,
-                        renameWidth - numLPTcause, false);
-                this->incLocalSlots(HPT, LaterWait, numLPTcause, true);
-
-            } else if (LB_all) {
-                this->incLocalSlots(HPT, InstSupMiss,
-                        renameWidth - numLPTcause, false);
-                this->incLocalSlots(HPT, EntryWait, numLPTcause, true);
-
-            } else if (LB_part) {
-                this->incLocalSlots(HPT, EntryWait, numLPTcause, true);
-                this->incLocalSlots(HPT, EntryMiss,
-                        renamable[HPT] - numLPTcause, true);
-                this->incLocalSlots(HPT, InstSupMiss,
-                        renameWidth - renamable[HPT], false);
+            if (fullSource[HPT] == IEWStage) {
+                consumeSlots(renameWidth, HPT, IEWBlock);
+            } else if (fullSource[HPT] == Register) {
+                consumeSlots(renameWidth, HPT, NoPR);
+            } else if (fullSource[HPT] == ROB) {
+                consumeSlots(renameWidth, HPT, NoROB);
             } else {
-                this->incLocalSlots(HPT, EntryMiss, renamable[HPT], true);
-                this->incLocalSlots(HPT, InstSupMiss,
-                        renameWidth - renamable[HPT], false);
+                panic("Unexpected rename block reason\n");
             }
             break;
 
         case Squashing:
         case StartSquash:
-            /**Squash一定导致本周期miss*/
-            this->incLocalSlots(HPT, InstSupMiss, renameWidth);
-
-            DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
-                    tid, renameWidth);
+            consumeSlots(renameWidth, HPT, DoingSquash);
             break;
 
         case SerializeStall:
-            this->incLocalSlots(HPT, SerializeMiss, renameWidth);
+            consumeSlots(renameWidth, HPT, WaitingSI);
             break;
 
         default:
             break;
     }
-
 }
 
 template<class Impl>
@@ -2327,8 +2133,6 @@ DefaultRename<Impl>::
 consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs)
 {
     for (int x = 0; x < numSlots; x++) {
-        DPRINTF(LB, "TID[%i], slot index = %i",
-                who, slotIndex[who] + x);
         slotConsumption[who][slotIndex[who] + x] = wocs;
         slotConsumption[another(who)][slotIndex[another(who)] + x]
                 = OtherThreadsUsed;

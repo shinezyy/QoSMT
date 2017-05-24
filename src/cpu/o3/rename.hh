@@ -676,13 +676,14 @@ class DefaultRename : public SlotCounter<Impl>
         EffectUsed, // effectively used: renamed instructions
         NoInstrSup, // no instruction supply
         NoROB, // no reorder buffer entries
-        NoPF, // no physical register
+        NoPR, // no physical register
         NoIQ, // no instruction queue entries
         NoLQ, // no load queue entries
         NoSQ, // no store queue entries
         IEWBlock,
         WaitingSI, // waiting serializing instructions
         DoingSquash,
+        SquashedInst,
         OtherThreadsUsed
     };
 
@@ -723,9 +724,6 @@ class DefaultRename : public SlotCounter<Impl>
     void consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs);
 
     void addUpSlots();
-
-    ThreadID another(ThreadID tid) {return LPT - tid;}
-
 };
 
 #endif // __CPU_O3_RENAME_HH__

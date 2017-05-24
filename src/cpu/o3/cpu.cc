@@ -650,7 +650,7 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
     if (lq) {
         vec[0] = iew.ldstQueue.getHPTLQPortion() + delta;
         vec[0] = std::min(vec[0], 1024 - 64);
-        vec[0] = std::max(vec[0], 512);
+        vec[0] = std::max(vec[0], 64);
         vec[1] = 1024 - vec[0];
         if (vec[0] != iew.ldstQueue.getHPTLQPortion()) {
             DPRINTF(QoSCtrl, "%s [LQ], vec[0]: %d, vec[1]: %d\n",
@@ -661,7 +661,7 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
     if (sq) {
         vec[0] = iew.ldstQueue.getHPTSQPortion() + delta;
         vec[0] = std::min(vec[0], 1024 - 64);
-        vec[0] = std::max(vec[0], 512);
+        vec[0] = std::max(vec[0], 64);
         vec[1] = 1024 - vec[0];
         if (vec[0] != iew.ldstQueue.getHPTSQPortion()) {
             DPRINTF(QoSCtrl, "%s [SQ], vec[0]: %d, vec[1]: %d\n",
