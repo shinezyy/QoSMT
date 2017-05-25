@@ -2150,9 +2150,9 @@ addUpSlots()
 {
     DPRINTF(RenameBreakdown, "Rename slot used this cycle [Begin] --------\n");
     for (int x = 0; x < renameWidth; x++) {
-        DPRINTFR(RenameBreakdown, "%s", slotConsumption[HPT][x]);
+        DPRINTFR(RenameBreakdown, "%s ", getConsumeString(slotConsumption[HPT][x]));
     }
-    DPRINTF(RenameBreakdown, "Rename slot used this cycle [end] --------\n");
+    DPRINTFR(RenameBreakdown, "\nRename slot used this cycle [end] --------\n");
 }
 
 #endif//__CPU_O3_RENAME_IMPL_HH__
