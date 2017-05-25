@@ -58,7 +58,7 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
-#include "debug/FmtSlot2.hh"
+#include "debug/RenameBreakdown.hh"
 #include "debug/LB.hh"
 #include "debug/BMT.hh"
 #include "debug/InstPass.hh"
@@ -427,7 +427,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
 
     // Set the status to Squashing.
     renameStatus[tid] = Squashing;
-    DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Squashing\n", tid);
+    DPRINTF(RenameBreakdown, "Thread [%i] Rename status switched to Squashing\n", tid);
 
     // Squash any instructions from decode.
     for (int i=0; i<fromDecode->size; i++) {
@@ -495,7 +495,7 @@ DefaultRename<Impl>::tick()
     // Check stall and squash signals.
     for (ThreadID tid = 0; tid < numThreads; tid++) {
 
-        DPRINTF(FmtSlot2, "Processing [tid:%i]\n", tid);
+        DPRINTF(RenameBreakdown, "Processing [tid:%i]\n", tid);
         status_change = checkSignalsAndUpdate(tid) || status_change;
     }
 
@@ -551,6 +551,8 @@ DefaultRename<Impl>::tick()
 
     increaseFreeEntries();
 
+    addUpSlots();
+
 #if 0
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
@@ -582,25 +584,25 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     if (tid == HPT) {
         switch(renameStatus[tid]) {
             case Running:
-                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Running\n", tid);
+                DPRINTF(RenameBreakdown, "Thread [%i] status now:" "Running\n", tid);
                 break;
             case Idle:
-                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Idle\n", tid);
+                DPRINTF(RenameBreakdown, "Thread [%i] status now:" "Idle\n", tid);
                 break;
             case StartSquash:
-                DPRINTF(FmtSlot2, "Thread [%i] status now:" "StartSquash\n", tid);
+                DPRINTF(RenameBreakdown, "Thread [%i] status now:" "StartSquash\n", tid);
                 break;
             case Squashing:
-                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Squashing\n", tid);
+                DPRINTF(RenameBreakdown, "Thread [%i] status now:" "Squashing\n", tid);
                 break;
             case Blocked:
-                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Blocked\n", tid);
+                DPRINTF(RenameBreakdown, "Thread [%i] status now:" "Blocked\n", tid);
                 break;
             case Unblocking:
-                DPRINTF(FmtSlot2, "Thread [%i] status now:" "Unblocking\n", tid);
+                DPRINTF(RenameBreakdown, "Thread [%i] status now:" "Unblocking\n", tid);
                 break;
             case SerializeStall:
-                DPRINTF(FmtSlot2, "Thread [%i] status now:" "SerializeStall\n", tid);
+                DPRINTF(RenameBreakdown, "Thread [%i] status now:" "SerializeStall\n", tid);
                 DPRINTF(SI, "T[%d] serialize on %llu\n", tid, curTick());
                 break;
             default:
@@ -611,7 +613,7 @@ DefaultRename<Impl>::rename(bool &status_change, ThreadID tid)
     if (renameStatus[tid] == Blocked) {
         ++renameBlockCycles[tid];
         if (fromIEW->iewInfo[HPT].BLB) {
-            DPRINTF(FmtSlot2, "[Block Reason] LPT cause IEW stall\n");
+            DPRINTF(RenameBreakdown, "[Block Reason] LPT cause IEW stall\n");
         }
     } else if (renameStatus[tid] == Squashing) {
         ++renameSquashCycles[tid];
@@ -686,7 +688,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // Check the decode queue to see if instructions are available.
     // If there are no available instructions to rename, then do nothing.
     if (insts_available == 0) {
-        DPRINTF(FmtSlot2, "[tid:%u]: Nothing to do, breaking out early.\n", tid);
+        DPRINTF(RenameBreakdown, "[tid:%u]: Nothing to do, breaking out early.\n", tid);
         // Should I change status to idle?
         ++renameIdleCycles[tid];
         return;
@@ -709,7 +711,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     // Check if there's any space left.
     if (free_rob_entries <= 0) {
-        DPRINTF(FmtSlot2, "[tid:%u]: Blocking due to no free ROB "
+        DPRINTF(RenameBreakdown, "[tid:%u]: Blocking due to no free ROB "
                 "entries.\nROB has %i free entries.\n",
                 tid, free_rob_entries);
 
@@ -725,7 +727,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         return;
 
     } else if (free_rob_entries < insts_available) {
-        DPRINTF(FmtSlot2, "[tid:%u]: Will have to block this cycle."
+        DPRINTF(RenameBreakdown, "[tid:%u]: Will have to block this cycle."
                 "%i insts available, but only %i insts can be "
                 "renamed due to ROB limits.\n",
                 tid, insts_available, free_rob_entries);
@@ -806,7 +808,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                                         inst->numFPDestRegs(),
                                         inst->numCCDestRegs())
               && nrFreeRegs[tid] >= inst->numIntDestRegs())) { // can handle 0
-            DPRINTF(FmtSlot2, "Blocking due to lack of free "
+            DPRINTF(RenameBreakdown, "Blocking due to lack of free "
                     "physical registers to rename to.\n");
             blockThisCycle = true;
             insts_to_rename.push_front(inst);
@@ -832,7 +834,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         //<editor-fold desc="SI related process">
         if ((inst->isIprAccess() || inst->isSerializeBefore()) &&
             !inst->isSerializeHandled()) {
-            DPRINTF(FmtSlot2, "Serialize before instruction encountered.\n");
+            DPRINTF(RenameBreakdown, "Serialize before instruction encountered.\n");
 
             if (!inst->isTempSerializeBefore()) {
                 renamedSerializing++;
@@ -845,7 +847,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // what this is blocked on.
             renameStatus[tid] = SerializeStall;
             toIEW->serialize[tid] = true;
-            DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to SerializeStall\n",
+            DPRINTF(RenameBreakdown, "Thread [%i] Rename status switched to SerializeStall\n",
                     tid);
 
             serializeInst[tid] = inst;
@@ -984,9 +986,9 @@ DefaultRename<Impl>::sortInsts()
         }
 #endif
     }
-    DPRINTF(FmtSlot2, "Total number of insts from decode is %i.\n", insts_from_decode);
+    DPRINTF(RenameBreakdown, "Total number of insts from decode is %i.\n", insts_from_decode);
     for (ThreadID tid = 0; tid < numThreads; tid++) {
-        DPRINTF(FmtSlot2, "Number of insts of Thread %i from decode is %i.\n",
+        DPRINTF(RenameBreakdown, "Number of insts of Thread %i from decode is %i.\n",
                 tid, insts[tid].size());
     }
     storeRate = fromDecode->storeRate;
@@ -1054,7 +1056,7 @@ bool
 DefaultRename<Impl>::block(ThreadID tid)
 {
     DPRINTF(Rename, "[tid:%u]: Blocking.\n", tid);
-    DPRINTF(FmtSlot2, "[tid:%u]: Blocking.\n", tid);
+    DPRINTF(RenameBreakdown, "[tid:%u]: Blocking.\n", tid);
 
     // Add the current inputs onto the skid buffer, so they can be
     // reprocessed when this stage unblocks.
@@ -1096,10 +1098,10 @@ DefaultRename<Impl>::block(ThreadID tid)
             BLBlocal = tid == HPT ?
                 fromIEW->iewInfo[HPT].BLB || LB_all : BLBlocal;
 
-            DPRINTF(FmtSlot2, "Thread [%i] Rename status switched to Blocked\n", tid);
+            DPRINTF(RenameBreakdown, "Thread [%i] Rename status switched to Blocked\n", tid);
             return true;
         } else {
-            DPRINTF(FmtSlot2, "Thread [%i] Rename status remains SerializeStall\n",
+            DPRINTF(RenameBreakdown, "Thread [%i] Rename status remains SerializeStall\n",
                     tid);
         }
     }
@@ -1112,7 +1114,7 @@ bool
 DefaultRename<Impl>::unblock(ThreadID tid)
 {
     DPRINTF(Rename, "[tid:%u]: Trying to unblock.\n", tid);
-    DPRINTF(FmtSlot2, "[tid:%u]: Trying to unblock.\n", tid);
+    DPRINTF(RenameBreakdown, "[tid:%u]: Trying to unblock.\n", tid);
 
     if (blockCycles != 0)
         blockedCycles = blockCycles;
@@ -1127,7 +1129,7 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         BLBlocal = tid == HPT ? false : BLBlocal;
         wroteToTimeBuffer = true;
 
-        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to Running.\n", tid);
+        DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to Running.\n", tid);
         renameStatus[tid] = Running;
 
         if (HPT == tid) {
@@ -1138,7 +1140,7 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         }
         return true;
     }
-    DPRINTF(FmtSlot2, "Rename Status of Thread [%u] unchanged.\n", tid);
+    DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] unchanged.\n", tid);
 
     return false;
 }
@@ -1488,7 +1490,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
                 break;
         }
         numLPTcause = std::min(numAvailInsts, renameWidth);
-        DPRINTF(FmtSlot2, "T[0]: %i insts in skidbuffer, %i insts from decode\n",
+        DPRINTF(RenameBreakdown, "T[0]: %i insts in skidbuffer, %i insts from decode\n",
                 skidBuffer[tid].size(), insts[tid].size());
     }
 
@@ -1497,7 +1499,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         fullSource[tid] = IEWStage;
         ret_val = true;
         if (tid == HPT) {
-            DPRINTF(FmtSlot2, "HPT stall from IEW stage detected.\n");
+            DPRINTF(RenameBreakdown, "HPT stall from IEW stage detected.\n");
         }
 
     } else if (calcFreeROBEntries(tid) <= 0) {
@@ -1513,7 +1515,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
                 VROB += renameWidth;
                 numROBWait[HPT]++;
             }
-            DPRINTF(FmtSlot2, "HPT stall because no ROB.\n");
+            DPRINTF(RenameBreakdown, "HPT stall because no ROB.\n");
         }
 
     } else if (renameMap[tid]->numFreeEntries() <= 0) {
@@ -1613,7 +1615,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                 tid);
 
         renameStatus[tid] = Unblocking;
-        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to unblocking.\n",
+        DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to unblocking.\n",
                 tid);
 
         unblock(tid);
@@ -1629,7 +1631,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                     tid);
 
             renameStatus[tid] = SerializeStall;
-            DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+            DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to"
                     " SerializeStall.\n", tid);
             return true;
         } else if (resumeUnblocking) {
@@ -1637,7 +1639,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
             DPRINTF(Rename, "[tid:%u]: Done squashing, switching to unblocking.\n",
                     tid);
             renameStatus[tid] = Unblocking;
-            DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+            DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to"
                     " unblocking.\n", tid);
             return true;
         } else {
@@ -1645,7 +1647,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                     tid);
 
             renameStatus[tid] = Running;
-            DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+            DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to"
                     " running.\n", tid);
             return false;
         }
@@ -1659,7 +1661,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
         DynInstPtr serial_inst = serializeInst[tid];
 
         renameStatus[tid] = Unblocking;
-        DPRINTF(FmtSlot2, "Rename Status of Thread [%u] switched to"
+        DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to"
                 " unblocking.\n", tid);
 
         unblock(tid);
@@ -1905,25 +1907,25 @@ DefaultRename<Impl>::getRenamable()
             case Idle:
                 renamable[tid] = std::min((int) insts[tid].size(),
                         (int) renameWidth);
-                DPRINTF(FmtSlot2, "T[%i][Running] has %i insts to rename\n",
+                DPRINTF(RenameBreakdown, "T[%i][Running] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
 
             case Blocked:
                 renamable[tid] = std::min((int) skidBuffer[tid].size(),
                         (int) renameWidth);
-                DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to rename\n",
+                DPRINTF(RenameBreakdown, "T[%i][Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
 
             case Unblocking:
                 renamable[tid] = std::min((int) skidBuffer[tid].size(),
                         (int) renameWidth);
-                DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to rename\n",
+                DPRINTF(RenameBreakdown, "T[%i][Unblocking] has %i insts to rename\n",
                         tid, renamable[tid]);
                 /**should rename*/
                 if(!fromDecode->frontEndMiss && LBLC) {
-                    DPRINTF(FmtSlot2, "T[%i] has %i insts should rename\n",
+                    DPRINTF(RenameBreakdown, "T[%i] has %i insts should rename\n",
                             tid, renameWidth);
                 }
                 break;
@@ -1931,13 +1933,13 @@ DefaultRename<Impl>::getRenamable()
             case Squashing:
             case StartSquash:
                 renamable[tid] = 0;
-                DPRINTF(FmtSlot2, "T[%i][Squash] has no insts to rename\n", tid);
+                DPRINTF(RenameBreakdown, "T[%i][Squash] has no insts to rename\n", tid);
                 break;
 
             case SerializeStall:
                 renamable[tid] = std::min((int) skidBuffer[tid].size(),
                         (int) renameWidth);
-                DPRINTF(FmtSlot2, "T[%i][Serialize Blocked] has %i insts to rename\n",
+                DPRINTF(RenameBreakdown, "T[%i][Serialize Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
         }
@@ -2134,11 +2136,11 @@ consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs)
 {
     for (int x = 0; x < numSlots; x++) {
         slotConsumption[who][slotIndex[who] + x] = wocs;
-        slotConsumption[another(who)][slotIndex[another(who)] + x]
+        slotConsumption[this->another(who)][slotIndex[this->another(who)] + x]
                 = OtherThreadsUsed;
     }
     slotIndex[who] += numSlots;
-    slotIndex[another(who)] += numSlots;
+    slotIndex[this->another(who)] += numSlots;
 }
 
 template<class Impl>
@@ -2146,7 +2148,11 @@ void
 DefaultRename<Impl>::
 addUpSlots()
 {
-
+    DPRINTF(RenameBreakdown, "Rename slot used this cycle [Begin] --------\n");
+    for (int x = 0; x < renameWidth; x++) {
+        DPRINTFR(RenameBreakdown, "%s", slotConsumption[HPT][x]);
+    }
+    DPRINTF(RenameBreakdown, "Rename slot used this cycle [end] --------\n");
 }
 
 #endif//__CPU_O3_RENAME_IMPL_HH__
