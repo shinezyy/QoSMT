@@ -19,6 +19,7 @@ command = None
 ST = False
 debug = False
 debug_flags = ''
+gdb = False
 
 
 def get_pairs(inf):
@@ -124,12 +125,22 @@ def smt_run(pair):
             _err=pjoin(outdir, 'gem5_err.txt'),
             *options
         )
-    else:
+    elif not gdb:
         sh.gem5_opt(
             _out=pjoin(outdir, 'gem5_out.txt'),
             _err=pjoin(outdir, 'gem5_err.txt'),
             *options
         )
+    else:
+        util_dir = pjoin(os.environ['gem5_root'], 'util')
+        os.chdir(util_dir)
+        with open('debug.sh', 'w') as f:
+            print >>f, 'gdb --args \\'
+            print >>f, pjoin(os.environ['gem5_build'], 'gem5.opt'), '\\'
+            for line in options:
+                print >>f, line, '\\'
+        sh.chmod('+x', 'debug.sh')
+        return
 
     sh.touch(pjoin(outdir, 'done'))
 
@@ -140,11 +151,13 @@ def set_conf(opt):
     global ST
     global debug
     global debug_flags
+    global gdb
     script = opt.command
     output_dir = opt.output_dir
     ST = opt.single_thread
     debug = opt.debug
     debug_flags = opt.debug_flags
+    gdb = opt.gdb
     if debug_flags:
         assert debug
     assert ST == (script == 'sim_st.py')
@@ -181,6 +194,10 @@ if __name__ == '__main__':
 
     parser.add_argument('--debug-flags', action='store',
                         help='debug flags'
+                       )
+
+    parser.add_argument('--gdb', action='store_true',
+                        help='use gdb to debug'
                        )
 
     opt = parser.parse_args()
