@@ -687,6 +687,25 @@ class DefaultRename : public SlotCounter<Impl>
         OtherThreadsUsed
     };
 
+    static const char* getConsumeString(int index) {
+        static const char* consumeStrings[] = {
+                "NotConsumed",
+                "EffectUsed", // effectively used: renamed instructions
+                "NoInstrSup", // no instruction supply
+                "NoROB", // no reorder buffer entries
+                "NoPR", // no physical register
+                "NoIQ", // no instruction queue entries
+                "NoLQ", // no load queue entries
+                "NoSQ", // no store queue entries
+                "IEWBlock",
+                "WaitingSI", // waiting serializing instructions
+                "DoingSquash",
+                "SquashedInst",
+                "OtherThreadsUsed",
+        };
+        return consumeStrings[index];
+    }
+
     enum NoInstrReason {
         NoReason,
         IntrinsicICacheMiss,
