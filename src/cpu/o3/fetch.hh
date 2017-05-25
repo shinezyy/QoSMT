@@ -641,7 +641,7 @@ class DefaultFetch : public SlotCounter<Impl>
 
   private:
 
-    bool AnotherThreadCauseCurrentMiss();
+    bool AnotherThreadCauseCurrentMiss(ThreadID tid);
 };
 
 #endif //__CPU_O3_FETCH_HH__

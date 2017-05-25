@@ -83,7 +83,7 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
              decodeWidth, static_cast<int>(Impl::MaxWidth));
 
     // @todo: Make into a parameter
-    skidBufferMax = (fetchToDecodeDelay + 1) *  params->fetchWidth;
+    skidBufferMax = (unsigned)fetchToDecodeDelay + 1;
     bzero((void *) storeSample, sizeof(int) * sampleLen);
     storeRate = 0.0;
     numStores = 0;
@@ -356,6 +356,10 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
         skidBuffer[tid].pop();
     }
 
+    while (!skidSlotBuffer.empty()) {
+        skidSlotBuffer.pop();
+    }
+
     // Squash instructions up until this one
     cpu->removeInstsUntil(squash_seq_num, tid);
 }
@@ -407,6 +411,10 @@ DefaultDecode<Impl>::squash(ThreadID tid)
         skidBuffer[tid].pop();
     }
 
+    while (!skidSlotBuffer.empty()) {
+        skidSlotBuffer.pop();
+    }
+
     return squash_count;
 }
 
@@ -415,24 +423,21 @@ void
 DefaultDecode<Impl>::skidInsert(ThreadID tid)
 {
     DynInstPtr inst = NULL;
-
+    std::array<DynInstPtr, Impl::MaxWidth> inst_buf;
+    int idx = 0;
     while (!insts[tid].empty()) {
         inst = insts[tid].front();
-
         insts[tid].pop();
-
         assert(tid == inst->threadNumber);
 
-        /**这条指令即将被阻塞，说明它提前到达此阶段也无法提前被处理*/
-        if (inst->getWaitSlot() > 0 && !skidBuffer[tid].empty()) {
-            this->reshape(inst);
-        }
-
-        skidBuffer[tid].push(inst);
+        inst_buf[idx] = inst;
 
         DPRINTF(Decode,"Inserting [tid:%d][sn:%lli] PC: %s into decode skidBuffer %i\n",
                 inst->threadNumber, inst->seqNum, inst->pcState(), skidBuffer[tid].size());
     }
+
+    skidBuffer[tid].push(inst_buf);
+    skidSlotBuffer.push(fromFetch->slotPass);
 
     // @todo: Eventually need to enforce this by not letting a thread
     // fetch past its skidbuffer
@@ -692,8 +697,9 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 {
     // Instructions can come either from the skid buffer or the list of
     // instructions coming from fetch, depending on decode's status.
-    int insts_available = decodeStatus[tid] == Unblocking ?
-        skidBuffer[tid].size() : insts[tid].size();
+    int insts_available =
+            decodeStatus[tid] == Unblocking ?
+            (int) skidBuffer[tid].size() : (int) insts[tid].size();
 
     if (insts_available == 0) {
         DPRINTF(Decode, "[tid:%u] Nothing to do, breaking out"
@@ -844,7 +850,9 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
     toFetch->decodeInfo[tid].BLB;
     fromFetch->frontEndMiss;
 
+    if (toRenameNum[tid] > 0) {
 
+    }
 
 
 

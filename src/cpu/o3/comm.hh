@@ -50,6 +50,7 @@
 #include "base/types.hh"
 #include "cpu/inst_seq.hh"
 #include "sim/faults.hh"
+#include "cpu/o3/slot_counter.hh"
 
 // Typedef for physical register index type. Although the Impl would be the
 // most likely location for this, there are a few classes that need this
@@ -70,6 +71,8 @@ struct DefaultFetchDefaultDecode {
 
     bool frontEndMiss;
 
+    std::array<SlotsUse, Impl::MaxWidth> slotPass;
+
     /** bool FLB; Forward LPT Block HPT  to decode*/
 };
 
@@ -86,7 +89,7 @@ struct DefaultDecodeDefaultRename {
 
     float storeRate;
 
-    /** bool FLB; Forward LPT Block HPT  to rename*/
+    std::array<SlotsUse, Impl::MaxWidth> slotPass;
 };
 
 /** Struct that defines the information passed from rename to IEW. */
@@ -114,6 +117,8 @@ struct DefaultRenameDefaultIEW {
     bool shine;
 
     float storeRate;
+
+    std::array<SlotsUse, Impl::MaxWidth> slotPass;
 };
 
 /** Struct that defines the information passed from IEW to commit. */

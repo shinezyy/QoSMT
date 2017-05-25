@@ -1830,22 +1830,22 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
                         fetchStatus[tid] == Squashing ||
                         fetchStatus[tid] == TrapPending ||
                         fetchStatus[tid] == QuiescePending ||
-                        fetchStatus[tid] == ItlbWait;
+                        fetchStatus[tid] == ItlbWait ||
+                        fetchStatus[tid] == NoGoodAddr;
                 bool cache_miss =
                         fetchStatus[tid] == IcacheWaitResponse ||
                         fetchStatus[tid] == IcacheWaitRetry;
+
                 if (intrinsic_miss) {
                     this->incLocalSlots(tid, InstSupMiss, fetchWidth);
-                } else {
-                    if (cache_miss) {
-                        if (AnotherThreadCauseCurrentMiss()) {
-                            this->incLocalSlots(tid, InstSupWait, fetchWidth);
-                        } else {
-                            this->incLocalSlots(tid, InstSupMiss, fetchWidth);
-                        }
+                } else if (cache_miss) {
+                    if (AnotherThreadCauseCurrentMiss(tid)) {
+                        this->incLocalSlots(tid, ICacheInterference, fetchWidth);
                     } else {
                         this->incLocalSlots(tid, InstSupMiss, fetchWidth);
                     }
+                } else {
+                    this->incLocalSlots(tid, FetchSliceWait, fetchWidth);
                 }
             }
         }
@@ -1859,7 +1859,7 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
 
 template <class Impl>
 bool
-DefaultFetch<Impl>::AnotherThreadCauseCurrentMiss()
+DefaultFetch<Impl>::AnotherThreadCauseCurrentMiss(ThreadID tid)
 {
     return false;
 }

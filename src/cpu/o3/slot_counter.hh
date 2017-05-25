@@ -26,6 +26,9 @@ enum SlotsUse {
      */
     InstSupWait,
 
+    ICacheInterference,
+
+    FetchSliceWait,
     /**
      * Have insts to process , but other thread occupied some dispatchWidth
      */

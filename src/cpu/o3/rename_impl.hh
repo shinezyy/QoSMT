@@ -2151,6 +2151,7 @@ addUpSlots()
     DPRINTF(RenameBreakdown, "Rename slot used this cycle [Begin] --------\n");
     for (int x = 0; x < renameWidth; x++) {
         DPRINTFR(RenameBreakdown, "%s ", getConsumeString(slotConsumption[HPT][x]));
+        assert(slotConsumption[HPT][x] != NotConsumed);
     }
     DPRINTFR(RenameBreakdown, "\nRename slot used this cycle [end] --------\n");
 }

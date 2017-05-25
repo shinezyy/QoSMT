@@ -241,7 +241,10 @@ class DefaultDecode : public SlotCounter<Impl>
     std::queue<DynInstPtr> insts[Impl::MaxThreads];
 
     /** Skid buffer between fetch and decode. */
-    std::queue<DynInstPtr> skidBuffer[Impl::MaxThreads];
+    std::queue<std::array<DynInstPtr, Impl::MaxWidth> >
+            skidBuffer[Impl::MaxThreads];
+
+    std::queue<std::array<SlotsUse, Impl::MaxWidth> > skidSlotBuffer;
 
     /** Variable that tracks if decode has written to the time buffer this
      * cycle. Used to tell CPU if there is activity this cycle.
