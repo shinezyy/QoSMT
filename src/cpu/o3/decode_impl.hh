@@ -356,6 +356,18 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
     while (!skidBuffer[tid].empty()) {
         DPRINTF(DecodeBreakdown, "Squash sn[%lli] from skidbuffer of T[%i]\n",
                 skidBuffer[tid].front().front()->seqNum, tid);
+
+#if 0
+        InstRow &popped = skidBuffer[tid].front();
+        while (!popped.empty()) {
+            DynInstPtr inst = popped.front();
+            DPRINTFR(DecodeBreakdown, "sn[%i] ", inst->seqNum);
+            popped.pop();
+        }
+
+        DPRINTFR(DecodeBreakdown, "\nSquashed------------------\n");
+#endif
+
         skidBuffer[tid].pop();
     }
 
@@ -413,6 +425,18 @@ DefaultDecode<Impl>::squash(ThreadID tid)
     while (!skidBuffer[tid].empty()) {
         DPRINTF(DecodeBreakdown, "Squash sn[%lli] from skidbuffer of T[%i]\n",
                 skidBuffer[tid].front().front()->seqNum, tid);
+
+#if 0
+        InstRow &popped = skidBuffer[tid].front();
+        while (!popped.empty()) {
+            DynInstPtr inst = popped.front();
+            DPRINTFR(DecodeBreakdown, "sn[%i] ", inst->seqNum);
+            popped.pop();
+        }
+
+        DPRINTF(DecodeBreakdown, "\nSquashed------------------\n");
+#endif
+
         skidBuffer[tid].pop();
     }
 
@@ -431,7 +455,19 @@ DefaultDecode<Impl>::skidInsert(ThreadID tid)
         DPRINTF(DecodeBreakdown, "Inserting sn[%lli] into skidbuffer of T[%i]\n",
                 insts[tid].front()->seqNum, tid);
         skidBuffer[tid].push(insts[tid]);
-        while (!insts[tid].empty()) insts[tid].pop();
+
+        InstRow &popped = insts[tid];
+        while (!popped.empty()) {
+#if 0
+            DynInstPtr inst = popped.front();
+            DPRINTFR(DecodeBreakdown, "sn[%i] ", inst->seqNum);
+#endif
+            popped.pop();
+        }
+
+        DPRINTFR(DecodeBreakdown, "\nInserted------------------\n");
+
+
         skidSlotBuffer.push(fromFetch->slotPass);
         assert(skidBuffer[tid].size() <= skidBufferMax);
     }
@@ -741,6 +777,8 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
     DPRINTF(Decode, "[tid:%u]: Sending instruction to rename.\n",tid);
 
+    bool squashed = false;
+
     while (insts_available > 0 && toRenameIndex < decodeWidth) {
         assert(!insts_to_decode.empty());
 
@@ -805,6 +843,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
             // Might want to set some sort of boolean and just do
             // a check at the end
             squash(inst, inst->threadNumber);
+            squashed = true;
 
             break;
         }
@@ -819,6 +858,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
                 // Might want to set some sort of boolean and just do
                 // a check at the end
                 squash(inst, inst->threadNumber);
+                squashed = true;
                 TheISA::PCState target = inst->branchTarget();
 
                 DPRINTF(Decode, "[sn:%i]: Updating predictions: PredPC: %s\n",
@@ -839,12 +879,14 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
     // If we didn't process all instructions, then we will need to block
     // and put all those instructions into the skid buffer.
-    if (!insts_to_decode.empty()) {
-        block(tid);
-    }
-    if (insts_to_decode.empty() && old_status == Unblocking) {
-        DPRINTF(DecodeBreakdown, "Pop empty row from skidbuffer of T[%i]\n", tid);
-        skidBuffer[tid].pop();
+    if (!squashed) {
+        if (!insts_to_decode.empty()) {
+            block(tid);
+        }
+        if (insts_to_decode.empty() && old_status == Unblocking) {
+            DPRINTF(DecodeBreakdown, "Pop empty row from skidbuffer of T[%i]\n", tid);
+            skidBuffer[tid].pop();
+        }
     }
 
     // Record that decode has written to the time buffer for activity
