@@ -106,6 +106,8 @@ class SlotCounter
         static const char* slotUseStr[] = {
             "InstSupMiss",
             "InstSupWait",
+            "ICacheInterference",
+            "FetchSliceWait",
             "WidthWait",
             "EntryWait",
             "EntryMiss",

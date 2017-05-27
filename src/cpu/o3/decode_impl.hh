@@ -57,6 +57,7 @@
 #include "debug/LB.hh"
 #include "debug/Pard.hh"
 #include "debug/InstPass.hh"
+#include "debug/DecodeBreakdown.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/full_system.hh"
 
@@ -348,11 +349,13 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
 
     // Clear the instruction list and skid buffer in case they have any
     // insts in them.
-    while (!skidBuffer[tid].empty()) {
+    while (!insts[tid].empty()) {
         insts[tid].pop();
     }
 
     while (!skidBuffer[tid].empty()) {
+        DPRINTF(DecodeBreakdown, "Squash sn[%lli] from skidbuffer of T[%i]\n",
+                skidBuffer[tid].front().front()->seqNum, tid);
         skidBuffer[tid].pop();
     }
 
@@ -403,11 +406,13 @@ DefaultDecode<Impl>::squash(ThreadID tid)
 
     // Clear the instruction list and skid buffer in case they have any
     // insts in them.
-    while (!skidBuffer[tid].empty()) {
+    while (!insts[tid].empty()) {
         insts[tid].pop();
     }
 
     while (!skidBuffer[tid].empty()) {
+        DPRINTF(DecodeBreakdown, "Squash sn[%lli] from skidbuffer of T[%i]\n",
+                skidBuffer[tid].front().front()->seqNum, tid);
         skidBuffer[tid].pop();
     }
 
@@ -422,12 +427,14 @@ template<class Impl>
 void
 DefaultDecode<Impl>::skidInsert(ThreadID tid)
 {
-    skidBuffer[tid].push(insts[tid]);
-    skidSlotBuffer.push(fromFetch->slotPass);
-
-    // @todo: Eventually need to enforce this by not letting a thread
-    // fetch past its skidbuffer
-    assert(skidBuffer[tid].size() <= skidBufferMax);
+    if (insts[tid].size() > 0) {
+        DPRINTF(DecodeBreakdown, "Inserting sn[%lli] into skidbuffer of T[%i]\n",
+                insts[tid].front()->seqNum, tid);
+        skidBuffer[tid].push(insts[tid]);
+        while (!insts[tid].empty()) insts[tid].pop();
+        skidSlotBuffer.push(fromFetch->slotPass);
+        assert(skidBuffer[tid].size() <= skidBufferMax);
+    }
 }
 
 template<class Impl>
@@ -608,7 +615,8 @@ DefaultDecode<Impl>::tick()
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toRenameNum[tid]) {
-            DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid, toRenameNum[tid]);
+            DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid,
+                    toRenameNum[tid]);
         }
     }
 
@@ -687,6 +695,10 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
     int skid_size = 0;
     if (skidBuffer[tid].size() != 0) {
         skid_size = skidBuffer[tid].front().size();
+        if (skid_size <= 0) {
+            DPRINTF(DecodeBreakdown, "T[%i]'s skidBuffer has empty row\n", tid);
+            panic("T[%i]'s skidBuffer has empty row\n", tid);
+        }
     }
 
     int insts_available =
@@ -725,6 +737,8 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         &insts_to_decode = decodeStatus[tid] == Unblocking ?
         skidBuffer[tid].front() : insts[tid];
 
+    ThreadStatus old_status = decodeStatus[tid];
+
     DPRINTF(Decode, "[tid:%u]: Sending instruction to rename.\n",tid);
 
     while (insts_available > 0 && toRenameIndex < decodeWidth) {
@@ -756,6 +770,9 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         if (inst->numSrcRegs() == 0) {
             inst->setCanIssue();
         }
+
+        DPRINTF(DecodeBreakdown, "T[%i] sends instruction [sn:%lli] to Rename\n",
+                tid, inst->seqNum);
 
         // This current instruction is valid, so add it into the decode
         // queue.  The next instruction may not be valid, so check to
@@ -824,6 +841,10 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
     // and put all those instructions into the skid buffer.
     if (!insts_to_decode.empty()) {
         block(tid);
+    }
+    if (insts_to_decode.empty() && old_status == Unblocking) {
+        DPRINTF(DecodeBreakdown, "Pop empty row from skidbuffer of T[%i]\n", tid);
+        skidBuffer[tid].pop();
     }
 
     // Record that decode has written to the time buffer for activity
