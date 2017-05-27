@@ -71,9 +71,7 @@ struct DefaultFetchDefaultDecode {
 
     bool frontEndMiss;
 
-    std::array<SlotsUse, Impl::MaxWidth> slotPass;
-
-    /** bool FLB; Forward LPT Block HPT  to decode*/
+    std::vector<SlotsUse> slotPass;
 };
 
 /** Struct that defines the information passed from decode to rename. */
@@ -89,7 +87,7 @@ struct DefaultDecodeDefaultRename {
 
     float storeRate;
 
-    std::array<SlotsUse, Impl::MaxWidth> slotPass;
+    std::vector<SlotsUse> slotPass;
 };
 
 /** Struct that defines the information passed from rename to IEW. */
@@ -118,7 +116,7 @@ struct DefaultRenameDefaultIEW {
 
     float storeRate;
 
-    std::array<SlotsUse, Impl::MaxWidth> slotPass;
+    std::vector<SlotsUse> slotPass;
 };
 
 /** Struct that defines the information passed from IEW to commit. */

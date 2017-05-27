@@ -348,7 +348,7 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
 
     // Clear the instruction list and skid buffer in case they have any
     // insts in them.
-    while (!insts[tid].empty()) {
+    while (!skidBuffer[tid].empty()) {
         insts[tid].pop();
     }
 
@@ -403,7 +403,7 @@ DefaultDecode<Impl>::squash(ThreadID tid)
 
     // Clear the instruction list and skid buffer in case they have any
     // insts in them.
-    while (!insts[tid].empty()) {
+    while (!skidBuffer[tid].empty()) {
         insts[tid].pop();
     }
 
@@ -422,21 +422,7 @@ template<class Impl>
 void
 DefaultDecode<Impl>::skidInsert(ThreadID tid)
 {
-    DynInstPtr inst = NULL;
-    std::array<DynInstPtr, Impl::MaxWidth> inst_buf;
-    int idx = 0;
-    while (!insts[tid].empty()) {
-        inst = insts[tid].front();
-        insts[tid].pop();
-        assert(tid == inst->threadNumber);
-
-        inst_buf[idx] = inst;
-
-        DPRINTF(Decode,"Inserting [tid:%d][sn:%lli] PC: %s into decode skidBuffer %i\n",
-                inst->threadNumber, inst->seqNum, inst->pcState(), skidBuffer[tid].size());
-    }
-
-    skidBuffer[tid].push(inst_buf);
+    skidBuffer[tid].push(insts[tid]);
     skidSlotBuffer.push(fromFetch->slotPass);
 
     // @todo: Eventually need to enforce this by not letting a thread
@@ -697,9 +683,15 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 {
     // Instructions can come either from the skid buffer or the list of
     // instructions coming from fetch, depending on decode's status.
+
+    int skid_size = 0;
+    if (skidBuffer[tid].size() != 0) {
+        skid_size = skidBuffer[tid].front().size();
+    }
+
     int insts_available =
             decodeStatus[tid] == Unblocking ?
-            (int) skidBuffer[tid].size() : (int) insts[tid].size();
+            skid_size : (int) insts[tid].size();
 
     if (insts_available == 0) {
         DPRINTF(Decode, "[tid:%u] Nothing to do, breaking out"
@@ -731,7 +723,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
     std::queue<DynInstPtr>
         &insts_to_decode = decodeStatus[tid] == Unblocking ?
-        skidBuffer[tid] : insts[tid];
+        skidBuffer[tid].front() : insts[tid];
 
     DPRINTF(Decode, "[tid:%u]: Sending instruction to rename.\n",tid);
 
