@@ -74,7 +74,7 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
       commitToDecodeDelay(params->commitToDecodeDelay),
       fetchToDecodeDelay(params->fetchToDecodeDelay),
       decodeWidth(params->decodeWidth),
-      numThreads(params->numThreads),
+      numThreads((ThreadID) params->numThreads),
       BLBlocal(false),
       sampleLen(params->sampleLen)
 {
@@ -182,9 +182,9 @@ DefaultDecode<Impl>::setTimeBuffer(TimeBuffer<TimeStruct> *tb_ptr)
     toFetch = timeBuffer->getWire(0);
 
     // Create wires to get information from proper places in time buffer.
-    fromRename = timeBuffer->getWire(-renameToDecodeDelay);
-    fromIEW = timeBuffer->getWire(-iewToDecodeDelay);
-    fromCommit = timeBuffer->getWire(-commitToDecodeDelay);
+    fromRename = timeBuffer->getWire(- (int) renameToDecodeDelay);
+    fromIEW = timeBuffer->getWire(- (int) iewToDecodeDelay);
+    fromCommit = timeBuffer->getWire(- (int) commitToDecodeDelay);
 }
 
 template<class Impl>
@@ -204,7 +204,7 @@ DefaultDecode<Impl>::setFetchQueue(TimeBuffer<FetchStruct> *fq_ptr)
     fetchQueue = fq_ptr;
 
     // Setup wire to read information from fetch queue.
-    fromFetch = fetchQueue->getWire(-fetchToDecodeDelay);
+    fromFetch = fetchQueue->getWire(- (int) fetchToDecodeDelay);
 }
 
 template<class Impl>

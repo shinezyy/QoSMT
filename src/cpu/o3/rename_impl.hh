@@ -2126,7 +2126,7 @@ cleanSlots()
                   queueHeadState[tid].end(), NoState);
         std::fill(vqState[tid].begin(), vqState[tid].end(), NoVQ);
     }
-    std::fill(slotIndex.begin(), slotIndex.end(), 0);
+    std::fill(localSlotIndex.begin(), localSlotIndex.end(), 0);
 }
 
 template<class Impl>
@@ -2135,12 +2135,12 @@ DefaultRename<Impl>::
 consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs)
 {
     for (int x = 0; x < numSlots; x++) {
-        slotConsumption[who][slotIndex[who] + x] = wocs;
-        slotConsumption[this->another(who)][slotIndex[this->another(who)] + x]
+        slotConsumption[who][localSlotIndex[who] + x] = wocs;
+        slotConsumption[this->another(who)][localSlotIndex[this->another(who)] + x]
                 = OtherThreadsUsed;
     }
-    slotIndex[who] += numSlots;
-    slotIndex[this->another(who)] += numSlots;
+    localSlotIndex[who] += numSlots;
+    localSlotIndex[this->another(who)] += numSlots;
 }
 
 template<class Impl>

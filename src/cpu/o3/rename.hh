@@ -736,7 +736,7 @@ class DefaultRename : public SlotCounter<Impl>
     std::array<std::array<WayOfConsumeSlots, Impl::MaxWidth>,
             Impl::MaxThreads> slotConsumption;
 
-    std::array<int, Impl::MaxThreads> slotIndex;
+    std::array<int, Impl::MaxThreads> localSlotIndex;
 
     void cleanSlots();
 
