@@ -27,3 +27,9 @@ simpoint
 /smt_checkpoint
 /smt_run_bak
 merge_test
+/src/.idea/
+/src/arch/types.hh
+/src/cmake-build-debug/
+/src/config/
+/src/debug/
+/src/params/
