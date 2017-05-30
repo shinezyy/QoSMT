@@ -369,10 +369,12 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
 #endif
 
         skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
     }
 
-    while (!skidSlotBuffer.empty()) {
-        skidSlotBuffer.pop();
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     // Squash instructions up until this one
@@ -438,10 +440,12 @@ DefaultDecode<Impl>::squash(ThreadID tid)
 #endif
 
         skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
     }
 
-    while (!skidSlotBuffer.empty()) {
-        skidSlotBuffer.pop();
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     return squash_count;
@@ -455,6 +459,7 @@ DefaultDecode<Impl>::skidInsert(ThreadID tid)
         DPRINTF(DecodeBreakdown, "Inserting sn[%lli] into skidbuffer of T[%i]\n",
                 insts[tid].front()->seqNum, tid);
         skidBuffer[tid].push(insts[tid]);
+        skidInstTick[tid].push(curTick());
 
         InstRow &popped = insts[tid];
         while (!popped.empty()) {
@@ -468,7 +473,8 @@ DefaultDecode<Impl>::skidInsert(ThreadID tid)
         DPRINTFR(DecodeBreakdown, "\nInserted------------------\n");
 
 
-        skidSlotBuffer.push(fromFetch->slotPass);
+        skidSlotBuffer[tid].push(fromFetch->slotPass);
+        skidSlotTick[tid].push(curTick());
         assert(skidBuffer[tid].size() <= skidBufferMax);
     }
 }
