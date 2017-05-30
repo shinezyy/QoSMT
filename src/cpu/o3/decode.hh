@@ -238,7 +238,7 @@ class DefaultDecode : public SlotCounter<Impl>
     typename TimeBuffer<FetchStruct>::wire fromFetch;
 
     typedef typename std::queue<DynInstPtr> InstRow;
-    typedef typename std::vector<SlotsUse > SlotsUseRow;
+    typedef typename std::array<SlotsUse, Impl::MaxWidth> SlotsUseRow;
 
     /** Queue of all instructions coming from fetch this cycle. */
     InstRow insts[Impl::MaxThreads];
