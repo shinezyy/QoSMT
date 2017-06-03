@@ -653,6 +653,8 @@ DefaultDecode<Impl>::tick()
 
     passLB(HPT);
 
+    toRename->slotPass = this->slotUseRow[HPT];
+
     toRename->storeRate = storeRate;
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
@@ -665,7 +667,6 @@ DefaultDecode<Impl>::tick()
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
-    toRename->slotPass = this->slotUseRow[HPT];
 
     // DPRINTF(Pard, "Index of cur cycles: %i\n", storeIndex);
 }

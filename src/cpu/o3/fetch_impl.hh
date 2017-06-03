@@ -1029,10 +1029,11 @@ DefaultFetch<Impl>::tick()
 
     passLB(HPT);
 
+    toDecode->slotPass = this->slotUseRow[HPT];
+
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
-    toDecode->slotPass = this->slotUseRow[HPT];
 
     // Reset the number of the instruction we've fetched.
     numInst = 0;
