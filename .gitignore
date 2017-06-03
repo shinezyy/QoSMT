@@ -27,3 +27,4 @@ simpoint
 /smt_checkpoint
 /smt_run_bak
 merge_test
+/util/debug.sh
