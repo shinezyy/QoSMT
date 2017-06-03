@@ -98,8 +98,8 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
       fetchBufferSize(params->fetchBufferSize),
       fetchBufferMask(fetchBufferSize - 1),
       fetchQueueSize(params->fetchQueueSize),
-      numThreads(params->numThreads),
-      numFetchingThreads(params->smtNumFetchingThreads),
+      numThreads( (ThreadID) params->numThreads),
+      numFetchingThreads( (ThreadID) params->smtNumFetchingThreads),
       fetchWidthUpToDate(false),
       numTimeSlice(32)
 {
@@ -1032,9 +1032,7 @@ DefaultFetch<Impl>::tick()
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
-    if (numInsts[HPT]) {
-        this->assignSlots(HPT, getHeadInst(HPT));
-    }
+    toDecode->slotPass = this->slotUseRow[HPT];
 
     // Reset the number of the instruction we've fetched.
     numInst = 0;
@@ -1809,7 +1807,6 @@ template <class Impl>
 void
 DefaultFetch<Impl>::passLB(ThreadID tid)
 {
-
     if (numInsts[tid] > 0) {
         this->incLocalSlots(tid, Base, numInsts[tid]);
         this->incLocalSlots(tid, WidthWait, numInsts[this->another(tid)]);

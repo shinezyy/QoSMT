@@ -74,7 +74,7 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
       commitToDecodeDelay(params->commitToDecodeDelay),
       fetchToDecodeDelay(params->fetchToDecodeDelay),
       decodeWidth(params->decodeWidth),
-      numThreads(params->numThreads),
+      numThreads((ThreadID) params->numThreads),
       BLBlocal(false),
       sampleLen(params->sampleLen)
 {
@@ -182,9 +182,9 @@ DefaultDecode<Impl>::setTimeBuffer(TimeBuffer<TimeStruct> *tb_ptr)
     toFetch = timeBuffer->getWire(0);
 
     // Create wires to get information from proper places in time buffer.
-    fromRename = timeBuffer->getWire(-renameToDecodeDelay);
-    fromIEW = timeBuffer->getWire(-iewToDecodeDelay);
-    fromCommit = timeBuffer->getWire(-commitToDecodeDelay);
+    fromRename = timeBuffer->getWire(- (int) renameToDecodeDelay);
+    fromIEW = timeBuffer->getWire(- (int) iewToDecodeDelay);
+    fromCommit = timeBuffer->getWire(- (int) commitToDecodeDelay);
 }
 
 template<class Impl>
@@ -204,7 +204,7 @@ DefaultDecode<Impl>::setFetchQueue(TimeBuffer<FetchStruct> *fq_ptr)
     fetchQueue = fq_ptr;
 
     // Setup wire to read information from fetch queue.
-    fromFetch = fetchQueue->getWire(-fetchToDecodeDelay);
+    fromFetch = fetchQueue->getWire(- (int) fetchToDecodeDelay);
 }
 
 template<class Impl>
@@ -369,10 +369,12 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
 #endif
 
         skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
     }
 
-    while (!skidSlotBuffer.empty()) {
-        skidSlotBuffer.pop();
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     // Squash instructions up until this one
@@ -438,10 +440,12 @@ DefaultDecode<Impl>::squash(ThreadID tid)
 #endif
 
         skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
     }
 
-    while (!skidSlotBuffer.empty()) {
-        skidSlotBuffer.pop();
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     return squash_count;
@@ -455,6 +459,7 @@ DefaultDecode<Impl>::skidInsert(ThreadID tid)
         DPRINTF(DecodeBreakdown, "Inserting sn[%lli] into skidbuffer of T[%i]\n",
                 insts[tid].front()->seqNum, tid);
         skidBuffer[tid].push(insts[tid]);
+        skidInstTick[tid].push(curTick());
 
         InstRow &popped = insts[tid];
         while (!popped.empty()) {
@@ -468,7 +473,8 @@ DefaultDecode<Impl>::skidInsert(ThreadID tid)
         DPRINTFR(DecodeBreakdown, "\nInserted------------------\n");
 
 
-        skidSlotBuffer.push(fromFetch->slotPass);
+        skidSlotBuffer[tid].push(fromFetch->slotPass);
+        skidSlotTick[tid].push(curTick());
         assert(skidBuffer[tid].size() <= skidBufferMax);
     }
 }
@@ -659,10 +665,8 @@ DefaultDecode<Impl>::tick()
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
+    toRename->slotPass = this->slotUseRow[HPT];
 
-    if (toRenameNum[HPT]) {
-        this->assignSlots(HPT, getHeadInst(HPT));
-    }
     // DPRINTF(Pard, "Index of cur cycles: %i\n", storeIndex);
 }
 
@@ -772,6 +776,9 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
     std::queue<DynInstPtr>
         &insts_to_decode = decodeStatus[tid] == Unblocking ?
         skidBuffer[tid].front() : insts[tid];
+
+    curCycleRow = decodeStatus[tid] == Unblocking ?
+            skidSlotBuffer[tid].front() : fromFetch->slotPass;
 
     ThreadStatus old_status = decodeStatus[tid];
 
@@ -906,81 +913,32 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
     fromFetch->frontEndMiss;
 
     if (toRenameNum[tid] > 0) {
-
-    }
-
-
-
-
-
-
-
-
-
-
-
-    switch(decodeStatus[tid]) {
-        case(Blocked):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toFetch->decodeInfo[tid].BLB = fromRename->renameInfo[tid].BLB;
-            if (toFetch->decodeInfo[tid].BLB) {
-                DPRINTF(LB, "Forward BLB from Rename to Fetch\n");
-            }
-
-            if (fromFetch->frontEndMiss) {
-                this->incLocalSlots(tid, InstSupMiss, decodeWidth);
-            } else if (fromRename->renameInfo[tid].BLB){
+        for (int i = 0; i < decodeWidth; i++) {
+            this->incLocalSlots(tid, curCycleRow[i], 1);
+        }
+        assert(toRenameNum[tid] == this->perCycleSlots[tid][Base]);
+    } else {
+        if (stalls[tid].rename) {
+            if (fromRename->renameInfo[tid].BLB) {
                 this->incLocalSlots(tid, LaterWait, decodeWidth);
             } else {
                 this->incLocalSlots(tid, LaterMiss, decodeWidth);
             }
+        } else {
+            assert(decodeStatus[tid] != Blocked);
+            assert(decodeStatus[tid] != Unblocking);
+            // 如果是unblocking，那么skidBuffer中一定有指令
+            bool intrinsic_miss = decodeStatus[tid] == Squashing;
 
-            break;
-
-        case(StartSquash):
-        case(Squashing):
-            toRename->frontEndMiss = true;
-            toFetch->decodeInfo[tid].BLB = false;
-            DPRINTF(LB, "No BLB because of Squashign\n");
-
-            this->incLocalSlots(tid, InstSupMiss, decodeWidth);
-            break;
-
-        case(Running):
-        case(Idle):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toFetch->decodeInfo[tid].BLB = false;
-
-            assert(!fromRename->renameInfo[tid].BLB);
-
-            if (toRenameNum[tid]) {
-                this->incLocalSlots(tid, Base, toRenameNum[tid]);
-                this->incLocalSlots(tid, InstSupMiss,
-                        decodeWidth - toRenameNum[tid]);
-            } else {
+            if (intrinsic_miss) {
                 this->incLocalSlots(tid, InstSupMiss, decodeWidth);
-            }
-
-            break;
-
-        case(Unblocking):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toFetch->decodeInfo[tid].BLB = BLBlocal;
-
-            assert(!fromRename->renameInfo[tid].BLB);
-
-            if (toRenameNum[tid]) {
-                this->incLocalSlots(tid, Base, toRenameNum[tid]);
-                this->incLocalSlots(tid, InstSupMiss,
-                        decodeWidth - toRenameNum[tid]);
             } else {
-                this->incLocalSlots(tid, InstSupMiss, decodeWidth);
+                assert(decodeStatus[tid] == Running || decodeStatus[tid] == Idle);
+                for (int i = 0; i < decodeWidth; i++) {
+                    this->incLocalSlots(tid, fromFetch->slotPass[i], 1);
+                }
             }
-
-            if (BLBlocal) {
-                DPRINTF(LB, "Send BLB to Fetch because of BLBlocal\n");
-            }
-            break;
+        }
     }
 }
 

@@ -3,6 +3,7 @@
 
 #include <cinttypes>
 #include <algorithm>
+#include <numeric>
 
 #include "cpu/o3/comm.hh"
 #include "debug/LB.hh"
@@ -17,7 +18,7 @@ ThreadID HPT = 0, LPT = 1;
     template<class Impl>
 SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
     : width((int) _width),
-    numThreads(params->numThreads)
+    numThreads((ThreadID) params->numThreads)
 {
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         wait[tid] = 0;
@@ -32,6 +33,12 @@ template <class Impl>
 void
 SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
 {
+    for (int x = 0; x < num; x++) {
+        slotUseRow[tid][slotIndex[tid]] = su;
+    }
+
+    slotIndex[tid] += num;
+
     perCycleSlots[tid][su] += num;
     slots[su] += num;
 
@@ -70,7 +77,8 @@ bool
 SlotCounter<Impl>::checkSlots(ThreadID tid)
 {
     if (std::accumulate(perCycleSlots[tid].begin(),
-                perCycleSlots[tid].end(), 0) == width) {
+                perCycleSlots[tid].end(), 0) == width &&
+            perCycleSlots[tid][NotUsed] == 0) {
         return true;
     } else {
         int it = 0; // avoid to use [] unnecessarily
@@ -96,14 +104,21 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     miss[tid] += perCycleSlots[tid][LaterMiss];
     miss[tid] += perCycleSlots[tid][SerializeMiss];
     miss[tid] += perCycleSlots[tid][SquashMiss];
+    miss[tid] += perCycleSlots[tid][NotFullInstSupMiss];
 
     wait[tid] += perCycleSlots[tid][InstSupWait];
+    wait[tid] += perCycleSlots[tid][ICacheInterference];
+    wait[tid] += perCycleSlots[tid][FetchSliceWait];
     wait[tid] += perCycleSlots[tid][WidthWait];
     wait[tid] += perCycleSlots[tid][EntryWait];
     wait[tid] += perCycleSlots[tid][LaterWait];
     wait[tid] += perCycleSlots[tid][LBLCWait];
 
     std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), 0);
+
+    for(ThreadID i = 0; i < numThreads; i++) {
+        std::fill(slotUseRow[i].begin(), slotUseRow[i].end(), NotUsed);
+    }
 }
 
 template <class Impl>

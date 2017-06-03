@@ -16,62 +16,64 @@ extern ThreadID HPT, LPT;
 
 
 enum SlotsUse {
+    NotUsed,
     /** Doesn't have enough insts because of
      * front end miss (iTLB miss, icache miss, miss prediction)
      */
     InstSupMiss,
-
     /** Doesn't have enough insts because of instrutions of HPT
      * were blocked in earlier stage by LPT
      */
     InstSupWait,
-
     ICacheInterference,
-
     FetchSliceWait,
-    /**
-     * Have insts to process , but other thread occupied some dispatchWidth
-     */
+    // Have insts to process , but other thread occupied some dispatchWidth
     WidthWait,
-
-    /**
-     * Have insts to process , but other thread occupied some entries
-     */
+    // Have insts to process , but other thread occupied some entries
     EntryWait,
-
-    /**
-     * Have insts to process , but there's no enough entries because of itself (HPT)
-     */
+    // Have insts to process , but there's no enough entries because of itself (HPT)
     EntryMiss,
-
-    /** process insts*/
+    // process insts
     Base,
-
-    /**
-     * Have insts to process, but later stage blocked this stage
+    /**Have insts to process, but later stage blocked this stage
      * LaterMiss: because of HPT itself; LaterWait: because of LPT
      */
     LaterMiss,
-
     LaterWait,
-
-    /**
-     * In Unblocking status, if HPT, last cycle, was blocked by LPT,
+    /**In Unblocking status, if HPT, last cycle, was blocked by LPT,
      * then insts were brokend down into two chunks, which leads to
      * miss slots in the 2nd chunk, and should be rectified.
      */
     LBLCWait,
-
     SerializeMiss,
-
     SquashMiss,
-
+    NotFullInstSupMiss,
     NumUse
 };
 
 template <class Impl>
 class SlotCounter
 {
+    static const char* getSlotUseStr(int index) {
+        static const char* slotUseStr[] = {
+                "NotUsed",
+                "InstSupMiss",
+                "InstSupWait",
+                "ICacheInterference",
+                "FetchSliceWait",
+                "WidthWait",
+                "EntryWait",
+                "EntryMiss",
+                "Base",
+                "LaterMiss",
+                "LaterWait",
+                "LBLCWait",
+                "SerializeMiss",
+                "SquashMiss",
+                "NotFullInstSupMiss",
+        };
+        return slotUseStr[index];
+    }
 
     typedef typename Impl::CPUPol CPUPol;
     typedef typename Impl::O3CPU O3CPU;
@@ -102,24 +104,6 @@ class SlotCounter
     }
 
 
-    static const char* getSlotUseStr(int index) {
-        static const char* slotUseStr[] = {
-            "InstSupMiss",
-            "InstSupWait",
-            "ICacheInterference",
-            "FetchSliceWait",
-            "WidthWait",
-            "EntryWait",
-            "EntryMiss",
-            "Base",
-            "LaterMiss",
-            "LaterWait",
-            "LBLCWait",
-            "SerializeMiss",
-            "SquashMiss",
-        };
-        return slotUseStr[index];
-    }
 
     bool checkSlots(ThreadID tid);
 
@@ -140,6 +124,11 @@ class SlotCounter
     void incLocalSlots(ThreadID tid, SlotsUse su, int32_t num, bool verbose);
 
     ThreadID another(ThreadID tid) {return LPT - tid;}
+
+    std::array<std::array<SlotsUse, Impl::MaxWidth>,
+            Impl::MaxThreads> slotUseRow;
+
+    std::array<int, Impl::MaxThreads> slotIndex;
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__

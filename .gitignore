@@ -28,3 +28,14 @@ simpoint
 /smt_run_bak
 merge_test
 /util/debug.sh
+/src/.idea/
+/src/arch/types.hh
+/src/cmake-build-debug/
+/src/config/
+/src/debug/
+/src/params/
+/src/arch/isa_traits.hh
+/src/arch/tlb.hh
+/src/arch/utility.hh
+/src/arch/vtophys.hh
+/src/arch/decoder.hh
