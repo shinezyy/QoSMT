@@ -16,6 +16,7 @@ extern ThreadID HPT, LPT;
 
 
 enum SlotsUse {
+    NotInitiated,
     NotUsed,
     /** Doesn't have enough insts because of
      * front end miss (iTLB miss, icache miss, miss prediction)
@@ -56,6 +57,7 @@ class SlotCounter
 {
     static const char* getSlotUseStr(int index) {
         static const char* slotUseStr[] = {
+                "NotInitiated",
                 "NotUsed",
                 "InstSupMiss",
                 "InstSupWait",
