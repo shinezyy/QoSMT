@@ -8,6 +8,7 @@
 #include "cpu/o3/comm.hh"
 #include "debug/LB.hh"
 #include "debug/VLB.hh"
+#include "debug/SlotCounter.hh"
 #include "params/DerivO3CPU.hh"
 #include "cpu/o3/slot_counter.hh"
 
@@ -42,7 +43,7 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
     perCycleSlots[tid][su] += num;
     slots[su] += num;
 
-    DPRINTF(LB, "T[%i]: Adding %i %s slots locally\n", tid, num,
+    DPRINTF(SlotCounter, "T[%i]: Adding %i %s slots locally\n", tid, num,
             getSlotUseStr(su));
 }
 
