@@ -452,7 +452,9 @@ class DefaultFetch : public SlotCounter<Impl>
     /** Tracks how many instructions has been fetched this cycle. */
     int numInst;
 
-    std::array<int, Impl::MaxThreads> numInsts;
+    std::array<int, Impl::MaxThreads> toDecodeNum;
+
+    int toDecodeAll;
 
     /** Source of possible stalls. */
     struct Stalls {

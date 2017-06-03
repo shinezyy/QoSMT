@@ -38,8 +38,6 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
         slotUseRow[tid][slotIndex[tid]++] = su;
     }
 
-    slotIndex[tid] += num;
-
     perCycleSlots[tid][su] += num;
     slots[su] += num;
 

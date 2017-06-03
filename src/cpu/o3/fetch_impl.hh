@@ -985,8 +985,9 @@ DefaultFetch<Impl>::tick()
         if (!stalls[tid].decode) {
             available_insts += fetchQueue[tid].size();
         }
-        numInsts[tid] = 0;
+        toDecodeNum[tid] = 0;
     }
+    toDecodeAll = 0;
 
     // Pick a random thread to start trying to grab instructions from
     auto tid_itr = activeThreads->begin();
@@ -1005,6 +1006,8 @@ DefaultFetch<Impl>::tick()
             fetchQueue[tid].pop_front();
             insts_to_decode_all++;
             available_insts--;
+            toDecodeNum[tid]++;
+            toDecodeAll++;
         }
 
         tid_itr++;
@@ -1022,8 +1025,8 @@ DefaultFetch<Impl>::tick()
     // Print Inst Trace
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
-        if (numInsts[tid]) {
-            DPRINTF(InstPass, "T[%i] send %i insts to Decode\n", tid, numInsts[tid]);
+        if (toDecodeNum[tid]) {
+            DPRINTF(InstPass, "T[%i] send %i insts to Decode\n", tid, toDecodeNum[tid]);
         }
     }
 
@@ -1037,7 +1040,6 @@ DefaultFetch<Impl>::tick()
 
     // Reset the number of the instruction we've fetched.
     numInst = 0;
-    std::fill(numInsts.begin(), numInsts.end(), 0);
 }
 
 template <class Impl>
@@ -1403,7 +1405,6 @@ DefaultFetch<Impl>::fetch(bool &status_change)
 
             ppFetch->notify(instruction);
             numInst++;
-            numInsts[tid]++;
 
 #if TRACING_ON
             if (DTRACE(O3PipeView)) {
@@ -1808,11 +1809,11 @@ template <class Impl>
 void
 DefaultFetch<Impl>::passLB(ThreadID tid)
 {
-    if (numInsts[tid] > 0) {
-        this->incLocalSlots(tid, Base, numInsts[tid]);
-        this->incLocalSlots(tid, WidthWait, numInsts[this->another(tid)]);
+    if (toDecodeNum[tid] > 0) {
+        this->incLocalSlots(tid, Base, toDecodeNum[tid]);
+        this->incLocalSlots(tid, WidthWait, toDecodeNum[this->another(tid)]);
         // 这种情况比较少，所以算作miss，其中实际上可能有wait，暂时不管了
-        this->incLocalSlots(tid, InstSupMiss, fetchWidth - numInst);
+        this->incLocalSlots(tid, InstSupMiss, fetchWidth - toDecodeAll);
     } else {
         if (stalls[tid].decode){
             if (fromDecode->decodeInfo[tid].BLB) {

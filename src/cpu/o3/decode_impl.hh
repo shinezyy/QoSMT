@@ -917,6 +917,11 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
         for (int i = 0; i < decodeWidth; i++) {
             this->incLocalSlots(tid, curCycleRow[i], 1);
         }
+        if (toRenameNum[tid] != this->perCycleSlots[tid][Base]) {
+            DPRINTF(DecodeBreakdown, "toRenameNum[%i] = %i"
+                    "[%i] Base this cycle = %i\n",
+                    tid, toRenameNum[tid], tid, this->perCycleSlots[tid][Base]);
+        }
         assert(toRenameNum[tid] == this->perCycleSlots[tid][Base]);
     } else {
         if (stalls[tid].rename) {
