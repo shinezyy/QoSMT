@@ -314,6 +314,7 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
 {
     DPRINTF(Decode, "[tid:%i]: [sn:%i] Squashing due to incorrect branch "
             "prediction detected at decode.\n", tid, inst->seqNum);
+    squashedThisCycle[tid] = true;
 
     // Send back mispredict information.
     toFetch->decodeInfo[tid].branchMispredict = true;
@@ -386,6 +387,7 @@ unsigned
 DefaultDecode<Impl>::squash(ThreadID tid)
 {
     DPRINTF(Decode, "[tid:%i]: Squashing.\n",tid);
+    squashedThisCycle[tid] = true;
 
     if (decodeStatus[tid] == Blocked ||
         decodeStatus[tid] == Unblocking) {
@@ -625,6 +627,7 @@ DefaultDecode<Impl>::tick()
 
     toRenameIndex = 0;
     std::fill(toRenameNum.begin(), toRenameNum.end(), 0);
+    std::fill(squashedThisCycle.begin(), squashedThisCycle.end(), false);
 
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
@@ -914,15 +917,23 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
     fromFetch->frontEndMiss;
 
     if (toRenameNum[tid] > 0) {
-        for (int i = 0; i < decodeWidth; i++) {
-            this->incLocalSlots(tid, curCycleRow[i], 1);
+        if (!squashedThisCycle[tid]) {
+            for (int i = 0; i < decodeWidth; i++) {
+                this->incLocalSlots(tid, curCycleRow[i], 1);
+            }
+            if (toRenameNum[tid] != this->perCycleSlots[tid][Base]) {
+                DPRINTF(DecodeBreakdown, "Thread[%i] toRenameNum = %i; "
+                        "Base this cycle = %i; "
+                        "thread status = %i\n",
+                        tid, toRenameNum[tid], this->perCycleSlots[tid][Base],
+                        decodeStatus[tid]);
+            }
+            assert(toRenameNum[tid] == this->perCycleSlots[tid][Base]);
+
+        } else {
+            this->incLocalSlots(tid, Base, toRenameNum[tid]);
+            this->incLocalSlots(tid, InstSupMiss, decodeWidth - toRenameNum[tid]);
         }
-        if (toRenameNum[tid] != this->perCycleSlots[tid][Base]) {
-            DPRINTF(DecodeBreakdown, "toRenameNum[%i] = %i"
-                    "[%i] Base this cycle = %i\n",
-                    tid, toRenameNum[tid], tid, this->perCycleSlots[tid][Base]);
-        }
-        assert(toRenameNum[tid] == this->perCycleSlots[tid][Base]);
     } else {
         if (stalls[tid].rename) {
             if (fromRename->renameInfo[tid].BLB) {
