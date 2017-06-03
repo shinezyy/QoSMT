@@ -47,6 +47,7 @@ enum SlotsUse {
     LBLCWait,
     SerializeMiss,
     SquashMiss,
+    NotFullInstSupMiss,
     NumUse
 };
 
@@ -69,6 +70,7 @@ class SlotCounter
                 "LBLCWait",
                 "SerializeMiss",
                 "SquashMiss",
+                "NotFullInstSupMiss",
         };
         return slotUseStr[index];
     }

@@ -355,6 +355,8 @@ class DefaultDecode : public SlotCounter<Impl>
     float storeRate;
     int numStores;
     int storeIndex;
+
+    SlotsUseRow curCycleRow;
 };
 
 #endif // __CPU_O3_DECODE_HH__

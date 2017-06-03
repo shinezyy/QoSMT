@@ -77,7 +77,8 @@ bool
 SlotCounter<Impl>::checkSlots(ThreadID tid)
 {
     if (std::accumulate(perCycleSlots[tid].begin(),
-                perCycleSlots[tid].end(), 0) == width) {
+                perCycleSlots[tid].end(), 0) == width &&
+            perCycleSlots[tid][NotUsed] == 0) {
         return true;
     } else {
         int it = 0; // avoid to use [] unnecessarily
@@ -103,6 +104,7 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     miss[tid] += perCycleSlots[tid][LaterMiss];
     miss[tid] += perCycleSlots[tid][SerializeMiss];
     miss[tid] += perCycleSlots[tid][SquashMiss];
+    miss[tid] += perCycleSlots[tid][NotFullInstSupMiss];
 
     wait[tid] += perCycleSlots[tid][InstSupWait];
     wait[tid] += perCycleSlots[tid][ICacheInterference];
