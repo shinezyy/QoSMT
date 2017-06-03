@@ -35,7 +35,7 @@ void
 SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
 {
     for (int x = 0; x < num; x++) {
-        slotUseRow[tid][slotIndex[tid]] = su;
+        slotUseRow[tid][slotIndex[tid]++] = su;
     }
 
     slotIndex[tid] += num;
@@ -119,6 +119,7 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
 
     for(ThreadID i = 0; i < numThreads; i++) {
         std::fill(slotUseRow[i].begin(), slotUseRow[i].end(), NotUsed);
+        slotIndex[i] = 0;
     }
 }
 
