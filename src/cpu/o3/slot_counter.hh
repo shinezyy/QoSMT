@@ -50,6 +50,7 @@ enum SlotsUse {
     SquashMiss,
     NotFullInstSupMiss,
     Referenced,
+    SplitWait,
     NumUse
 };
 
@@ -75,6 +76,7 @@ class SlotCounter
                 "SquashMiss",
                 "NotFullInstSupMiss",
                 "Referenced",
+                "SplitWait",
         };
         return slotUseStr[index];
     }

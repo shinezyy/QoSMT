@@ -96,7 +96,8 @@ class DefaultRename : public SlotCounter<Impl>
     // be added to the front of the queue, which is the only reason for
     // using a deque instead of a queue. (Most other stages use a
     // queue)
-    typedef std::deque<DynInstPtr> InstQueue;
+    typedef std::deque<DynInstPtr> InstRow;
+    typedef std::array<SlotsUse , Impl::MaxWidth> SlotsUseRow;
 
   public:
     /** Overall rename status. Used to determine if the CPU can
@@ -293,7 +294,7 @@ class DefaultRename : public SlotCounter<Impl>
      * thread that has the serializeAfter instruction.
      * @param tid The thread id.
      */
-    void serializeAfter(InstQueue &inst_list, ThreadID tid);
+    void serializeAfter(InstRow &inst_list, ThreadID tid);
 
     /** Holds the information for each destination register rename. It holds
      * the instruction's sequence number, the arch register, the old physical
@@ -350,10 +351,12 @@ class DefaultRename : public SlotCounter<Impl>
     typename TimeBuffer<DecodeStruct>::wire fromDecode;
 
     /** Queue of all instructions coming from decode this cycle. */
-    InstQueue insts[Impl::MaxThreads];
+    InstRow insts[Impl::MaxThreads];
 
     /** Skid buffer between rename and decode. */
-    InstQueue skidBuffer[Impl::MaxThreads];
+    std::queue<InstRow> skidBuffer[Impl::MaxThreads];
+
+    std::queue<SlotsUseRow> skidSlotBuffer[Impl::MaxThreads];
 
     /** Rename map interface. */
     RenameMap *renameMap[Impl::MaxThreads];
@@ -743,6 +746,12 @@ class DefaultRename : public SlotCounter<Impl>
     void consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs);
 
     void addUpSlots();
+
+    std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
+    std::array<int, Impl::MaxThreads> squashedThisCycle;
+
+    std::queue<Tick> skidInstTick[Impl::MaxThreads];
+    std::queue<Tick> skidSlotTick[Impl::MaxThreads];
 };
 
 #endif // __CPU_O3_RENAME_HH__

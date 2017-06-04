@@ -112,6 +112,7 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     wait[tid] += perCycleSlots[tid][EntryWait];
     wait[tid] += perCycleSlots[tid][LaterWait];
     wait[tid] += perCycleSlots[tid][LBLCWait];
+    wait[tid] += perCycleSlots[tid][SplitWait];
 
     std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), 0);
 

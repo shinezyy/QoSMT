@@ -39,3 +39,5 @@ merge_test
 /src/arch/utility.hh
 /src/arch/vtophys.hh
 /src/arch/decoder.hh
+/src/arch/registers.hh
+/src/enums/

@@ -66,6 +66,7 @@
 #include "debug/missTry.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
+#include "base/misc.hh"
 
 using namespace std;
 
@@ -73,14 +74,14 @@ template <class Impl>
 DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     : SlotCounter<Impl>(params, params->renameWidth),
       cpu(_cpu),
-      iewToRenameDelay(params->iewToRenameDelay),
-      decodeToRenameDelay(params->decodeToRenameDelay),
-      commitToRenameDelay(params->commitToRenameDelay),
+      iewToRenameDelay((int) params->iewToRenameDelay),
+      decodeToRenameDelay((int) params->decodeToRenameDelay),
+      commitToRenameDelay((unsigned) params->commitToRenameDelay),
       renameWidth(params->renameWidth),
       commitWidth(params->commitWidth),
-      numThreads(params->numThreads),
-      maxPhysicalRegs(params->numPhysIntRegs + params->numPhysFloatRegs
-                      + params->numPhysCCRegs),
+      numThreads((ThreadID) params->numThreads),
+      maxPhysicalRegs((PhysRegIndex) (params->numPhysIntRegs + params->numPhysFloatRegs
+                      + params->numPhysCCRegs)),
       availableInstCount(0),
       BLBlocal(false),
       blockCycles(0),
@@ -95,7 +96,7 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
              renameWidth, static_cast<int>(Impl::MaxWidth));
 
     // @todo: Make into a parameter.
-    skidBufferMax = (decodeToRenameDelay + 1) * params->decodeWidth;
+    skidBufferMax = (unsigned) decodeToRenameDelay + 1;
 
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
         nrFreeRegs[i] = params->numPhysIntRegs;
@@ -397,9 +398,8 @@ DefaultRename<Impl>::drainSanityCheck() const
 
 template <class Impl>
 void
-DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
-{
-    DPRINTF(Rename, "[tid:%u]: Squashing instructions.\n",tid);
+DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid) {
+    DPRINTF(Rename, "[tid:%u]: Squashing instructions.\n", tid);
 
     // Clear the stall signal if rename was blocked or unblocking before.
     // If it still needs to block, the blocking should happen the next
@@ -430,7 +430,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
     DPRINTF(RenameBreakdown, "Thread [%i] Rename status switched to Squashing\n", tid);
 
     // Squash any instructions from decode.
-    for (int i=0; i<fromDecode->size; i++) {
+    for (int i = 0; i < fromDecode->size; i++) {
         if (fromDecode->insts[i]->threadNumber == tid &&
             fromDecode->insts[i]->seqNum > squash_seq_num) {
             fromDecode->insts[i]->setSquashed();
@@ -444,7 +444,19 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid)
     insts[tid].clear();
 
     // Clear the skid buffer in case it has any data in it.
-    skidBuffer[tid].clear();
+    while (!skidBuffer[tid].empty()) {
+        if (!skidBuffer[tid].front().empty()) {
+            DPRINTF(RenameBreakdown, "Squash sn[%lli] from skidBuffer of T[%i]\n",
+                    skidBuffer[tid].front().front()->seqNum, tid);
+        }
+        skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
+    }
+
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
+    }
 
     doSquash(squash_seq_num, tid);
 
@@ -682,8 +694,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 {
     // Instructions can be either in the skid buffer or the queue of
     // instructions coming from decode, depending on the status.
+    int skid_size = 0;
+    if(skidBuffer[tid].size() != 0) {
+        skid_size = skidBuffer[tid].front().size();
+        assert(skid_size > 0);
+    }
+
     int insts_available = renameStatus[tid] == Unblocking ?
-                          (int) skidBuffer[tid].size() : (int) insts[tid].size();
+                          skid_size : (int) insts[tid].size();
 
     // Check the decode queue to see if instructions are available.
     // If there are no available instructions to rename, then do nothing.
@@ -743,8 +761,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         }
     }
 
-    InstQueue &insts_to_rename = renameStatus[tid] == Unblocking ?
-        skidBuffer[tid] : insts[tid];
+    InstRow &insts_to_rename = renameStatus[tid] == Unblocking ?
+        skidBuffer[tid].front() : insts[tid];
 
     DPRINTF(Rename, "[tid:%u]: %i available instructions to "
             "send iew.\n", tid, insts_available);
@@ -936,40 +954,19 @@ template<class Impl>
 void
 DefaultRename<Impl>::skidInsert(ThreadID tid)
 {
-    DynInstPtr inst = NULL;
+    //rewrite
 
-    while (!insts[tid].empty()) {
-        inst = insts[tid].front();
-
-        insts[tid].pop_front();
-
-        assert(tid == inst->threadNumber);
-
-        DPRINTF(Rename, "[tid:%u]: Inserting [sn:%lli] PC: %s into Rename "
-                "skidBuffer\n", tid, inst->seqNum, inst->pcState());
-
-        ++renameSkidInsts;
-
-        /**这条指令即将被阻塞，说明它提前到达此阶段也无法提前被处理*/
-        if (inst->getWaitSlot() > 0 && !skidBuffer[tid].empty()) {
-            this->reshape(inst);
-        }
-
-        skidBuffer[tid].push_back(inst);
+    if (insts[tid].size() == 0) {
+        return;
     }
-
-    if (skidBuffer[tid].size() > skidBufferMax)
-    {
-        typename InstQueue::iterator it;
-        warn("Skidbuffer contents:\n");
-        for(it = skidBuffer[tid].begin(); it != skidBuffer[tid].end(); it++)
-        {
-            warn("[tid:%u]: %s [sn:%i].\n", tid,
-                    (*it)->staticInst->disassemble(inst->instAddr()),
-                    (*it)->seqNum);
-        }
-        panic("Skidbuffer Exceeded Max Size");
-    }
+    DPRINTF(RenameBreakdown, "Inserting sn[%lli] into skidBuffer of T[%i]\n",
+            insts[tid].front()->seqNum, tid);
+    skidBuffer[tid].push(insts[tid]);
+    skidInstTick[tid].push(curTick());
+    insts[tid].clear();
+    skidSlotBuffer[tid].push(fromDecode->slotPass);
+    skidSlotTick[tid].push(curTick());
+    assert(skidBuffer[tid].size() <= skidBufferMax);
 }
 
 template <class Impl>
@@ -1484,14 +1481,14 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
                 break;
             case Blocked:
             case Unblocking:
-                numAvailInsts = (unsigned) skidBuffer[tid].size();
+                numAvailInsts = (unsigned) skidBuffer[tid].front().size();
                 break;
             default:
                 break;
         }
         numLPTcause = std::min(numAvailInsts, renameWidth);
         DPRINTF(RenameBreakdown, "T[0]: %i insts in skidbuffer, %i insts from decode\n",
-                skidBuffer[tid].size(), insts[tid].size());
+                skidBuffer[tid].front().size(), insts[tid].size());
     }
 
     if (stalls[tid].iew) {
@@ -1673,7 +1670,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
         serial_inst->clearSerializeBefore();
 
         if (!skidBuffer[tid].empty()) {
-            skidBuffer[tid].push_front(serial_inst);
+            skidBuffer[tid].front().push_front(serial_inst);
         } else {
             insts[tid].push_front(serial_inst);
         }
@@ -1693,7 +1690,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
 
 template<class Impl>
 void
-DefaultRename<Impl>::serializeAfter(InstQueue &inst_list, ThreadID tid)
+DefaultRename<Impl>::serializeAfter(InstRow &inst_list, ThreadID tid)
 {
     if (inst_list.empty()) {
         // Mark a bit to say that I must serialize on the next instruction.
@@ -1912,14 +1909,14 @@ DefaultRename<Impl>::getRenamable()
                 break;
 
             case Blocked:
-                renamable[tid] = std::min((int) skidBuffer[tid].size(),
+                renamable[tid] = std::min((int) skidBuffer[tid].front().size(),
                         (int) renameWidth);
                 DPRINTF(RenameBreakdown, "T[%i][Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);
                 break;
 
             case Unblocking:
-                renamable[tid] = std::min((int) skidBuffer[tid].size(),
+                renamable[tid] = std::min((int) skidBuffer[tid].front().size(),
                         (int) renameWidth);
                 DPRINTF(RenameBreakdown, "T[%i][Unblocking] has %i insts to rename\n",
                         tid, renamable[tid]);
@@ -1937,7 +1934,7 @@ DefaultRename<Impl>::getRenamable()
                 break;
 
             case SerializeStall:
-                renamable[tid] = std::min((int) skidBuffer[tid].size(),
+                renamable[tid] = std::min((int) skidBuffer[tid].front().size(),
                         (int) renameWidth);
                 DPRINTF(RenameBreakdown, "T[%i][Serialize Blocked] has %i insts to rename\n",
                         tid, renamable[tid]);

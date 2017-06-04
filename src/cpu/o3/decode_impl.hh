@@ -781,8 +781,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
     DynInstPtr inst;
 
-    std::queue<DynInstPtr>
-        &insts_to_decode = decodeStatus[tid] == Unblocking ?
+    InstRow &insts_to_decode = decodeStatus[tid] == Unblocking ?
         skidBuffer[tid].front() : insts[tid];
 
     curCycleRow[tid] = decodeStatus[tid] == Unblocking ?
@@ -949,7 +948,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
                 } else {
                     for (; i < toRenameNum[tid]; i++);
                     if (cursor > 0) {
-                        this->incLocalSlots(tid, WidthWait, cursor);
+                        this->incLocalSlots(tid, SplitWait, cursor);
                     }
                     for (; cursor + i < decodeWidth; i++) {
                         this->incLocalSlots(tid, curCycleRow[tid][cursor+i], 1);
