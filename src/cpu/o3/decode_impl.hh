@@ -797,8 +797,6 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
     DPRINTF(Decode, "[tid:%u]: Sending instruction to rename.\n",tid);
 
-    bool squashed = false;
-
     while (insts_available > 0 && toRenameIndex < decodeWidth) {
         assert(!insts_to_decode.empty());
 
@@ -863,7 +861,6 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
             // Might want to set some sort of boolean and just do
             // a check at the end
             squash(inst, inst->threadNumber);
-            squashed = true;
 
             break;
         }
@@ -878,7 +875,6 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
                 // Might want to set some sort of boolean and just do
                 // a check at the end
                 squash(inst, inst->threadNumber);
-                squashed = true;
                 TheISA::PCState target = inst->branchTarget();
 
                 DPRINTF(Decode, "[sn:%i]: Updating predictions: PredPC: %s\n",
@@ -899,7 +895,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
     // If we didn't process all instructions, then we will need to block
     // and put all those instructions into the skid buffer.
-    if (!squashed) {
+    if (!squashedThisCycle[tid]) {
         if (!insts_to_decode.empty()) {
             block(tid);
         }

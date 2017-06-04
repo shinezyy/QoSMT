@@ -436,7 +436,6 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid) {
             fromDecode->insts[i]->setSquashed();
             wroteToTimeBuffer = true;
         }
-
     }
 
     // Clear the instruction list and skid buffer in case they have any
@@ -459,6 +458,8 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid) {
     }
 
     doSquash(squash_seq_num, tid);
+
+    squashedThisCycle[tid] = true;
 
     if (HPT == tid) {
         shine("squash");
@@ -488,6 +489,7 @@ DefaultRename<Impl>::tick()
     }
 
     toIEWIndex = 0;
+    std::fill(squashedThisCycle.begin(), squashedThisCycle.end(), false);
 
     LBLC = LB_all;
 
@@ -769,6 +771,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     incAvailableInstCount(insts_available);
 
+    ThreadStatus old_status = renameStatus[tid];
+
     DPRINTF(Rename, "[tid:%u]: %i insts pipelining from Rename | %i insts "
             "dispatched to IQ last cycle.\n",
             tid, instsInProgress[tid], fromIEW->iewInfo[tid].dispatched);
@@ -942,6 +946,14 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // If so then block.
     if (insts_available) {
         blockThisCycle = true;
+    }
+
+    if (insts_to_rename.empty() && old_status ==Unblocking) {
+        DPRINTF(RenameBreakdown, "Pop empty row from skidBuffer of T[%i]\n", tid);
+        skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     if (blockThisCycle) {
