@@ -356,7 +356,7 @@ class DefaultDecode : public SlotCounter<Impl>
     int numStores;
     int storeIndex;
 
-    SlotsUseRow curCycleRow;
+    std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
     std::array<int, Impl::MaxThreads> squashedThisCycle;
 };
 

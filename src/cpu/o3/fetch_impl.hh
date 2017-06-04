@@ -1836,7 +1836,11 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
                         fetchStatus[tid] == IcacheWaitRetry;
 
                 if (intrinsic_miss) {
-                    this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                    if (fetchStatus[tid] == Squashing) {
+                        this->incLocalSlots(tid, SquashMiss, fetchWidth);
+                    } else {
+                        this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                    }
                 } else if (cache_miss) {
                     if (AnotherThreadCauseCurrentMiss(tid)) {
                         this->incLocalSlots(tid, ICacheInterference, fetchWidth);

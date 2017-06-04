@@ -49,6 +49,7 @@ enum SlotsUse {
     SerializeMiss,
     SquashMiss,
     NotFullInstSupMiss,
+    Referenced,
     NumUse
 };
 
@@ -73,6 +74,7 @@ class SlotCounter
                 "SerializeMiss",
                 "SquashMiss",
                 "NotFullInstSupMiss",
+                "Referenced",
         };
         return slotUseStr[index];
     }
