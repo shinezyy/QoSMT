@@ -46,6 +46,8 @@
 
 #include <list>
 #include <array>
+#include <queue>
+#include <deque>
 
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
