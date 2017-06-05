@@ -51,6 +51,15 @@ enum SlotsUse {
     NotFullInstSupMiss,
     Referenced,
     SplitWait,
+    ROBWait,
+    ROBMiss,
+    IQWait,
+    IQMiss,
+    LQWait,
+    LQMiss,
+    SQWait,
+    SQMiss,
+    DCacheInterference,
     NumUse
 };
 
@@ -77,6 +86,15 @@ class SlotCounter
                 "NotFullInstSupMiss",
                 "Referenced",
                 "SplitWait",
+                "ROBWait",
+                "ROBMiss",
+                "IQWait",
+                "IQMiss",
+                "LQWait",
+                "LQMiss",
+                "SQWait",
+                "SQMiss",
+                "DCacheInterference",
         };
         return slotUseStr[index];
     }

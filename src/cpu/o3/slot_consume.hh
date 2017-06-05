@@ -55,6 +55,17 @@ template<class Impl>
 class SlotConsumer
 {
   public:
+    enum FullSource {
+        ROB,
+        IQ,
+        LQ,
+        SQ,
+        IEWStage,
+        Register,
+        NONE,
+    };
+
+
     static const char* getConsumeString(int index) {
         static const char *consumeStrings[] = {
                 "NotConsumed",
@@ -104,6 +115,18 @@ class SlotConsumer
     std::string name() const {
         return consumerName;
     };
+
+    void cycleStart() {
+        cleanSlots();
+    }
+
+    void cycleEnd(ThreadID tid,
+                  std::array<unsigned, Impl::MaxThreads> &toIEWNum,
+                  FullSource fullSource,
+                  std::array<SlotsUse, Impl::MaxWidth> &decodeSlotRow,
+                  SlotCounter<Impl> *slotCounter,
+                  bool isRename, bool BLB
+    );
 };
 
 

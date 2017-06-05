@@ -50,6 +50,7 @@
 #include "cpu/o3/fmt.hh"
 #include "cpu/o3/voc.hh"
 #include "cpu/o3/bmt.hh"
+#include "cpu/o3/slot_consume.hh"
 
 /**
  * Struct that defines the key classes to be used by the CPU.  All
@@ -113,6 +114,8 @@ struct SimpleCPUPolicy
 
     /** The struct for all backwards communication. */
     typedef TimeBufStruct<Impl> TimeStruct;
+
+    typedef SlotConsumer<Impl> SlotConsm;
 
 };
 

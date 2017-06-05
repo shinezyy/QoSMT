@@ -91,6 +91,7 @@ class DefaultRename : public SlotCounter<Impl>
     typedef typename CPUPol::Commit Commit;
 
     typedef typename CPUPol::Bmt Bmt;
+    typedef typename CPUPol::SlotConsm SlotConsm;
 
     // Typedefs from the ISA.
     typedef TheISA::RegIndex RegIndex;
@@ -100,7 +101,7 @@ class DefaultRename : public SlotCounter<Impl>
     // using a deque instead of a queue. (Most other stages use a
     // queue)
     typedef std::deque<DynInstPtr> InstRow;
-    typedef std::array<SlotsUse , Impl::MaxWidth> SlotsUseRow;
+    typedef std::array<SlotsUse, Impl::MaxWidth> SlotsUseRow;
 
   public:
     /** Overall rename status. Used to determine if the CPU can
@@ -493,23 +494,10 @@ class DefaultRename : public SlotCounter<Impl>
 
     PhysRegIndex maxPhysicalRegs;
 
-    /** Enum to record the source of a structure full stall.  Can come from
-     * either ROB, IQ, LSQ, and it is priortized in that order.
-     */
-    enum FullSource {
-        ROB,
-        IQ,
-        LQ,
-        SQ,
-        IEWStage,
-        Register,
-        NONE
-    };
-
     /** Function used to increment the stat that corresponds to the source of
      * the stall.
      */
-    inline void incrFullStat(const FullSource &source, ThreadID tid);
+    inline void incrFullStat(const typename SlotConsm::FullSource &source, ThreadID tid);
 
     /** Stat for total number of cycles spent squashing. */
     Stats::Vector renameSquashCycles;
@@ -613,10 +601,6 @@ class DefaultRename : public SlotCounter<Impl>
         return toIEW->insts[~0];
     }
 
-    std::array<int, Impl::MaxThreads> renamable;
-
-    void getRenamable();
-
     void computeMiss(ThreadID tid);
 
     void missTry();
@@ -625,7 +609,7 @@ class DefaultRename : public SlotCounter<Impl>
     DynInstPtr LQHead[Impl::MaxThreads];
     DynInstPtr SQHead[Impl::MaxThreads];
 
-    std::array<FullSource, Impl::MaxThreads> fullSource;
+    std::array<typename SlotConsm::FullSource, Impl::MaxThreads> fullSource;
 
     void genShadow();
 
@@ -675,9 +659,6 @@ class DefaultRename : public SlotCounter<Impl>
 
     int VIQ, VROB;
     int maxROB, maxIQ, maxLQ, maxSQ;
-
-
-
 
     std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
     std::array<int, Impl::MaxThreads> squashedThisCycle;

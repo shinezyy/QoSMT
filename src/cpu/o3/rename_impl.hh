@@ -67,6 +67,9 @@
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 #include "base/misc.hh"
+#include "cpu/thread_context.hh"
+#include "cpu/o3/comm.hh"
+#include "cpu/o3/scoreboard.hh"
 
 using namespace std;
 
@@ -102,7 +105,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
         nrFreeRegs[i] = params->numPhysIntRegs;
     }
-    slotConsumer.cleanSlots();
 }
 
 template <class Impl>
@@ -331,7 +333,6 @@ DefaultRename<Impl>::resetStage()
         serializeOnNextInst[tid] = false;
     }
     clearFull();
-    slotConsumer.cleanSlots();
 }
 
 template<class Impl>
@@ -478,6 +479,8 @@ DefaultRename<Impl>::tick()
 
     bool status_change = false;
 
+    slotConsumer.cycleStart();
+
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         toIEW->serialize[tid] = false;
         toIEW->unSerialize[tid] = false;
@@ -500,7 +503,7 @@ DefaultRename<Impl>::tick()
     blockedCycles = 0;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
-    std::fill(fullSource.begin(), fullSource.end(), NONE);
+    std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
 
     sortInsts();
 
@@ -513,8 +516,6 @@ DefaultRename<Impl>::tick()
         DPRINTF(RenameBreakdown, "Processing [tid:%i]\n", tid);
         status_change = checkSignalsAndUpdate(tid) || status_change;
     }
-
-    getRenamable();
 
     for (ThreadID tid = 0; tid < numThreads; tid++) {
 
@@ -582,7 +583,6 @@ DefaultRename<Impl>::tick()
     }
 
     passLB(HPT);
-    slotConsumer.cleanSlots();
 }
 
 template<class Impl>
@@ -721,14 +721,10 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     DynInstPtr inst;
 
-    int shortfall = 0;
-
     // Will have to do a different calculation for the number of free
     // entries.
     int free_rob_entries = calcFreeROBEntries(tid);
-    fullSource[tid] = ROB;
-
-	shortfall = std::max(renamable[tid] - free_rob_entries, 0);
+    fullSource[tid] = SlotConsm::ROB;
 
     // Check if there's any space left.
     if (free_rob_entries <= 0) {
@@ -738,13 +734,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
         blockThisCycle = true;
         block(tid);
-        incrFullStat(fullSource[tid], tid);
-
-        if (tid == HPT) {
-            slotConsumer.consumeSlots(renamable[HPT], HPT, NoROB);
-            renamable[HPT] = 0;
-        }
-
         return;
 
     } else if (free_rob_entries < insts_available) {
@@ -756,12 +745,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         insts_available = free_rob_entries;
 
         blockThisCycle = true;
-        incrFullStat(fullSource[tid], tid);
-
-        if (tid == HPT) {
-            slotConsumer.consumeSlots(shortfall, HPT, NoROB);
-            renamable[tid] -= shortfall;
-        }
     }
 
     InstRow &insts_to_rename = renameStatus[tid] == Unblocking ?
@@ -811,14 +794,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                     inst->pcState());
 
             ++renameSquashedInsts;
-
             // Decrement how many instructions are available.
             --insts_available;
-            --renamable[tid];
-
-            if (tid == HPT) {
-                slotConsumer.consumeSlots(1, HPT, SquashedInst);
-            }
             continue;
         }
 
@@ -836,11 +813,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             blockThisCycle = true;
             insts_to_rename.push_front(inst);
             ++renameFullRegistersEvents;
-            fullSource[tid] = Register;
-
-            if (tid == HPT) {
-                slotConsumer.consumeSlots(renamable[HPT], HPT, NoPR);
-            }
+            fullSource[tid] = SlotConsm::Register;
             break;
         }
 
@@ -874,12 +847,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                     tid);
 
             serializeInst[tid] = inst;
-
             blockThisCycle = true;
-
-            if (tid == HPT) {
-                slotConsumer.consumeSlots(renamable[HPT], HPT, WaitingSI);
-            }
             break;
         } else if ((inst->isStoreConditional() || inst->isSerializeAfter()) &&
                    !inst->isSerializeHandled()) {
@@ -914,13 +882,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         ++toIEWIndex;
         ++toIEWNum[tid];
 
-        if (tid == HPT) {
-            slotConsumer.consumeSlots(1, HPT, EffectUsed);
-        }
-
         // Decrement how many instructions are available.
         --insts_available;
-        --renamable[tid];
     }
     //</editor-fold>
 
@@ -1506,7 +1469,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
 
     if (stalls[tid].iew) {
         DPRINTF(Rename,"[tid:%i]: Stall from IEW stage detected.\n", tid);
-        fullSource[tid] = IEWStage;
+        fullSource[tid] = SlotConsm::IEWStage;
         ret_val = true;
         if (tid == HPT) {
             DPRINTF(RenameBreakdown, "HPT stall from IEW stage detected.\n");
@@ -1514,7 +1477,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
 
     } else if (calcFreeROBEntries(tid) <= 0) {
         DPRINTF(Rename,"[tid:%i]: Stall: ROB has 0 free entries.\n", tid);
-        fullSource[tid] = ROB;
+        fullSource[tid] = SlotConsm::ROB;
         ret_val = true;
 
         if (tid == HPT) {
@@ -1529,7 +1492,7 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         }
 
     } else if (renameMap[tid]->numFreeEntries() <= 0) {
-        fullSource[tid] = Register;
+        fullSource[tid] = SlotConsm::Register;
         DPRINTF(Rename,"[tid:%i]: Stall: RenameMap has 0 free entries.\n", tid);
         ret_val = true;
     } else if (renameStatus[tid] == SerializeStall &&
@@ -1717,29 +1680,16 @@ DefaultRename<Impl>::serializeAfter(InstRow &inst_list, ThreadID tid)
 
 template <class Impl>
 inline void
-DefaultRename<Impl>::incrFullStat(const FullSource &source,
+DefaultRename<Impl>::incrFullStat(const typename SlotConsm::FullSource &source,
         ThreadID tid)
 {
     switch (source) {
-      case ROB:
+      case SlotConsm::ROB:
         ++renameROBFullEvents[tid];
         ++numROBFull[tid];
         break;
-      case IQ:
-        ++renameIQFullEvents[tid];
-        ++numIQFull[tid];
-        break;
-      case LQ:
-        if (tid == HPT) {
-            DPRINTF(BMT, "HPT LQ full,  HPT: %i,  LPT %i\n",
-                    calcOwnLQEntries(HPT), calcOwnLQEntries(LPT));
-        }
-        ++renameLQFullEvents[tid];
-        ++numLQFull[tid];
-        break;
-      case SQ:
-        ++renameSQFullEvents[tid];
-        ++numSQFull[tid];
+      case SlotConsm::Register:
+        ++renameFullRegistersEvents;
         break;
       default:
         panic("Rename full stall stat should be incremented for a reason!");
@@ -1907,55 +1857,6 @@ DefaultRename<Impl>::passLB(ThreadID tid)
     }
 }
 
-template <class Impl>
-void
-DefaultRename<Impl>::getRenamable()
-{
-    for (ThreadID tid = 0; tid < numThreads; ++tid) {
-        switch (renameStatus[tid]) {
-            case Running:
-            case Idle:
-                renamable[tid] = std::min((int) insts[tid].size(),
-                        (int) renameWidth);
-                DPRINTF(RenameBreakdown, "T[%i][Running] has %i insts to rename\n",
-                        tid, renamable[tid]);
-                break;
-
-            case Blocked:
-                renamable[tid] = std::min((int) skidBuffer[tid].front().size(),
-                        (int) renameWidth);
-                DPRINTF(RenameBreakdown, "T[%i][Blocked] has %i insts to rename\n",
-                        tid, renamable[tid]);
-                break;
-
-            case Unblocking:
-                renamable[tid] = std::min((int) skidBuffer[tid].front().size(),
-                        (int) renameWidth);
-                DPRINTF(RenameBreakdown, "T[%i][Unblocking] has %i insts to rename\n",
-                        tid, renamable[tid]);
-                /**should rename*/
-                if(!fromDecode->frontEndMiss && LBLC) {
-                    DPRINTF(RenameBreakdown, "T[%i] has %i insts should rename\n",
-                            tid, renameWidth);
-                }
-                break;
-
-            case Squashing:
-            case StartSquash:
-                renamable[tid] = 0;
-                DPRINTF(RenameBreakdown, "T[%i][Squash] has no insts to rename\n", tid);
-                break;
-
-            case SerializeStall:
-                renamable[tid] = std::min((int) skidBuffer[tid].front().size(),
-                        (int) renameWidth);
-                DPRINTF(RenameBreakdown, "T[%i][Serialize Blocked] has %i insts to rename\n",
-                        tid, renamable[tid]);
-                break;
-        }
-    }
-}
-
 template<class Impl>
 void
 DefaultRename<Impl>::computeMiss(ThreadID tid)
@@ -1966,18 +1867,14 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         case Running:
         case Idle:
         case Unblocking:
-            if (renamable[tid] < renameWidth) {
-                int wasted = renameWidth - renamable[tid];
-                slotConsumer.consumeSlots(wasted, HPT, NoInstrSup);
-            }
             break;
 
         case Blocked:
-            if (fullSource[HPT] == IEWStage) {
+            if (fullSource[HPT] == SlotConsm::IEWStage) {
                 slotConsumer.consumeSlots(renameWidth, HPT, IEWBlock);
-            } else if (fullSource[HPT] == Register) {
+            } else if (fullSource[HPT] == SlotConsm::Register) {
                 slotConsumer.consumeSlots(renameWidth, HPT, NoPR);
-            } else if (fullSource[HPT] == ROB) {
+            } else if (fullSource[HPT] == SlotConsm::ROB) {
                 slotConsumer.consumeSlots(renameWidth, HPT, NoROB);
             } else {
                 panic("Unexpected rename block reason\n");
@@ -2031,22 +1928,22 @@ DefaultRename<Impl>::missTry()
             dis(SQHead[HPT]), dis(SQHead[LPT]));
 
     switch (fullSource[HPT]) {
-        case ROB:
+        case SlotConsm::ROB:
             DPRINTF(missTry, "Block reason: ROB\n");
             break;
-        case IQ:
+        case SlotConsm::IQ:
             DPRINTF(missTry, "Block reason: IQ\n");
             break;
-        case LQ:
+        case SlotConsm::LQ:
             DPRINTF(missTry, "Block reason: LQ\n");
             break;
-        case SQ:
+        case SlotConsm::SQ:
             DPRINTF(missTry, "Block reason: SQ\n");
             break;
-        case Register:
+        case SlotConsm::Register:
             DPRINTF(missTry, "Block reason: Register\n");
             break;
-        case IEWStage:
+        case SlotConsm::IEWStage:
             DPRINTF(missTry, "Block reason: IEW blocked\n");
             break;
         default:

@@ -53,13 +53,31 @@ addUpSlots()
     DPRINTFR(SlotConsume, "\nRename slot used this cycle [end] --------\n");
 }
 
-    template<class Impl>
+template<class Impl>
 SlotConsumer <Impl>::SlotConsumer(DerivO3CPUParams *params, unsigned width,
                                  std::string father_name)
         : stageWidth(width),
         numThreads((ThreadID) params->numThreads)
 {
     consumerName = father_name;
+}
+
+template<class Impl>
+void SlotConsumer <Impl>::
+cycleEnd(ThreadID tid,
+         std::array<unsigned, Impl::MaxThreads> &toIEWNum,
+         FullSource fullSource,
+         std::array<SlotsUse, Impl::MaxWidth> &decodeSlotRow,
+         SlotCounter<Impl> *slotCounter,
+         bool isRename, bool BLB)
+{
+    assert (localSlotIndex[tid] == stageWidth || localSlotIndex[tid] == 0);
+    if (toIEWNum[tid] == 0) {
+        if (fullSource == IEWStage) {
+        }
+    } else {
+
+    }
 }
 
 

@@ -104,6 +104,10 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     miss[tid] += perCycleSlots[tid][SerializeMiss];
     miss[tid] += perCycleSlots[tid][SquashMiss];
     miss[tid] += perCycleSlots[tid][NotFullInstSupMiss];
+    miss[tid] += perCycleSlots[tid][ROBMiss];
+    miss[tid] += perCycleSlots[tid][IQMiss];
+    miss[tid] += perCycleSlots[tid][LQMiss];
+    miss[tid] += perCycleSlots[tid][SQMiss];
 
     wait[tid] += perCycleSlots[tid][InstSupWait];
     wait[tid] += perCycleSlots[tid][ICacheInterference];
@@ -113,6 +117,11 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     wait[tid] += perCycleSlots[tid][LaterWait];
     wait[tid] += perCycleSlots[tid][LBLCWait];
     wait[tid] += perCycleSlots[tid][SplitWait];
+    wait[tid] += perCycleSlots[tid][ROBWait];
+    wait[tid] += perCycleSlots[tid][IQWait];
+    wait[tid] += perCycleSlots[tid][LQWait];
+    wait[tid] += perCycleSlots[tid][SQWait];
+    wait[tid] += perCycleSlots[tid][DCacheInterference];
 
     std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), 0);
 
