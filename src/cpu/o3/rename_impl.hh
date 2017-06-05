@@ -88,7 +88,8 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       maxROB(params->numROBEntries),
       maxIQ(params->numIQEntries),
       maxLQ(params->LQEntries),
-      maxSQ(params->SQEntries)
+      maxSQ(params->SQEntries),
+      slotConsumer (params, params->renameWidth, name())
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -101,7 +102,7 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     for (int i = 0; i < sizeof(this->nrFreeRegs) / sizeof(this->nrFreeRegs[0]); i++) {
         nrFreeRegs[i] = params->numPhysIntRegs;
     }
-    cleanSlots();
+    slotConsumer.cleanSlots();
 }
 
 template <class Impl>
@@ -330,7 +331,7 @@ DefaultRename<Impl>::resetStage()
         serializeOnNextInst[tid] = false;
     }
     clearFull();
-    cleanSlots();
+    slotConsumer.cleanSlots();
 }
 
 template<class Impl>
@@ -565,7 +566,7 @@ DefaultRename<Impl>::tick()
 
     increaseFreeEntries();
 
-    addUpSlots();
+    slotConsumer.addUpSlots();
 
 #if 0
     if (this->checkSlots(HPT)) {
@@ -581,7 +582,7 @@ DefaultRename<Impl>::tick()
     }
 
     passLB(HPT);
-    cleanSlots();
+    slotConsumer.cleanSlots();
 }
 
 template<class Impl>
@@ -740,7 +741,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(fullSource[tid], tid);
 
         if (tid == HPT) {
-            consumeSlots(renamable[HPT], HPT, NoROB);
+            slotConsumer.consumeSlots(renamable[HPT], HPT, NoROB);
             renamable[HPT] = 0;
         }
 
@@ -758,7 +759,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         incrFullStat(fullSource[tid], tid);
 
         if (tid == HPT) {
-            consumeSlots(shortfall, HPT, NoROB);
+            slotConsumer.consumeSlots(shortfall, HPT, NoROB);
             renamable[tid] -= shortfall;
         }
     }
@@ -816,7 +817,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             --renamable[tid];
 
             if (tid == HPT) {
-                consumeSlots(1, HPT, SquashedInst);
+                slotConsumer.consumeSlots(1, HPT, SquashedInst);
             }
             continue;
         }
@@ -838,7 +839,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             fullSource[tid] = Register;
 
             if (tid == HPT) {
-                consumeSlots(renamable[HPT], HPT, NoPR);
+                slotConsumer.consumeSlots(renamable[HPT], HPT, NoPR);
             }
             break;
         }
@@ -877,7 +878,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             blockThisCycle = true;
 
             if (tid == HPT) {
-                consumeSlots(renamable[HPT], HPT, WaitingSI);
+                slotConsumer.consumeSlots(renamable[HPT], HPT, WaitingSI);
             }
             break;
         } else if ((inst->isStoreConditional() || inst->isSerializeAfter()) &&
@@ -914,7 +915,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         ++toIEWNum[tid];
 
         if (tid == HPT) {
-            consumeSlots(1, HPT, EffectUsed);
+            slotConsumer.consumeSlots(1, HPT, EffectUsed);
         }
 
         // Decrement how many instructions are available.
@@ -1967,17 +1968,17 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         case Unblocking:
             if (renamable[tid] < renameWidth) {
                 int wasted = renameWidth - renamable[tid];
-                consumeSlots(wasted, HPT, NoInstrSup);
+                slotConsumer.consumeSlots(wasted, HPT, NoInstrSup);
             }
             break;
 
         case Blocked:
             if (fullSource[HPT] == IEWStage) {
-                consumeSlots(renameWidth, HPT, IEWBlock);
+                slotConsumer.consumeSlots(renameWidth, HPT, IEWBlock);
             } else if (fullSource[HPT] == Register) {
-                consumeSlots(renameWidth, HPT, NoPR);
+                slotConsumer.consumeSlots(renameWidth, HPT, NoPR);
             } else if (fullSource[HPT] == ROB) {
-                consumeSlots(renameWidth, HPT, NoROB);
+                slotConsumer.consumeSlots(renameWidth, HPT, NoROB);
             } else {
                 panic("Unexpected rename block reason\n");
             }
@@ -1985,11 +1986,11 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
 
         case Squashing:
         case StartSquash:
-            consumeSlots(renameWidth, HPT, DoingSquash);
+            slotConsumer.consumeSlots(renameWidth, HPT, DoingSquash);
             break;
 
         case SerializeStall:
-            consumeSlots(renameWidth, HPT, WaitingSI);
+            slotConsumer.consumeSlots(renameWidth, HPT, WaitingSI);
             break;
 
         default:
@@ -2123,50 +2124,5 @@ DefaultRename<Impl>::dumpStats()
     }
 }
 
-template<class Impl>
-void
-DefaultRename<Impl>::
-cleanSlots()
-{
-    for (ThreadID tid = 0; tid < numThreads; tid++) {
-        std::fill(slotConsumption[tid].begin(),
-                  slotConsumption[tid].end(), NotConsumed);
-        std::fill(queueHeadState[tid].begin(),
-                  queueHeadState[tid].end(), NoState);
-        std::fill(vqState[tid].begin(), vqState[tid].end(), NoVQ);
-    }
-    std::fill(localSlotIndex.begin(), localSlotIndex.end(), 0);
-}
-
-template<class Impl>
-void
-DefaultRename<Impl>::
-consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs)
-{
-    for (int x = 0; x < numSlots; x++) {
-        slotConsumption[who][localSlotIndex[who] + x] = wocs;
-        slotConsumption[this->another(who)][localSlotIndex[this->another(who)] + x]
-                = OtherThreadsUsed;
-    }
-    localSlotIndex[who] += numSlots;
-    localSlotIndex[this->another(who)] += numSlots;
-}
-
-template<class Impl>
-void
-DefaultRename<Impl>::
-addUpSlots()
-{
-    DPRINTF(RenameBreakdown, "Rename slot used this cycle [Begin] --------\n");
-    int x = 0;
-    for (; x < renameWidth; x++) {
-        DPRINTFR(RenameBreakdown, "%s ", getConsumeString(slotConsumption[HPT][x]));
-        assert(slotConsumption[HPT][x] != NotConsumed);
-    }
-    for (; x < Impl::MaxWidth; x++) {
-        assert(slotConsumption[HPT][x] == NotConsumed);
-    }
-    DPRINTFR(RenameBreakdown, "\nRename slot used this cycle [end] --------\n");
-}
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

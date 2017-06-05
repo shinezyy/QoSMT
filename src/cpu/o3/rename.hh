@@ -53,6 +53,7 @@
 #include "config/the_isa.hh"
 #include "cpu/timebuf.hh"
 #include "cpu/o3/slot_counter.hh"
+#include "cpu/o3/slot_consume.hh"
 #include "../../base/types.hh"
 #include "../../base/statistics.hh"
 
@@ -676,84 +677,15 @@ class DefaultRename : public SlotCounter<Impl>
     int maxROB, maxIQ, maxLQ, maxSQ;
 
 
-    enum WayOfConsumeSlots {
-        NotConsumed,
-        EffectUsed, // effectively used: renamed instructions
-        NoInstrSup, // no instruction supply
-        NoROB, // no reorder buffer entries
-        NoPR, // no physical register
-        NoIQ, // no instruction queue entries
-        NoLQ, // no load queue entries
-        NoSQ, // no store queue entries
-        IEWBlock,
-        WaitingSI, // waiting serializing instructions
-        DoingSquash,
-        SquashedInst,
-        OtherThreadsUsed
-    };
 
-    static const char* getConsumeString(int index) {
-        static const char* consumeStrings[] = {
-                "NotConsumed",
-                "EffectUsed", // effectively used: renamed instructions
-                "NoInstrSup", // no instruction supply
-                "NoROB", // no reorder buffer entries
-                "NoPR", // no physical register
-                "NoIQ", // no instruction queue entries
-                "NoLQ", // no load queue entries
-                "NoSQ", // no store queue entries
-                "IEWBlock",
-                "WaitingSI", // waiting serializing instructions
-                "DoingSquash",
-                "SquashedInst",
-                "OtherThreadsUsed",
-        };
-        return consumeStrings[index];
-    }
-
-    enum NoInstrReason {
-        NoReason,
-        IntrinsicICacheMiss,
-        ExtrinsicICacheMiss,
-        BranchMissPrediction,
-        Fetching,
-        AnotherThreadFetch
-    };
-
-    enum HeadInstrState {
-        NoState,
-        Normal, // L1 hitting
-        L1DCacheMiss,
-        L2DCacheMiss
-    };
-
-    enum VQState {
-        NoVQ,
-        VQNotFull,
-        VQFull
-    };
-
-    std::array<std::array<HeadInstrState, 4>, Impl::MaxThreads> queueHeadState;
-
-    std::array<std::array<VQState, 4>, Impl::MaxThreads> vqState;
-
-    // way of slots consumed by each thread
-    std::array<std::array<WayOfConsumeSlots, Impl::MaxWidth>,
-            Impl::MaxThreads> slotConsumption;
-
-    std::array<int, Impl::MaxThreads> localSlotIndex;
-
-    void cleanSlots();
-
-    void consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs);
-
-    void addUpSlots();
 
     std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
     std::array<int, Impl::MaxThreads> squashedThisCycle;
 
     std::queue<Tick> skidInstTick[Impl::MaxThreads];
     std::queue<Tick> skidSlotTick[Impl::MaxThreads];
+
+    SlotConsumer<Impl> slotConsumer;
 };
 
 #endif // __CPU_O3_RENAME_HH__
