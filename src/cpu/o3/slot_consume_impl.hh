@@ -73,7 +73,51 @@ cycleEnd(ThreadID tid,
 {
     assert (localSlotIndex[tid] == stageWidth || localSlotIndex[tid] == 0);
     if (toIEWNum[tid] == 0) {
-        if (fullSource == IEWStage) {
+        if (fullSource != FullSource::NONE) {
+            if (isRename) {
+                if (fullSource == FullSource::IEWStage) {
+                    if (BLB) {
+                        slotCounter->incLocalSlots(tid, LaterWait, stageWidth);
+                    } else {
+                        slotCounter->incLocalSlots(tid, LaterMiss, stageWidth);
+                    }
+                } else if (fullSource == FullSource::Register) {
+                    slotCounter->incLocalSlots(tid, EntryMiss, stageWidth);
+                } else if (fullSource == FullSource::ROB) {
+                    if (queueHeadState[tid][ROB] == Normal) {
+                        slotCounter->incLocalSlots(tid, ROBWait, stageWidth);
+                    } else { // head inst in ROB is DCache Miss
+                        assert(queueHeadState[tid][ROB] != NoState);
+                        if (vqState[tid][ROB] == VQNotFull) {
+                            slotCounter->incLocalSlots(tid, ROBWait, stageWidth);
+                        } else {
+                            slotCounter->incLocalSlots(tid, ROBMiss, stageWidth);
+                        }
+                        assert(vqState[tid][ROB] != NoVQ);
+                    }
+                }
+            } else { // IEW stage
+                assert(fullSource == FullSource::IQ ||
+                       fullSource == FullSource::LQ ||
+                       fullSource == FullSource::SQ);
+
+                // trick depends on sequence of enum definition to avoid duplication
+                int distance_to_iq = fullSource - IQ;
+                if (queueHeadState[tid][fullSource] == Normal) {
+                    slotCounter->incLocalSlots(tid, (SlotsUse) 2*distance_to_iq + 0,
+                                               stageWidth);
+                } else { // head inst in queue is DCache Miss
+                    assert(queueHeadState[tid][fullSource] != NoState);
+                    if (vqState[tid][fullSource] == VQNotFull) {
+                        slotCounter->incLocalSlots(tid, (SlotsUse) 2*distance_to_iq + 0,
+                                                   stageWidth);
+                    } else {
+                        slotCounter->incLocalSlots(tid, (SlotsUse) 2*distance_to_iq + 1,
+                                                   stageWidth);
+                    }
+                    assert(vqState[tid][fullSource] != NoVQ);
+                }
+            }
         }
     } else {
 
