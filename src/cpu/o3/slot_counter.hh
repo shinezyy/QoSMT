@@ -59,8 +59,8 @@ enum SlotsUse {
     LQMiss,
     SQWait,
     SQMiss,
-    DCacheInterference,
     SplitMiss,
+    DCacheInterference,
     NumUse
 };
 

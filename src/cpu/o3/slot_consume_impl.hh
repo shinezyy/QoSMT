@@ -78,27 +78,34 @@ cycleEnd(ThreadID tid,
         int cursor = 0, index = 0;
         while (curCycleRow[cursor] == Referenced) cursor++;
         if (cursor > 0) {
+            DPRINTF(SlotConsume, "curCycleRow:\n");
+            for (int i = 0; i < stageWidth; i++) {
+                DPRINTFR(SlotConsume, "%s | ", slotUseStr[curCycleRow[i]]);
+            }
+            DPRINTFR(SlotConsume, "\n");
             slotCounter->incLocalSlots(tid, SlotsUse::SplitMiss, cursor);
         }
         for (; index < toNextStageNum[tid]; index++) {
             assert(curCycleRow[cursor + index] == SlotsUse::Base);
+            curCycleRow[cursor + index] = Referenced;
         }
 
-        bool allProc = false;
+        bool allProc = true;
         for (int i = 0; cursor + index + i < stageWidth; i++) {
             if (curCycleRow[i] == Base) {
-                allProc = true;
+                allProc = false;
             }
         }
         if (!allProc) {
             for (int i = cursor; i < cursor + index; i++) {
+                DPRINTF(SlotConsume, "Setting slot[%i] to Referenced\n", i);
                 skidSlotBuffer.front()[i] = Referenced;
             }
         }
 
         if (SI) {
             slotCounter->incLocalSlots(tid, SlotsUse::SerializeMiss,
-                                       toNextStageNum[tid] - cursor - index);
+                                       stageWidth - toNextStageNum[tid] - cursor);
             return;
 
         } else if (fullSource == FullSource::NONE) {
@@ -107,7 +114,7 @@ cycleEnd(ThreadID tid,
             }
             return;
         } else {
-            blockedSlots = toNextStageNum[tid] - cursor - index;
+            blockedSlots = stageWidth - toNextStageNum[tid] - cursor;
         }
     } else {
         if (localSlotIndex[tid] == 8) {

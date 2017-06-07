@@ -937,6 +937,11 @@ DefaultRename<Impl>::skidInsert(ThreadID tid)
     skidInstTick[tid].push(curTick());
     insts[tid].clear();
     skidSlotBuffer[tid].push(fromDecode->slotPass);
+    DPRINTF(RenameBreakdown, "skid Slot Row:\n");
+    for (int i = 0; i < renameWidth; i++) {
+        DPRINTFR(RenameBreakdown, "%s | ", slotUseStr[fromDecode->slotPass[i]]);
+    }
+    DPRINTFR(RenameBreakdown, "\n");
     skidSlotTick[tid].push(curTick());
     assert(skidBuffer[tid].size() <= skidBufferMax);
 }
@@ -1789,9 +1794,13 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
-    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-            isMiss(ROBHead[tid]->seqNum) ?
-            HeadInstrState::DCacheMiss : HeadInstrState::Normal;
+    if (ROBHead[tid] && isMiss(ROBHead[tid]->seqNum)) {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+            HeadInstrState::DCacheMiss;
+    } else {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+            HeadInstrState::Normal;
+    }
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
             VROB >= maxROB ?

@@ -65,6 +65,8 @@ template <class Impl>
 void
 SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
 {
+    DPRINTF(SlotCounter, "T[%i]: Adding %i %s slots locally\n", tid, num,
+            slotUseStr[su]);
     for (int x = 0; x < num; x++) {
         if (slotIndex[tid] >= Impl::MaxWidth) {
             panic("slotIndex[%i] = %i is too large\n", tid, slotIndex[tid]);
@@ -74,9 +76,6 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
 
     perCycleSlots[tid][su] += num;
     slots[su] += num;
-
-    DPRINTF(SlotCounter, "T[%i]: Adding %i %s slots locally\n", tid, num,
-            slotUseStr[su]);
 }
 
 template <class Impl>
