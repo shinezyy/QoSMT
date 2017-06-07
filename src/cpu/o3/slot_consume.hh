@@ -24,7 +24,8 @@ enum HeadInstrState {
     NoState,
     Normal, // L1 hitting
     L1DCacheMiss,
-    L2DCacheMiss
+    L2DCacheMiss,
+    DCacheMiss,
 };
 
 enum VQState {

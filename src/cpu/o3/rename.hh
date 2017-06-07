@@ -91,7 +91,7 @@ class DefaultRename : public SlotCounter<Impl>
     typedef typename CPUPol::Commit Commit;
 
     typedef typename CPUPol::Bmt Bmt;
-    typedef typename CPUPol::SlotConsm SlotConsm;
+    typedef SlotConsumer<Impl> SlotConsm;
 
     // Typedefs from the ISA.
     typedef TheISA::RegIndex RegIndex;

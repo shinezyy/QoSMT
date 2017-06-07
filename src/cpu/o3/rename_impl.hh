@@ -1789,6 +1789,14 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
+    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+            isMiss(ROBHead[tid]->seqNum) ?
+            HeadInstrState::DCacheMiss : HeadInstrState::Normal;
+
+    slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
+            VROB >= maxROB ?
+            VQState::VQFull : VQState::VQNotFull;
+
     toIEW->storeRate = fromDecode->storeRate;
     slotConsumer.cycleEnd(
             tid, toIEWNum, fullSource[tid], curCycleRow[tid],
