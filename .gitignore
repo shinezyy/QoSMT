@@ -41,3 +41,4 @@ merge_test
 /src/arch/decoder.hh
 /src/arch/registers.hh
 /src/enums/
+/src/arch/kernel_stats.hh

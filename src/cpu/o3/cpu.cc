@@ -681,11 +681,14 @@ FullO3CPU<Impl>::combinedControl()
 {
     uint32_t base = 1024;
     // heuristic rules:
-    ThreadID hpt = 0;
-    uint64_t robf = rename.numROBWait[hpt];
+    // ThreadID hpt = 0;
+    // uint64_t robf = rename.numROBWait[hpt];
     // uint64_t iqf = rename.numIQFull[hpt] + iew.numIQFull[hpt];
-    uint64_t lqf = rename.numLQWait[hpt] + iew.numLQWait[hpt];
-    uint64_t sqf = rename.numSQWait[hpt] + iew.numSQWait[hpt];
+    // uint64_t lqf = rename.numLQWait[hpt] + iew.numLQWait[hpt];
+    // uint64_t sqf = rename.numSQWait[hpt] + iew.numSQWait[hpt];
+    uint64_t robf = 0;
+    uint64_t lqf = 0;
+    uint64_t sqf = 0;
 
     bool nsat = fetchControl();
     if (nsat) {

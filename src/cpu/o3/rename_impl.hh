@@ -567,22 +567,12 @@ DefaultRename<Impl>::tick()
 
     increaseFreeEntries();
 
+    passLB(HPT);
     slotConsumer.addUpSlots();
 
-#if 0
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
-#endif
-
-    for (ThreadID tid = 0; tid < numThreads; ++tid) {
-        if (toIEWNum[tid]) {
-            DPRINTF(InstPass, "T[%i] send %i insts to IEW\n", tid, toIEWNum[tid]);
-            this->assignSlots(tid, getHeadInst(tid));
-        }
-    }
-
-    passLB(HPT);
 }
 
 template<class Impl>
@@ -724,7 +714,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // Will have to do a different calculation for the number of free
     // entries.
     int free_rob_entries = calcFreeROBEntries(tid);
-    fullSource[tid] = SlotConsm::ROB;
 
     // Check if there's any space left.
     if (free_rob_entries <= 0) {
@@ -733,6 +722,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 tid, free_rob_entries);
 
         blockThisCycle = true;
+        fullSource[tid] = SlotConsm::ROB;
         block(tid);
         return;
 
@@ -743,8 +733,8 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                 tid, insts_available, free_rob_entries);
 
         insts_available = free_rob_entries;
-
         blockThisCycle = true;
+        fullSource[tid] = SlotConsm::ROB;
     }
 
     InstRow &insts_to_rename = renameStatus[tid] == Unblocking ?
@@ -964,8 +954,6 @@ DefaultRename<Impl>::sortInsts()
         DPRINTF(RenameBreakdown, "Number of insts of Thread %i from decode is %i.\n",
                 tid, insts[tid].size());
     }
-    storeRate = fromDecode->storeRate;
-    //DPRINTF(Pard, "storeRate: %f\n", storeRate);
 }
 
 template<class Impl>
@@ -1106,9 +1094,6 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         renameStatus[tid] = Running;
 
         if (HPT == tid) {
-            VSQ = 0.0;
-            VLQ = 0.0;
-            VIQ = 0;
             VROB = 0;
         }
         return true;
@@ -1486,7 +1471,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
             }
             if (VROB < maxROB) {
                 VROB += renameWidth;
-                numROBWait[HPT]++;
             }
             DPRINTF(RenameBreakdown, "HPT stall because no ROB.\n");
         }
@@ -1798,63 +1782,12 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
-    toIEW->storeRate = storeRate;
-    switch(renameStatus[tid]) {
-        case Blocked:
-            toIEW->frontEndMiss = fromDecode->frontEndMiss;
-
-            toDecode->renameInfo[tid].BLB = fromIEW->iewInfo[tid].BLB || LB_all;
-
-            if (toDecode->renameInfo[tid].BLB) {
-                if (LB_all) {
-                    DPRINTF(LB, "Send BLB to Decode because of local detection\n");
-                } else {
-                    DPRINTF(LB, "Forward BLB from IEW to Decode\n");
-                }
-            }
-            break;
-
-        case Running:
-        case Idle:
-            toIEW->frontEndMiss = fromDecode->frontEndMiss;
-            assert(!fromIEW->iewInfo[tid].BLB);
-            assert(!LB_all);
-            toDecode->renameInfo[tid].BLB = false;
-            /** 在rename或者decode的running阶段，有可能带宽是没有用满的，
-              * 但是没关系，因为如果是wait，下面的指令一定记录了，
-              * 如果是miss，我们不用管
-              */
-            break;
-
-        case Unblocking:
-            toIEW->frontEndMiss = fromDecode->frontEndMiss;
-            assert(!fromIEW->iewInfo[tid].BLB);
-            assert(!(LB_all || LB_part));
-            /**如果此前有BLB，那么此时应该让告诉decode：这是LPT的锅*/
-            toDecode->renameInfo[tid].BLB = BLBlocal;
-
-            if (BLBlocal) {
-                DPRINTF(LB, "Send BLB to Decode becaues of BLBlocal\n");
-            }
-            if (toIEWNum[tid] < renameWidth && LBLC) {
-                DPRINTF(LB, "LPT blocked HPT in last cycle, leads to bandwidth waste,"
-                        "in this cycle\n");
-            }
-            break;
-
-        case StartSquash:
-        case Squashing:
-            toIEW->frontEndMiss = true;
-            toDecode->renameInfo[tid].BLB = false;
-            DPRINTF(LB, "No BLB because of Squashing\n");
-            break;
-
-        case SerializeStall:
-            toIEW->frontEndMiss = true; // 这里是1或者tid有待进一步思考
-            toDecode->renameInfo[tid].BLB = false;
-            DPRINTF(LB, "No BLB because of SerializeStall\n");
-            break;
-    }
+    toIEW->storeRate = fromDecode->storeRate;
+    slotConsumer.cycleEnd(
+            tid, toIEWNum, fullSource[tid], curCycleRow[tid],
+            skidSlotBuffer[tid], this, true, fromIEW->iewInfo[HPT].BLB,
+            renameStatus[tid] == SerializeStall
+    );
 }
 
 template<class Impl>
@@ -1991,11 +1924,6 @@ DefaultRename<Impl>::clearFull()
         numLQFull[tid] = 0;
         numSQFull[tid] = 0;
         numIQFull[tid] = 0;
-
-        numROBWait[tid] = 0;
-        numLQWait[tid] = 0;
-        numSQWait[tid] = 0;
-        numIQWait[tid] = 0;
     }
 }
 
@@ -2003,12 +1931,6 @@ template<class Impl>
 void
 DefaultRename<Impl>::dumpStats()
 {
-    for(ThreadID tid = 0; tid < numThreads; tid++) {
-        numROBWaitStat[tid] += numROBWait[tid];
-        numIQWaitStat[tid] += numIQWait[tid];
-        numLQWaitStat[tid] += numLQWait[tid];
-        numSQWaitStat[tid] += numSQWait[tid];
-    }
 }
 
 
