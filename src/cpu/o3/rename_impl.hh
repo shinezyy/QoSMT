@@ -568,7 +568,6 @@ DefaultRename<Impl>::tick()
     increaseFreeEntries();
 
     passLB(HPT);
-    slotConsumer.addUpSlots();
 
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
@@ -699,13 +698,20 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
     // Check the decode queue to see if instructions are available.
     // If there are no available instructions to rename, then do nothing.
     if (insts_available == 0) {
+        assert(renameStatus[tid] != Unblocking);
+        curCycleRow[tid] = fromDecode->slotPass;
         DPRINTF(RenameBreakdown, "[tid:%u]: Nothing to do, breaking out early.\n", tid);
         // Should I change status to idle?
         ++renameIdleCycles[tid];
         return;
     } else if (renameStatus[tid] == Unblocking) {
+        assert(!skidSlotBuffer[tid].empty());
+        assert(!skidSlotBuffer[tid].front().empty());
+        assert(skidSlotTick[tid].front() == skidInstTick[tid].front());
+        curCycleRow[tid] = skidSlotBuffer[tid].front();
         ++renameUnblockCycles[tid];
     } else if (renameStatus[tid] == Running) {
+        curCycleRow[tid] = fromDecode->slotPass;
         ++renameRunCycles[tid];
     }
 
@@ -1449,7 +1455,8 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         }
         numLPTcause = std::min(numAvailInsts, renameWidth);
         DPRINTF(RenameBreakdown, "T[0]: %i insts in skidbuffer, %i insts from decode\n",
-                skidBuffer[tid].front().size(), insts[tid].size());
+                skidBuffer[tid].empty() ? 0 : skidBuffer[tid].front().size(),
+                insts[tid].size());
     }
 
     if (stalls[tid].iew) {

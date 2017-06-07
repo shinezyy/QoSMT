@@ -30,11 +30,8 @@ consumeSlots(int numSlots, ThreadID who, SlotsUse su)
 {
     for (int x = 0; x < numSlots; x++) {
         slotConsumption[who][localSlotIndex[who] + x] = su;
-        slotConsumption[another(who)][localSlotIndex[another(who)] + x]
-                = SlotsUse::WidthWait;
     }
     localSlotIndex[who] += numSlots;
-    localSlotIndex[another(who)] += numSlots;
 }
 
 template<class Impl>
@@ -114,9 +111,18 @@ cycleEnd(ThreadID tid,
         }
     } else {
         if (localSlotIndex[tid] == 8) {
+            for (int i = 0; i < stageWidth; i++) {
+                slotCounter->incLocalSlots(tid, slotConsumption[tid][i], 1);
+            }
             return;
         }
         assert(localSlotIndex[tid] == 0);
+        if (fullSource == FullSource::NONE) {
+            for (int i = 0; i < stageWidth; i++) {
+                slotCounter->incLocalSlots(tid, curCycleRow[i], 1);
+            }
+            return;
+        }
         blockedSlots = stageWidth;
     }
 

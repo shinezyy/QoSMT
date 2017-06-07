@@ -55,9 +55,9 @@ SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
     for (ThreadID tid = 0; tid < numThreads; tid++) {
         wait[tid] = 0;
         miss[tid] = 0;
-        for (int i = 0; i < NumUse; i++) {
-            perCycleSlots[tid][i] = 0;
-        }
+        std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), NotInitiated);
+        std::fill(slotUseRow[tid].begin(), slotUseRow[tid].end(), NotInitiated);
+        slotIndex[tid] = 0;
     }
 }
 
@@ -66,6 +66,9 @@ void
 SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
 {
     for (int x = 0; x < num; x++) {
+        if (slotIndex[tid] >= Impl::MaxWidth) {
+            panic("slotIndex[%i] = %i is too large\n", tid, slotIndex[tid]);
+        }
         slotUseRow[tid][slotIndex[tid]++] = su;
     }
 
