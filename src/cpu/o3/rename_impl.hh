@@ -1867,27 +1867,17 @@ DefaultRename<Impl>::computeMiss(ThreadID tid)
         case Running:
         case Idle:
         case Unblocking:
-            break;
-
         case Blocked:
-            if (fullSource[HPT] == SlotConsm::IEWStage) {
-                slotConsumer.consumeSlots(renameWidth, HPT, IEWBlock);
-            } else if (fullSource[HPT] == SlotConsm::Register) {
-                slotConsumer.consumeSlots(renameWidth, HPT, NoPR);
-            } else if (fullSource[HPT] == SlotConsm::ROB) {
-                slotConsumer.consumeSlots(renameWidth, HPT, NoROB);
-            } else {
-                panic("Unexpected rename block reason\n");
-            }
+            // wait or miss is uncertain yet
             break;
 
         case Squashing:
         case StartSquash:
-            slotConsumer.consumeSlots(renameWidth, HPT, DoingSquash);
+            slotConsumer.consumeSlots(renameWidth, HPT, SlotsUse::SquashMiss);
             break;
 
         case SerializeStall:
-            slotConsumer.consumeSlots(renameWidth, HPT, WaitingSI);
+            slotConsumer.consumeSlots(renameWidth, HPT, SlotsUse::SerializeMiss);
             break;
 
         default:

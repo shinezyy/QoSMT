@@ -34,23 +34,6 @@ enum VQState {
 };
 
 
-enum WayOfConsumeSlots {
-    NotConsumed,
-    EffectUsed, // effectively used: renamed instructions
-    NoInstrSup, // no instruction supply
-    NoROB, // no reorder buffer entries
-    NoPR, // no physical register
-    NoIQ, // no instruction queue entries
-    NoLQ, // no load queue entries
-    NoSQ, // no store queue entries
-    IEWBlock,
-    WaitingSI, // waiting serializing instructions
-    DoingSquash,
-    SquashedInst,
-    OtherThreadsUsed
-};
-
-
 template<class Impl>
 class SlotConsumer
 {
@@ -65,32 +48,12 @@ class SlotConsumer
         NONE,
     };
 
-
-    static const char* getConsumeString(int index) {
-        static const char *consumeStrings[] = {
-                "NotConsumed",
-                "EffectUsed", // effectively used: renamed instructions
-                "NoInstrSup", // no instruction supply
-                "NoROB", // no reorder buffer entries
-                "NoPR", // no physical register
-                "NoIQ", // no instruction queue entries
-                "NoLQ", // no load queue entries
-                "NoSQ", // no store queue entries
-                "IEWBlock",
-                "WaitingSI", // waiting serializing instructions
-                "DoingSquash",
-                "SquashedInst",
-                "OtherThreadsUsed",
-        };
-        return consumeStrings[index];
-    }
-
     std::array<std::array<HeadInstrState, 4>, Impl::MaxThreads> queueHeadState;
 
     std::array<std::array<VQState, 4>, Impl::MaxThreads> vqState;
 
     // way of slots consumed by each thread
-    std::array<std::array<WayOfConsumeSlots, Impl::MaxWidth>,
+    std::array<std::array<SlotsUse, Impl::MaxWidth>,
             Impl::MaxThreads> slotConsumption;
 
     std::array<int, Impl::MaxThreads> localSlotIndex;
@@ -102,7 +65,7 @@ class SlotConsumer
 
     void cleanSlots();
 
-    void consumeSlots(int numSlots, ThreadID who, WayOfConsumeSlots wocs);
+    void consumeSlots(int numSlots, ThreadID who, SlotsUse su);
 
     void addUpSlots();
 
@@ -120,12 +83,14 @@ class SlotConsumer
         cleanSlots();
     }
 
-    void cycleEnd(ThreadID tid,
-                  std::array<unsigned, Impl::MaxThreads> &toIEWNum,
-                  FullSource fullSource,
-                  std::array<SlotsUse, Impl::MaxWidth> &decodeSlotRow,
-                  SlotCounter<Impl> *slotCounter,
-                  bool isRename, bool BLB
+    void cycleEnd(
+            ThreadID tid,
+            std::array<unsigned, Impl::MaxThreads> &toNextStageNum,
+            FullSource fullSource,
+            std::array<SlotsUse, Impl::MaxWidth> &curCycleRow,
+            std::queue<std::array<SlotsUse, Impl::MaxWidth> > &skidSlotBuffer,
+            SlotCounter<Impl> *slotCounter,
+            bool isRename, bool BLB, bool SI
     );
 };
 

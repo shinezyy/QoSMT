@@ -935,6 +935,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
                 }
 
                 if (decodeStatus[tid] == Blocked) {
+                    //一定是因为另一个线程占用了decodeWidth
                     for (; i < toRenameNum[tid]; i++) {
                         assert(skidSlotBuffer[tid].front()[cursor+i] == Base);
                         skidSlotBuffer[tid].front()[cursor+i] = Referenced;

@@ -16,6 +16,37 @@ using namespace std;
 
 ThreadID HPT = 0, LPT = 1;
 
+const char* slotUseStr[] = {
+        "NotInitiated",
+        "NotUsed",
+        "InstSupMiss",
+        "InstSupWait",
+        "ICacheInterference",
+        "FetchSliceWait",
+        "WidthWait",
+        "EntryWait",
+        "EntryMiss",
+        "Base",
+        "LaterMiss",
+        "LaterWait",
+        "LBLCWait",
+        "SerializeMiss",
+        "SquashMiss",
+        "NotFullInstSupMiss",
+        "Referenced",
+        "SplitWait",
+        "ROBWait",
+        "ROBMiss",
+        "IQWait",
+        "IQMiss",
+        "LQWait",
+        "LQMiss",
+        "SQWait",
+        "SQMiss",
+        "SplitMiss",
+        "DCacheInterference",
+};
+
     template<class Impl>
 SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
     : width((int) _width),
@@ -42,7 +73,7 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
     slots[su] += num;
 
     DPRINTF(SlotCounter, "T[%i]: Adding %i %s slots locally\n", tid, num,
-            getSlotUseStr(su));
+            slotUseStr[su]);
 }
 
 template <class Impl>
@@ -55,7 +86,7 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su,
 
     if (verbose) {
         DPRINTF(VLB, "T[%i]: Adding %i %s slots locally\n", tid, num,
-                getSlotUseStr(su));
+                slotUseStr[su]);
     }
 }
 
@@ -83,7 +114,7 @@ SlotCounter<Impl>::checkSlots(ThreadID tid)
         int it = 0; // avoid to use [] unnecessarily
         for (auto slot : perCycleSlots[tid]) {
             if (slot) {
-                printf("%s: %d | ", getSlotUseStr(it), slot);
+                printf("%s: %d | ", slotUseStr[it], slot);
             }
             it++;
         }
@@ -108,6 +139,7 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     miss[tid] += perCycleSlots[tid][IQMiss];
     miss[tid] += perCycleSlots[tid][LQMiss];
     miss[tid] += perCycleSlots[tid][SQMiss];
+    miss[tid] += perCycleSlots[tid][SplitMiss];
 
     wait[tid] += perCycleSlots[tid][InstSupWait];
     wait[tid] += perCycleSlots[tid][ICacheInterference];
@@ -138,7 +170,7 @@ SlotCounter<Impl>::regStats()
     using namespace Stats;
 
     for(int su = 0; su < NumUse; ++su) {
-        const string suStr = getSlotUseStr(su);
+        const string suStr = slotUseStr[su];
         slots[su]
             .name(name() + "." + suStr + "_Slots")
             .desc("number of " + suStr + " Slots")

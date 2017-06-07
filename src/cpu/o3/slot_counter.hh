@@ -13,7 +13,7 @@
 struct DerivO3CPUParams;
 
 extern ThreadID HPT, LPT;
-
+extern const char* slotUseStr[];
 
 enum SlotsUse {
     NotInitiated,
@@ -60,45 +60,13 @@ enum SlotsUse {
     SQWait,
     SQMiss,
     DCacheInterference,
+    SplitMiss,
     NumUse
 };
 
 template <class Impl>
 class SlotCounter
 {
-    static const char* getSlotUseStr(int index) {
-        static const char* slotUseStr[] = {
-                "NotInitiated",
-                "NotUsed",
-                "InstSupMiss",
-                "InstSupWait",
-                "ICacheInterference",
-                "FetchSliceWait",
-                "WidthWait",
-                "EntryWait",
-                "EntryMiss",
-                "Base",
-                "LaterMiss",
-                "LaterWait",
-                "LBLCWait",
-                "SerializeMiss",
-                "SquashMiss",
-                "NotFullInstSupMiss",
-                "Referenced",
-                "SplitWait",
-                "ROBWait",
-                "ROBMiss",
-                "IQWait",
-                "IQMiss",
-                "LQWait",
-                "LQMiss",
-                "SQWait",
-                "SQMiss",
-                "DCacheInterference",
-        };
-        return slotUseStr[index];
-    }
-
     typedef typename Impl::CPUPol CPUPol;
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::DynInst DynInst;
