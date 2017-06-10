@@ -204,6 +204,16 @@ SlotCounter<Impl>::regStats()
     baseSlots = slots[Base];
 }
 
+template<class Impl>
+void
+SlotCounter<Impl>::
+printSlotRow(std::array<SlotsUse, Impl::MaxWidth> row, int width) {
+    DPRINTFR(SlotCounter, "Slots: \n");
+    for (int i = 0; i < width; i++) {
+        DPRINTFR(SlotCounter, "%s | ", slotUseStr[row[i]]);
+    }
+    DPRINTFR(SlotCounter, "\n");
+}
 
 
 #endif  //  __CPU_O3_SLOTCOUNTER_IMPL_HH__

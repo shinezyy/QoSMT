@@ -9,6 +9,7 @@
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
 #include "cpu/inst_seq.hh"
+#include "debug/SlotCounter.hh"
 
 struct DerivO3CPUParams;
 
@@ -63,6 +64,7 @@ enum SlotsUse {
     DCacheInterference,
     NumUse
 };
+
 
 template <class Impl>
 class SlotCounter
@@ -121,6 +123,13 @@ class SlotCounter
             Impl::MaxThreads> slotUseRow;
 
     std::array<int, Impl::MaxThreads> slotIndex;
+
+    int countSlot(ThreadID tid, SlotsUse su) {
+        return perCycleSlots[tid][su];
+    }
+
+    void printSlotRow(std::array<SlotsUse, Impl::MaxWidth> row, int width);
+
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__

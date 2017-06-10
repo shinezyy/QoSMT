@@ -660,6 +660,9 @@ DefaultDecode<Impl>::tick()
 
     passLB(HPT);
 
+    if (this->countSlot(HPT, SlotsUse::Base) != toRenameNum[HPT]) {
+        this->printSlotRow(this->slotUseRow[HPT], decodeWidth);
+    }
     toRename->slotPass = this->slotUseRow[HPT];
 
     toRename->storeRate = storeRate;
