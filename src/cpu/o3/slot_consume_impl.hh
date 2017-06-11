@@ -68,27 +68,33 @@ cycleEnd(ThreadID tid,
          std::array<SlotsUse, Impl::MaxWidth> &curCycleRow,
          std::queue<std::array<SlotsUse, Impl::MaxWidth> > &skidSlotBuffer,
          SlotCounter<Impl> *slotCounter,
-         bool isRename, bool BLB, bool SI, bool finishSS)
+         bool isRename, bool BLB, bool SI, bool finishSS,
+         bool siTail, bool siTailNext)
 {
     // assert (localSlotIndex[tid] == stageWidth || localSlotIndex[tid] == 0);
 
-    DPRINTF(SlotConsume, "SI: %i, finishSS: %i\n", SI, finishSS);
+    DPRINTF(SlotConsume, "SI: %i, finishSS: %i, tail SI: %i, tail SI next cycle:%i\n",
+            SI, finishSS, siTail, siTailNext);
 
     int blockedSlots = 0;
     unsigned tNSN = toNextStageNum[tid];
-    if (tNSN > 0) {
-        slotCounter->incLocalSlots(tid, SlotsUse::Base, tNSN);
+    if (toNextStageNum[tid] > 0) {
+        slotCounter->incLocalSlots(tid, SlotsUse::Base, toNextStageNum[tid]);
         int cursor = 0, index = 0;
+        /** cursor:将会指向当前skid row中的以前处理过的slots尾部
+          * index:将会指向本周期处理过的slots尾部
+          * 当有旧的SI在本周期被处理掉时，需要修改该tNsN(减1)
+          * 以避免送到下一个阶段的slots与insts不一致
+         */
+
+        DPRINTF(SlotConsume, "curCycleRow:\n");
+        slotCounter->printSlotRow(curCycleRow, stageWidth);
+
         while (curCycleRow[cursor] == Referenced) cursor++;
         if (cursor > 0) {
-            DPRINTF(SlotConsume, "curCycleRow:\n");
-            for (int i = 0; i < stageWidth; i++) {
-                DPRINTFR(SlotConsume, "%s | ", slotUseStr[curCycleRow[i]]);
-            }
-            DPRINTFR(SlotConsume, "\n");
             slotCounter->incLocalSlots(tid, SlotsUse::SplitMiss, cursor);
         }
-        if (finishSS) {
+        if (finishSS && siTail) {
             tNSN -= 1;
         }
         for (; index < tNSN; index++) {
@@ -106,8 +112,8 @@ cycleEnd(ThreadID tid,
             }
         }
         DPRINTF(SlotConsume, "all processed:%i\n", allProc);
-        if (!allProc) {
-            for (int i = cursor; i < cursor + index; i++) {
+        if (!allProc && !siTailNext) {
+            for (int i = cursor; i < cursor + tNSN; i++) {
                 DPRINTF(SlotConsume, "Setting slot[%i] to Referenced\n", i);
                 skidSlotBuffer.front()[i] = Referenced;
             }
@@ -115,16 +121,16 @@ cycleEnd(ThreadID tid,
 
         if (SI) {
             slotCounter->incLocalSlots(tid, SlotsUse::SerializeMiss,
-                                       stageWidth - tNSN - cursor);
+                                       stageWidth - toNextStageNum[tid] - cursor);
             return;
 
         } else if (fullSource == FullSource::NONE) {
-            for (; cursor + index < stageWidth; index++) {
-                slotCounter->incLocalSlots(tid, curCycleRow[cursor+index], 1);
+            for (int i = cursor + toNextStageNum[tid]; i < stageWidth; i++) {
+                slotCounter->incLocalSlots(tid, curCycleRow[i], 1);
             }
             return;
         } else {
-            blockedSlots = stageWidth - tNSN - cursor;
+            blockedSlots = stageWidth - toNextStageNum[tid] - cursor;
         }
     } else {
         if (localSlotIndex[tid] == 8) {

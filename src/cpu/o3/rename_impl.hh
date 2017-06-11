@@ -325,6 +325,8 @@ DefaultRename<Impl>::resetStage()
 
         stalls[tid].iew = false;
         serializeInst[tid] = NULL;
+        tailSI[tid] = false;
+        tailSINext[tid] = false;
 
         instsInProgress[tid] = 0;
         loadsInProgress[tid] = 0;
@@ -413,6 +415,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid) {
 
         resumeSerialize = false;
         serializeInst[tid] = NULL;
+        tailSINext[tid] = false;
     } else if (renameStatus[tid] == SerializeStall) {
         if (serializeInst[tid]->seqNum <= squash_seq_num) {
             DPRINTF(Rename, "Rename will resume serializing after squash\n");
@@ -424,6 +427,7 @@ DefaultRename<Impl>::squash(const InstSeqNum &squash_seq_num, ThreadID tid) {
             BLBlocal = tid == HPT ? false : BLBlocal;
 
             serializeInst[tid] = NULL;
+            tailSINext[tid] = false;
         }
     }
 
@@ -492,19 +496,6 @@ DefaultRename<Impl>::tick()
     } else if (fromIEW->iewInfo[HPT].shine) {
         shine("IEW shine");
     }
-
-    toIEWIndex = 0;
-    std::fill(squashedThisCycle.begin(), squashedThisCycle.end(), false);
-
-    LBLC = LB_all;
-
-    LB_all = false;
-    LB_part = false;
-    numLPTcause = 0;
-    blockedCycles = 0;
-
-    std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
-    std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
 
     sortInsts();
 
@@ -844,6 +835,9 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
                     tid);
 
             serializeInst[tid] = inst;
+            if (insts_to_rename.empty()) {
+                tailSINext[tid] = true;
+            }
             blockThisCycle = true;
             break;
         } else if ((inst->isStoreConditional() || inst->isSerializeAfter()) &&
@@ -1652,6 +1646,7 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
                 " Adding to front of list.\n", tid);
 
         serializeInst[tid] = NULL;
+        tailSINext[tid] = false;
 
         finishSerialize[tid] = true;
 
@@ -1813,8 +1808,10 @@ DefaultRename<Impl>::passLB(ThreadID tid)
     slotConsumer.cycleEnd(
             tid, toIEWNum, fullSource[tid], curCycleRow[tid],
             skidSlotBuffer[tid], this, true, fromIEW->iewInfo[HPT].BLB,
-            renameStatus[tid] == SerializeStall, finishSerialize[tid]
+            renameStatus[tid] == SerializeStall, finishSerialize[tid],
+            tailSI[tid], tailSINext[tid]
     );
+    tailSI[tid] = tailSINext[tid];
 }
 
 template<class Impl>
@@ -1966,6 +1963,19 @@ void
 DefaultRename<Impl>::clearLocalSignals()
 {
     std::fill(finishSerialize.begin(), finishSerialize.end(), false);
+
+    toIEWIndex = 0;
+    std::fill(squashedThisCycle.begin(), squashedThisCycle.end(), false);
+
+    LBLC = LB_all;
+
+    LB_all = false;
+    LB_part = false;
+    numLPTcause = 0;
+    blockedCycles = 0;
+
+    std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
+    std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
 }
 
 #endif//__CPU_O3_RENAME_IMPL_HH__
