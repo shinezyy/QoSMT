@@ -473,6 +473,7 @@ template <class Impl>
 void
 DefaultRename<Impl>::tick()
 {
+    clearLocalSignals();
     wroteToTimeBuffer = false;
 
     blockThisCycle = false;
@@ -1652,6 +1653,8 @@ DefaultRename<Impl>::checkSignalsAndUpdate(ThreadID tid)
 
         serializeInst[tid] = NULL;
 
+        finishSerialize[tid] = true;
+
         return true;
     }
 
@@ -1810,7 +1813,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
     slotConsumer.cycleEnd(
             tid, toIEWNum, fullSource[tid], curCycleRow[tid],
             skidSlotBuffer[tid], this, true, fromIEW->iewInfo[HPT].BLB,
-            renameStatus[tid] == SerializeStall
+            renameStatus[tid] == SerializeStall, finishSerialize[tid]
     );
 }
 
@@ -1957,5 +1960,12 @@ DefaultRename<Impl>::dumpStats()
 {
 }
 
+
+template<class Impl>
+void
+DefaultRename<Impl>::clearLocalSignals()
+{
+    std::fill(finishSerialize.begin(), finishSerialize.end(), false);
+}
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

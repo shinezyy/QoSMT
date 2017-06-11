@@ -91,7 +91,7 @@ class SlotConsumer
             std::array<SlotsUse, Impl::MaxWidth> &curCycleRow,
             std::queue<std::array<SlotsUse, Impl::MaxWidth> > &skidSlotBuffer,
             SlotCounter<Impl> *slotCounter,
-            bool isRename, bool BLB, bool SI
+            bool isRename, bool BLB, bool SI, bool finishSS
     );
 };
 

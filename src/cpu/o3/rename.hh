@@ -659,6 +659,10 @@ class DefaultRename : public SlotCounter<Impl>
     std::queue<Tick> skidSlotTick[Impl::MaxThreads];
 
     SlotConsumer<Impl> slotConsumer;
+
+    std::array<bool, Impl::MaxThreads> finishSerialize;
+
+    void clearLocalSignals();
 };
 
 #endif // __CPU_O3_RENAME_HH__

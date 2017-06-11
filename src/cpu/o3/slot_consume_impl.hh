@@ -68,13 +68,16 @@ cycleEnd(ThreadID tid,
          std::array<SlotsUse, Impl::MaxWidth> &curCycleRow,
          std::queue<std::array<SlotsUse, Impl::MaxWidth> > &skidSlotBuffer,
          SlotCounter<Impl> *slotCounter,
-         bool isRename, bool BLB, bool SI)
+         bool isRename, bool BLB, bool SI, bool finishSS)
 {
     // assert (localSlotIndex[tid] == stageWidth || localSlotIndex[tid] == 0);
 
+    DPRINTF(SlotConsume, "SI: %i, finishSS: %i\n", SI, finishSS);
+
     int blockedSlots = 0;
-    if (toNextStageNum[tid] > 0) {
-        slotCounter->incLocalSlots(tid, SlotsUse::Base, toNextStageNum[0]);
+    unsigned tNSN = toNextStageNum[tid];
+    if (tNSN > 0) {
+        slotCounter->incLocalSlots(tid, SlotsUse::Base, tNSN);
         int cursor = 0, index = 0;
         while (curCycleRow[cursor] == Referenced) cursor++;
         if (cursor > 0) {
@@ -85,17 +88,24 @@ cycleEnd(ThreadID tid,
             DPRINTFR(SlotConsume, "\n");
             slotCounter->incLocalSlots(tid, SlotsUse::SplitMiss, cursor);
         }
-        for (; index < toNextStageNum[tid]; index++) {
+        if (finishSS) {
+            tNSN -= 1;
+        }
+        for (; index < tNSN; index++) {
             assert(curCycleRow[cursor + index] == SlotsUse::Base);
             curCycleRow[cursor + index] = Referenced;
         }
 
+        DPRINTF(SlotConsume, "curCycleRow after set referenced:\n");
+        slotCounter->printSlotRow(curCycleRow, stageWidth);
+
         bool allProc = true;
         for (int i = 0; cursor + index + i < stageWidth; i++) {
-            if (curCycleRow[i] == Base) {
+            if (curCycleRow[cursor + index + i] == Base) {
                 allProc = false;
             }
         }
+        DPRINTF(SlotConsume, "all processed:%i\n", allProc);
         if (!allProc) {
             for (int i = cursor; i < cursor + index; i++) {
                 DPRINTF(SlotConsume, "Setting slot[%i] to Referenced\n", i);
@@ -105,7 +115,7 @@ cycleEnd(ThreadID tid,
 
         if (SI) {
             slotCounter->incLocalSlots(tid, SlotsUse::SerializeMiss,
-                                       stageWidth - toNextStageNum[tid] - cursor);
+                                       stageWidth - tNSN - cursor);
             return;
 
         } else if (fullSource == FullSource::NONE) {
@@ -114,7 +124,7 @@ cycleEnd(ThreadID tid,
             }
             return;
         } else {
-            blockedSlots = stageWidth - toNextStageNum[tid] - cursor;
+            blockedSlots = stageWidth - tNSN - cursor;
         }
     } else {
         if (localSlotIndex[tid] == 8) {
