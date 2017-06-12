@@ -357,7 +357,7 @@ class DefaultDecode : public SlotCounter<Impl>
     int storeIndex;
 
     std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
-    std::array<int, Impl::MaxThreads> squashedThisCycle;
+    std::array<bool, Impl::MaxThreads> squashedThisCycle;
 };
 
 #endif // __CPU_O3_DECODE_HH__

@@ -915,20 +915,8 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
     bool ret_val(false);
 
     if (tid == HPT) {
-        switch (dispatchStatus[tid]) {
-            //这里的状态是周期开始时的状态
-            case Running:
-            case Idle:
-                break;
-            case Blocked:
-            case Unblocking:
-                assert(!skidBuffer[tid].empty());
-                assert(!skidBuffer[tid].front().empty());
-                break;
-            default:
-                break;
-        }
-        DPRINTF(FmtSlot2, "T[0]: %i insts in skidbuffer, %i insts from Rename\n",
+        DPRINTF(DispatchBreakdown,
+                "T[0]: %i insts in skidbuffer, %i insts from Rename\n",
                 skidBuffer[tid].empty() ? 0 : skidBuffer[tid].front().size(),
                 insts[tid].size());
     }
@@ -1146,6 +1134,7 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
     // otherwise.
     if (dispatchStatus[tid] == Unblocking) {
         assert(!skidBuffer[tid].empty());
+        assert(!skidBuffer[tid].front().empty());
         assert(skidInstTick[tid].front() == skidSlotTick[tid].front());
         curCycleRow[tid] = skidSlotBuffer[tid].front();
     } else {
@@ -1744,6 +1733,8 @@ DefaultIEW<Impl>::tick()
     clearLocalSignals();
     sortInsts();
 
+    slotConsumer.cycleStart();
+
     if (fromRename->genShadow) {
         genShadow();
     } else if (fromRename->shine) {
@@ -2139,6 +2130,8 @@ DefaultIEW<Impl>::clearLocalSignals()
     wroteToTimeBuffer = false;
     updatedQueues = false;
     blockedCycles = 0;
+
+    std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
 
     std::fill(dispatched.begin(), dispatched.end(), 0);
     std::fill(squashed.begin(), squashed.end(), 0);
