@@ -903,7 +903,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
         blockThisCycle = true;
     }
 
-    if (insts_to_rename.empty() && old_status ==Unblocking) {
+    if (insts_to_rename.empty() && old_status == Unblocking) {
         DPRINTF(RenameBreakdown, "Pop empty row from skidBuffer of T[%i]\n", tid);
         skidBuffer[tid].pop();
         skidInstTick[tid].pop();
@@ -923,20 +923,20 @@ DefaultRename<Impl>::skidInsert(ThreadID tid)
 {
     //rewrite
 
-    if (insts[tid].size() == 0) {
+    if (insts[tid].empty()) {
         return;
     }
     DPRINTF(RenameBreakdown, "Inserting sn[%lli] into skidBuffer of T[%i]\n",
             insts[tid].front()->seqNum, tid);
     skidBuffer[tid].push(insts[tid]);
-    skidInstTick[tid].push(curTick());
     insts[tid].clear();
+
+    skidInstTick[tid].push(curTick());
+
     skidSlotBuffer[tid].push(fromDecode->slotPass);
     DPRINTF(RenameBreakdown, "skid Slot Row:\n");
-    for (int i = 0; i < renameWidth; i++) {
-        DPRINTFR(RenameBreakdown, "%s | ", slotUseStr[fromDecode->slotPass[i]]);
-    }
-    DPRINTFR(RenameBreakdown, "\n");
+	this->printSlotRow(fromDecode->slotPass, renameWidth);
+
     skidSlotTick[tid].push(curTick());
     assert(skidBuffer[tid].size() <= skidBufferMax);
 }

@@ -64,6 +64,7 @@
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
 #include "debug/FmtSlot2.hh"
+#include "debug/DispatchBreakdown.hh"
 #include "debug/BMT.hh"
 #include "params/DerivO3CPU.hh"
 
@@ -84,13 +85,14 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       dispatchWidth(params->dispatchWidth),
       issueWidth(params->issueWidth),
       wbWidth(params->wbWidth),
-      numThreads(params->numThreads),
+      numThreads((ThreadID) params->numThreads),
       Programmable(params->iewProgrammable),
-      hptInitDispatchWidth(int(float(dispatchWidth) * params->hptDispatchProp)),
+      hptInitDispatchWidth((unsigned) (float(dispatchWidth) * params->hptDispatchProp)),
       BLBlocal(false),
       l1Lat(params->l1Lat),
       localInstMiss(0),
-      blockCycles(0)
+      blockCycles(0),
+      slotConsumer (params, params->renameWidth, name())
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -132,7 +134,7 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
 
     updateLSQNextCycle = false;
 
-    skidBufferMax = (renameToIEWDelay + 1) * params->renameWidth;
+    skidBufferMax = (renameToIEWDelay + 1);
 }
 
 template <class Impl>
@@ -559,16 +561,25 @@ DefaultIEW<Impl>::squash(ThreadID tid)
             tid, fromCommit->commitInfo[tid].doneSeqNum);
 
     while (!skidBuffer[tid].empty()) {
-        if (skidBuffer[tid].front()->isLoad()) {
-            toRename->iewInfo[tid].dispatchedToLQ++;
+        InstRow &frontRow = skidBuffer[tid].front();
+        assert(!frontRow.empty());
+        while (!frontRow.empty()) {
+            if (frontRow.front()->isLoad()) {
+                toRename->iewInfo[tid].dispatchedToLQ++;
+            }
+            if (frontRow.front()->isStore()) {
+                toRename->iewInfo[tid].dispatchedToSQ++;
+            }
+            toRename->iewInfo[tid].dispatched++;
+            frontRow.pop();
         }
-        if (skidBuffer[tid].front()->isStore()) {
-            toRename->iewInfo[tid].dispatchedToSQ++;
-        }
-
-        toRename->iewInfo[tid].dispatched++;
-
         skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
+    }
+
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     emptyRenameInsts(tid);
@@ -668,7 +679,7 @@ DefaultIEW<Impl>::block(ThreadID tid)
     skidInsert(tid);
 
     dispatchStatus[tid] = Blocked;
-    BLBlocal = tid == HPT ? LB_all : BLBlocal;
+    // BLBlocal = tid == HPT ? LB_all : BLBlocal;
 }
 
 template<class Impl>
@@ -691,7 +702,7 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
         DPRINTF(IEW, "[tid:%i]: Done unblocking.\n",tid);
         dispatchStatus[tid] = Running;
         if (HPT == tid) {
-            vsq = 0;
+            VSQ = 0;
         }
     }
 }
@@ -784,23 +795,26 @@ void
 DefaultIEW<Impl>::skidInsert(ThreadID tid)
 {
     DynInstPtr inst = NULL;
+    if (insts[tid].empty()) {
+        return;
+    }
+    skidBuffer[tid].push(insts[tid]);
 
     while (!insts[tid].empty()) {
         inst = insts[tid].front();
-
+        DPRINTF(DispatchBreakdown, "[tid:%i]: Inserting [sn:%lli] PC:%s into "
+                "dispatch skidBuffer %i\n", tid, inst->seqNum,
+                inst->pcState(), tid);
         insts[tid].pop();
-
-        DPRINTF(IEW,"[tid:%i]: Inserting [sn:%lli] PC:%s into "
-                "dispatch skidBuffer %i\n",tid, inst->seqNum,
-                inst->pcState(),tid);
-
-        /**这条指令即将被阻塞，说明它提前到达此阶段也无法提前被处理*/
-        if (inst->getWaitSlot() > 0 && !skidBuffer[tid].empty()) {
-            this->reshape(inst);
-        }
-
-        skidBuffer[tid].push(inst);
     }
+
+    skidInstTick[tid].push(curTick());
+
+    skidSlotBuffer[tid].push(fromRename->slotPass);
+    DPRINTFR(DispatchBreakdown, "skid Slot Row:\n");
+    this->printSlotRow(fromRename->slotPass, dispatchWidth);
+
+    skidSlotTick[tid].push(curTick());
 
     assert(skidBuffer[tid].size() <= skidBufferMax &&
            "Skidbuffer Exceeded Max Size");
@@ -810,6 +824,7 @@ template<class Impl>
 int
 DefaultIEW<Impl>::skidCount()
 {
+#if false
     int max=0;
 
     list<ThreadID>::iterator threads = activeThreads->begin();
@@ -821,8 +836,8 @@ DefaultIEW<Impl>::skidCount()
         if (max < thread_count)
             max = thread_count;
     }
-
-    return max;
+#endif
+    return 0;
 }
 
 template<class Impl>
@@ -897,40 +912,33 @@ DefaultIEW<Impl>::checkStall(ThreadID tid)
 {
     bool ret_val(false);
 
-    unsigned numAvailInsts = 0;
     if (tid == HPT) {
         switch (dispatchStatus[tid]) {
             //这里的状态是周期开始时的状态
             case Running:
             case Idle:
-                numAvailInsts = insts[tid].size();
                 break;
             case Blocked:
             case Unblocking:
-                numAvailInsts = skidBuffer[tid].size();
+                assert(!skidBuffer[tid].empty());
+                assert(!skidBuffer[tid].front().empty());
                 break;
             default:
                 break;
         }
-        numLPTcause = std::min(numAvailInsts, dispatchWidth);
         DPRINTF(FmtSlot2, "T[0]: %i insts in skidbuffer, %i insts from Rename\n",
-                skidBuffer[tid].size(), insts[tid].size());
+                skidBuffer[tid].empty() ? 0 : skidBuffer[tid].front().size(),
+                insts[tid].size());
     }
 
     if (fromCommit->commitInfo[tid].robSquashing) {
         DPRINTF(IEW,"[tid:%i]: Stall from Commit stage detected.\n",tid);
+        fullSource[tid] = SlotConsm::CommitStage;
         ret_val = true;
+
     } else if (instQueue.isFull(tid)) {
-        if (tid == HPT) {
-            LB_all = numLPTcause > 0 && instQueue.numBusyEntries(LPT) >= numLPTcause;
-            LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
-            /**TODO检查后面用到这个numLPTcause的情况，
-             * 以确定应该使用dispatchWidth，还是dispatchWidths
-             */
-            numLPTcause = std::min((int) instQueue.numBusyEntries(LPT), numLPTcause);
-            DPRINTF(FmtSlot2, "HPT Stall: IQ  is full.\n",tid);
-        }
         DPRINTF(IEW,"[tid:%i]: Stall: IQ  is full.\n",tid);
+        fullSource[tid] = SlotConsm::IQ;
         ret_val = true;
     }
 
@@ -1134,12 +1142,21 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 {
     // Obtain instructions from skid buffer if unblocking, or queue from rename
     // otherwise.
+    if (dispatchStatus[tid] == Unblocking) {
+        assert(!skidBuffer[tid].empty());
+        assert(skidInstTick[tid].front() == skidSlotTick[tid].front());
+        curCycleRow[tid] = skidSlotBuffer[tid].front();
+    } else {
+        curCycleRow[tid] = fromRename->slotPass;
+    }
     DPRINTF(FmtSlot, "DispatchInsts(%d)\n", tid);
     std::queue<DynInstPtr> &insts_to_dispatch =
         dispatchStatus[tid] == Unblocking ?
-        skidBuffer[tid] : insts[tid];
+        skidBuffer[tid].front() : insts[tid];
 
-    int insts_to_add = insts_to_dispatch.size();
+    int insts_to_add = (int) insts_to_dispatch.size();
+
+    StageStatus old_status = dispatchStatus[tid];
 
     DynInstPtr inst;
     bool add_to_iq = false;
@@ -1193,28 +1210,12 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 headInst[tid] = inst;
             }
 
-            if (HPT == tid) {
-                DPRINTF(FmtSlot, "Increment 1 miss slot of T[%d].\n", tid);
-                this->incLocalSlots(HPT, InstSupMiss, 1);
-                dispatchable[HPT]--;
-            }
-
-
             continue;
         }
 
         // Check for full conditions.
         if (instQueue.isFull(tid)) {
             DPRINTF(IEW, "[tid:%i]: Issue: IQ has become full.\n", tid);
-
-            if (tid == HPT) {
-                LB_all = dispatchable[HPT] > 0 &&
-                    instQueue.numBusyEntries(LPT) >= dispatchable[HPT];
-                LB_part = !LB_all && instQueue.numBusyEntries(LPT) > 0;
-                numLPTcause = std::min((int) instQueue.numBusyEntries(LPT),
-                        dispatchable[HPT]);
-            }
-
             // Call function to start blocking.
             block(tid);
 
@@ -1227,7 +1228,14 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             ++iewIQFullEventsPerThread[tid];
 
             ++numIQFull[tid];
+            fullSource[tid] = SlotConsm::IQ;
 
+            if (tid == HPT) {
+                if (VIQ == 0) {
+                    VIQ = instQueue.numBusyEntries(tid);
+                }
+                VIQ += dispatchWidth;
+            }
             break;
         }
 
@@ -1237,47 +1245,30 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             DPRINTF(IEW, "[tid:%i]: Issue: %s has become full.\n",tid,
                     inst->isLoad() ? "LQ" : "SQ");
 
-
-            if (tid == HPT) {
-                if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
-                    numLQWait[HPT]++;
-                    LB_all = true;
-                    /**这里这样其实是认为HPT剩下指令里面没有Load Store*/
-                    numLPTcause = dispatchable[HPT];
-
-                } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
-                    if (vsq <= 0.001) {
-                        vsq = ldstQueue.numStores(HPT);
-                    }
-                    DPRINTF(Pard, "%llu cycles since oldest Store, vsq is %f\n",
-                            (curTick() - missStat.oldestStoreTick[HPT])/500, vsq);
-                    bool m = vsq > 63;
-                    vsq += storeRate;
-
-                    if (!m) {
-                        numSQWait[HPT]++;
-                        LB_all = true; // for unblocking
-                        LB_part = true;
-                        numLPTcause = dispatchable[HPT];
-
-                    } else {
-                        LB_all = false;
-                        LB_part = false;
-                        numLPTcause = 0;
-
-                    }
-                } else {
-                    LB_all = false;
-                    LB_part = false;
-                }
-            }
-
-            if(inst->isLoad()) {
+            if (inst->isLoad()) {
+                fullSource[tid] = SlotConsm::LQ;
                 ++numLQFull[tid];
             } else {
+                fullSource[tid] = SlotConsm::SQ;
                 ++numSQFull[tid];
             }
 
+            if (tid == HPT) {
+                if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
+                    if (VLQ <= 0.001) {
+                        VLQ = ldstQueue.numStores(HPT);
+                    }
+                    VLQ += loadRate;
+
+                } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
+                    if (VSQ <= 0.001) {
+                        VSQ = ldstQueue.numStores(HPT);
+                    }
+                    DPRINTF(Pard, "%llu cycles since oldest Store, VSQ is %f\n",
+                            (curTick() - missStat.oldestStoreTick[HPT])/500, VSQ);
+                    VSQ += storeRate;
+                }
+            }
             // Call function to start blocking.
             block(tid);
 
@@ -1420,14 +1411,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             headInst[tid] = inst;
         }
 
-        // check other threads' status
-        if (HPT == tid) {
-            DPRINTF(FmtSlot, "Increment 1 base slot of T[%d].\n", tid);
-            this->incLocalSlots(HPT, Base, 1);
-            fmt->incBaseSlot(inst, HPT, 1);
-            dispatchable[HPT]--;
-        }
-
         ++iewDispatchedInsts;
 
 #if TRACING_ON
@@ -1436,42 +1419,21 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         ppDispatch->notify(inst);
     }
 
-    if (HPT == tid && dispatchable[HPT] > 0) {
-
-        if (fromRename->frontEndMiss) {
-            this->incLocalSlots(tid, InstSupMiss, dispatchable[HPT]);
-
-        } else if (dispatchStatus[tid] == Blocked && missStat.numL2MissLoad[HPT]) {
-            this->incLocalSlots(tid, EntryMiss, dispatchable[HPT]);
-
-        } else if (dispatchStatus[tid] == Blocked && missStat.numL2MissLoad[LPT]) {
-            LB_all = true;
-            this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
-
-        }else if (LB_all) {
-            this->incLocalSlots(tid, EntryWait, dispatchable[HPT]);
-
-        } else if (LB_part) {
-            this->incLocalSlots(tid, EntryWait, numLPTcause);
-            this->incLocalSlots(tid, EntryMiss,
-                    dispatchable[tid] - numLPTcause);
-
-        } else if (dispatchStatus[tid] == Blocked){
-            this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
-
-        } else {
-            this->incLocalSlots(tid, WidthWait, dispatchable[tid]);
-        }
-    }
 
     if (!insts_to_dispatch.empty()) {
 
-
         DPRINTF(IEW,"[tid:%i]: Issue: Bandwidth Full. Blocking.\n", tid);
-
         block(tid);
 
         toRename->iewUnblock[tid] = false;
+    }
+
+    if (insts_to_dispatch.empty() && old_status == Unblocking) {
+        DPRINTFR(DispatchBreakdown, "Pop empty row from skidBuffer of T[%i]\n", tid);
+        skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     if (dispatchStatus[tid] == Idle && dis_num_inst) {
@@ -1792,11 +1754,7 @@ DefaultIEW<Impl>::tick()
         shine("rename shine");
     }
 
-    LBLC = LB_all;
-
-    LB_all = false; // reset it
-    LB_part = false; // reset it
-    numLPTcause = -1; // -1表示无意义
+    // LBLC = LB_all;
 
     std::fill(dispatched.begin(), dispatched.end(), 0);
     std::fill(squashed.begin(), squashed.end(), 0);
@@ -1819,8 +1777,6 @@ DefaultIEW<Impl>::tick()
     }
 
     /** missTry();*/
-
-    getDispatchable();
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
 
@@ -1880,8 +1836,10 @@ DefaultIEW<Impl>::tick()
         broadcast_free_entries = true;
     }
 
+    /*
     toRename->iewInfo[0].BLB = (dispatchStatus[HPT] == Blocked && LB_all) ||
         (BLBlocal && dispatchStatus[HPT] == Unblocking);
+        */
 
     if (toRename->iewInfo[0].BLB) {
         DPRINTF(FmtSlot, "Send LPT cause HPT Stall backward to rename.\n");
@@ -2079,46 +2037,6 @@ DefaultIEW<Impl>::reassignDispatchWidth(int newWidthVec[], int lenWidthVec)
     }
 }
 
-template<class Impl>
-void
-DefaultIEW<Impl>::getDispatchable()
-{
-    for (ThreadID tid = 0; tid < numThreads; ++tid) {
-        switch (dispatchStatus[tid]) {
-            case Running:
-            case Idle:
-                dispatchable[tid] = insts[tid].size();
-                DPRINTF(FmtSlot2, "T[%i][Running] has %i insts to dispatch\n",
-                        tid, dispatchable[tid]);
-                break;
-
-            case Blocked:
-                dispatchable[tid] = std::min((int) skidBuffer[tid].size(),
-                        (int) dispatchWidth);
-                DPRINTF(FmtSlot2, "T[%i][Blocked] has %i insts to dispatch\n",
-                        tid, dispatchable[tid]);
-                break;
-
-            case Unblocking:
-                dispatchable[tid] = std::min((int) skidBuffer[tid].size(),
-                        (int) dispatchWidth);
-                DPRINTF(FmtSlot2, "T[%i][Unblocking] has %i insts to dispatch\n",
-                        tid, dispatchable[tid]);
-                /**should dispatch*/
-                if(LBLC) {
-                    DPRINTF(FmtSlot2, "T[%i] should has %i insts dispatch\n",
-                            tid, dispatchWidth);
-                }
-                break;
-
-            case Squashing:
-            case StartSquash:
-                dispatchable[tid] = 0;
-                DPRINTF(FmtSlot2, "T[%i][Squash] has no insts to dispatch\n", tid);
-                break;
-        }
-    }
-}
 
 template<class Impl>
 void
@@ -2133,61 +2051,12 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
         case Running:
         case Idle:
         case Unblocking:
-            if (dispatchable[tid] < dispatchWidth) {
-                int wasted = dispatchWidth - dispatchable[tid];
-
-                if (dispatchStatus[HPT] == Unblocking &&
-                        !fromRename->frontEndMiss && LBLC) {
-                    this->incLocalSlots(HPT, LBLCWait, wasted);
-
-                } else {
-                    this->incLocalSlots(HPT, InstSupMiss, wasted);
-                }
-
-                DPRINTF(FmtSlot2, "T[%i] wastes %i slots because insts not enough\n",
-                        tid, wasted);
-            }
-            break;
-
         case Blocked:
-            /**block一定导致本周期miss */
-            if (fromRename->frontEndMiss) {
-                this->incLocalSlots(HPT, InstSupMiss, dispatchWidth);
-
-            } else if (missStat.numL2MissLoad[HPT]) {
-                this->incLocalSlots(tid, EntryMiss, dispatchWidth);
-
-            } else if (missStat.numL2MissLoad[LPT]) {
-                LB_all = true;
-                this->incLocalSlots(tid, EntryWait, dispatchWidth);
-
-            } else if (LB_all) {
-                this->incLocalSlots(tid, InstSupMiss,
-                        dispatchWidth - numLPTcause);
-                this->incLocalSlots(tid, EntryWait, numLPTcause);
-
-            } else if(LB_part) {
-                this->incLocalSlots(tid, EntryWait, numLPTcause);
-                this->incLocalSlots(tid, EntryMiss,
-                        dispatchable[tid] - numLPTcause);
-                this->incLocalSlots(tid, InstSupMiss,
-                        dispatchWidth - dispatchable[tid]);
-            } else {
-                this->incLocalSlots(tid, EntryMiss, dispatchable[tid]);
-                this->incLocalSlots(tid, InstSupMiss,
-                        dispatchWidth - dispatchable[tid]);
-            }
-
             break;
 
         case Squashing:
         case StartSquash:
-            /**Squash一定导致本周期miss*/
-
-            this->incLocalSlots(HPT, InstSupMiss, dispatchWidth);
-
-            DPRINTF(FmtSlot2, "T[%i] wastes %i slots because blocked or squash\n",
-                    tid, dispatchWidths[tid]);
+            slotConsumer.consumeSlots(dispatchWidth, HPT, SlotsUse::SquashMiss);
             break;
 
         default:
@@ -2248,9 +2117,6 @@ DefaultIEW<Impl>::clearFull()
         numLQFull[tid] = 0;
         numSQFull[tid] = 0;
         numIQFull[tid] = 0;
-        numLQWait[tid] = 0;
-        numSQWait[tid] = 0;
-        numIQWait[tid] = 0;
     }
 }
 
