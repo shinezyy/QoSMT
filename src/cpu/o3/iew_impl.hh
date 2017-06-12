@@ -90,7 +90,9 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       hptInitDispatchWidth((unsigned) (float(dispatchWidth) * params->hptDispatchProp)),
       BLBlocal(false),
       l1Lat(params->l1Lat),
-      localInstMiss(0),
+      maxSQ((float) params->SQEntries),
+      maxLQ((float) params->LQEntries),
+      maxIQ(params->numIQEntries),
       blockCycles(0),
       slotConsumer (params, params->renameWidth, name())
 {
@@ -1739,13 +1741,7 @@ template<class Impl>
 void
 DefaultIEW<Impl>::tick()
 {
-    wbNumInst = 0;
-    wbCycle = 0;
-
-    wroteToTimeBuffer = false;
-    updatedQueues = false;
-    blockedCycles = 0;
-
+    clearLocalSignals();
     sortInsts();
 
     if (fromRename->genShadow) {
@@ -1755,10 +1751,6 @@ DefaultIEW<Impl>::tick()
     }
 
     // LBLC = LB_all;
-
-    std::fill(dispatched.begin(), dispatched.end(), 0);
-    std::fill(squashed.begin(), squashed.end(), 0);
-    std::fill(headInst.begin(), headInst.end(), nullptr);
 
     // Free function units marked as being freed this cycle.
     fuPool->processFreeUnits();
@@ -1771,46 +1763,21 @@ DefaultIEW<Impl>::tick()
 
     // Check stall and squash signals, dispatch any instructions.
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
-
         DPRINTF(FmtSlot2, "Dispatch: Processing [tid:%i]\n",tid);
         checkSignalsAndUpdate(tid);
     }
 
-    /** missTry();*/
-
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
-
         computeMiss(tid);
         dispatch(tid);
     }
 
+    cycleDispatchEnd(HPT);
+
     if (this->checkSlots(HPT)) {
         //only inst miss should be counted
-        localInstMiss += this->perCycleSlots[HPT][InstSupMiss];
         this->sumLocalSlots(HPT);
     }
-
-    fmt->incMissDirect(HPT, this->miss[HPT], false);
-
-    if (dispatched[HPT] > 0) {
-        /** reshape 保证不会高估wait的数量*/
-        DynInstPtr &inst = this->getHeadInst(HPT);
-
-        if (inst->isSquashed()) {
-            fmt->incMissDirect(HPT, this->wait[HPT], false);
-
-        } else {
-            // this->assignSlots(HPT, inst);
-            fmt->incMissDirect(HPT, -(std::min(inst->getWaitSlot(),
-                            localInstMiss)), false);
-            fmt->incWaitSlot(inst, HPT, std::min(inst->getWaitSlot(),
-                        localInstMiss) + this->wait[HPT]);
-
-            localInstMiss = 0;
-        }
-        this->wait[HPT] = 0;
-    }
-    this->miss[HPT] = 0;
 
     if (exeStatus != Squashing) {
         executeInsts();
@@ -2064,11 +2031,6 @@ DefaultIEW<Impl>::computeMiss(ThreadID tid)
     }
 }
 
-template<class Impl>
-void
-DefaultIEW<Impl>::missTry()
-{
-}
 
 template<class Impl>
 void
@@ -2080,7 +2042,7 @@ DefaultIEW<Impl>::genShadow()
     shadowLQ = ldstQueue.maxLQEntries[HPT] - ldstQueue.numLoads(HPT);
     shadowSQ = ldstQueue.maxSQEntries[HPT] - ldstQueue.numStores(HPT);
 
-    InstSeqNum start = ~0, end = 0;
+    InstSeqNum start = (InstSeqNum) ~0, end = 0;
 
     for (MissTable::const_iterator it = l2MissTable.begin();
             it != l2MissTable.end(); it++) {
@@ -2118,6 +2080,69 @@ DefaultIEW<Impl>::clearFull()
         numSQFull[tid] = 0;
         numIQFull[tid] = 0;
     }
+}
+
+template<class Impl>
+void
+DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
+{
+    if (IQHead[tid] && isMiss(IQHead[tid]->seqNum)) {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::IQ] =
+                HeadInstrState::DCacheMiss;
+    } else {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::IQ] =
+                HeadInstrState::Normal;
+    }
+
+    if (LQHead[tid] && isMiss(LQHead[tid]->seqNum)) {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::LQ] =
+                HeadInstrState::DCacheMiss;
+    } else {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::LQ] =
+                HeadInstrState::Normal;
+    }
+    if (SQHead[tid] && isMiss(SQHead[tid]->seqNum)) {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::SQ] =
+                HeadInstrState::DCacheMiss;
+    } else {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::SQ] =
+                HeadInstrState::Normal;
+    }
+
+    slotConsumer.vqState[tid][SlotConsm::FullSource::IQ] =
+            VIQ >= maxIQ ?
+            VQState::VQFull : VQState::VQNotFull;
+
+    slotConsumer.vqState[tid][SlotConsm::FullSource::LQ] =
+            VLQ >= maxLQ ?
+            VQState::VQFull : VQState::VQNotFull;
+
+    slotConsumer.vqState[tid][SlotConsm::FullSource::SQ] =
+            VSQ >= maxSQ ?
+            VQState::VQFull : VQState::VQNotFull;
+
+    slotConsumer.cycleEnd(
+            tid, dispatched, fullSource[tid], curCycleRow[tid],
+            skidSlotBuffer[tid], this, false, false,
+            false, false, false, false
+    );
+}
+
+
+template<class Impl>
+void
+DefaultIEW<Impl>::clearLocalSignals()
+{
+    wbNumInst = 0;
+    wbCycle = 0;
+
+    wroteToTimeBuffer = false;
+    updatedQueues = false;
+    blockedCycles = 0;
+
+    std::fill(dispatched.begin(), dispatched.end(), 0);
+    std::fill(squashed.begin(), squashed.end(), 0);
+    std::fill(headInst.begin(), headInst.end(), nullptr);
 }
 
 

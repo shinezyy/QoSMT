@@ -556,9 +556,9 @@ class DefaultIEW : public SlotCounter<Impl>
   private:
     bool LBLC; /**LPT Block HPT in last cycle*/
 
-    std::array<int, Impl::MaxThreads> dispatched;
+    std::array<unsigned, Impl::MaxThreads> dispatched;
 
-    std::array<int, Impl::MaxThreads> squashed;
+    std::array<unsigned , Impl::MaxThreads> squashed;
 
     bool BLBlocal; //For Unblocking
 
@@ -576,10 +576,6 @@ class DefaultIEW : public SlotCounter<Impl>
     void computeMiss(ThreadID tid);
 
     const int l1Lat;
-
-    int localInstMiss;
-
-    void missTry();
 
     void genShadow();
 
@@ -604,8 +600,10 @@ class DefaultIEW : public SlotCounter<Impl>
     float storeRate, loadRate;
 
     float VSQ, VLQ;
+    const float maxSQ, maxLQ;
 
     int VIQ;
+    const int maxIQ;
 
     int blockCycles;
 
@@ -628,6 +626,8 @@ class DefaultIEW : public SlotCounter<Impl>
     DynInstPtr IQHead[Impl::MaxThreads];
     DynInstPtr LQHead[Impl::MaxThreads];
     DynInstPtr SQHead[Impl::MaxThreads];
+
+    void cycleDispatchEnd(ThreadID tid);
 };
 
 #endif // __CPU_O3_IEW_HH__
