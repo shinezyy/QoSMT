@@ -1476,14 +1476,17 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         ret_val = true;
 
         if (VROB[tid] == 0) {
-            if (!ROBHead[tid]->vqGenerated) {
+            assert(ROBHead[tid] || busyEntries[tid].robEntries == 0);
+            if (!ROBHead[tid]) {
+                VROB[tid] = 0;
+            } else if (!ROBHead[tid]->vqGenerated) {
                 VROB[tid] = calcOwnROBEntries(tid);
                 ROBHead[tid]->vqGenerated = true;
             } else {
                 VROB[tid] = maxROB;
             }
         }
-        if (VROB[tid] < maxROB) {
+        if (VROB[tid] < maxROB && ROBHead[tid]) {
             VROB[tid] += renameWidth;
         }
         if (tid == HPT) {
@@ -1534,9 +1537,9 @@ DefaultRename<Impl>::readFreeEntries(ThreadID tid)
         freeEntries[tid].robEntries = fromCommit->commitInfo[tid].freeROBEntries;
         maxEntries[tid].robEntries = fromCommit->commitInfo[tid].maxROBEntries;
         busyEntries[tid].robEntries = fromCommit->commitInfo[tid].busyROBEntries;
+        ROBHead[tid] = fromCommit->commitInfo[tid].ROBHead;
     }
 
-    ROBHead[tid] = fromCommit->commitInfo[tid].ROBHead;
     LQHead[tid] = fromIEW->iewInfo[tid].LQHead;
     SQHead[tid] = fromIEW->iewInfo[tid].SQHead;
 
