@@ -141,7 +141,10 @@ cycleEnd(ThreadID tid,
             return;
         }
         assert(localSlotIndex[tid] == 0);
-        if (fullSource == FullSource::NONE) {
+        if (SI) {
+            slotCounter->incLocalSlots(tid, SlotsUse::SerializeMiss, stageWidth);
+            return;
+        } else if (fullSource == FullSource::NONE) {
             for (int i = 0; i < stageWidth; i++) {
                 slotCounter->incLocalSlots(tid, curCycleRow[i], 1);
             }

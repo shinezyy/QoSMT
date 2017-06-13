@@ -47,6 +47,7 @@ class SlotConsumer
         IEWStage,
         Register,
         CommitStage,
+        SI,
         NONE,
     };
 

@@ -71,6 +71,7 @@
 #include "debug/LB.hh"
 #include "debug/InstPass.hh"
 #include "debug/QoSCtrl.hh"
+#include "debug/FetchBreakdown.hh"
 #include "mem/packet.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/byteswap.hh"
@@ -1026,11 +1027,19 @@ DefaultFetch<Impl>::tick()
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toDecodeNum[tid]) {
-            DPRINTF(InstPass, "T[%i] send %i insts to Decode\n", tid, toDecodeNum[tid]);
+            DPRINTF(FetchBreakdown,
+                    "T[%i] send %i insts to Decode\n", tid, toDecodeNum[tid]);
         }
     }
 
     passLB(HPT);
+
+    if (this->countSlot(HPT, SlotsUse::Base) != toDecodeNum[HPT]) {
+        this->printSlotRow(this->slotUseRow[HPT], fetchWidth);
+        panic("Slots [%i] and Insts [%i] are not coherence!\n",
+                this->countSlot(HPT, SlotsUse::Base), toDecodeNum[HPT]);
+    }
+
 
     toDecode->slotPass = this->slotUseRow[HPT];
 

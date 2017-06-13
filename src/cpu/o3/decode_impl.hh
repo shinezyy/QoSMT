@@ -632,6 +632,7 @@ DefaultDecode<Impl>::tick()
     toRenameIndex = 0;
     std::fill(toRenameNum.begin(), toRenameNum.end(), 0);
     std::fill(squashedThisCycle.begin(), squashedThisCycle.end(), false);
+    std::fill(numSquashedThisCycle.begin(), numSquashedThisCycle.end(), 0);
 
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
@@ -658,21 +659,23 @@ DefaultDecode<Impl>::tick()
         cpu->activityThisCycle();
     }
 
-    passLB(HPT);
-
-    if (this->countSlot(HPT, SlotsUse::Base) != toRenameNum[HPT]) {
-        this->printSlotRow(this->slotUseRow[HPT], decodeWidth);
-    }
-    toRename->slotPass = this->slotUseRow[HPT];
-
-    toRename->storeRate = storeRate;
-
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toRenameNum[tid]) {
             DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid,
                     toRenameNum[tid]);
         }
     }
+
+    passLB(HPT);
+
+    if (this->countSlot(HPT, SlotsUse::Base) != toRenameNum[HPT]) {
+        this->printSlotRow(this->slotUseRow[HPT], decodeWidth);
+        panic("Slots [%i] and Insts [%i] are not coherence!\n",
+                this->countSlot(HPT, SlotsUse::Base), toRenameNum[HPT]);
+    }
+    toRename->slotPass = this->slotUseRow[HPT];
+
+    toRename->storeRate = storeRate;
 
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
@@ -816,6 +819,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
                     tid, inst->seqNum, inst->pcState());
 
             ++decodeSquashedInsts;
+            ++numSquashedThisCycle[tid];
 
             --insts_available;
 
@@ -933,7 +937,7 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
                 this->incLocalSlots(tid, Base, toRenameNum[tid]);
 
                 int cursor = 0, i = 0;
-                while (curCycleRow[tid][cursor] == Referenced) {
+                while (curCycleRow[tid][cursor] == SlotsUse::Referenced) {
                     cursor++;
                 }
 
@@ -941,39 +945,45 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
                     //一定是因为另一个线程占用了decodeWidth
                     for (; i < toRenameNum[tid]; i++) {
                         assert(skidSlotBuffer[tid].front()[cursor+i] == Base);
-                        skidSlotBuffer[tid].front()[cursor+i] = Referenced;
+                        skidSlotBuffer[tid].front()[cursor+i] = SlotsUse::Referenced;
                     }
-                    this->incLocalSlots(tid, WidthWait,
+                    this->incLocalSlots(tid, SlotsUse::WidthWait,
                             decodeWidth - toRenameNum[tid]);
                 } else {
                     for (; i < toRenameNum[tid]; i++);
                     if (cursor > 0) {
-                        this->incLocalSlots(tid, SplitWait, cursor);
+                        this->incLocalSlots(tid, SlotsUse::SplitWait, cursor);
                     }
                     for (; cursor + i < decodeWidth; i++) {
-                        this->incLocalSlots(tid, curCycleRow[tid][cursor+i], 1);
+                        if (curCycleRow[tid][cursor+i] == SlotsUse::Base) {
+                            assert(numSquashedThisCycle[tid]-- > 0);
+                            this->incLocalSlots(tid, SlotsUse::SquashMiss, 1);
+                        } else {
+                            this->incLocalSlots(tid, curCycleRow[tid][cursor+i], 1);
+                        }
                     }
                 }
             } else {
-                this->incLocalSlots(tid, Base, decodeWidth);
+                this->incLocalSlots(tid, SlotsUse::Base, decodeWidth);
             }
 
             assert(toRenameNum[tid] == this->perCycleSlots[tid][Base]);
         } else {
-            this->incLocalSlots(tid, Base, toRenameNum[tid]);
-            this->incLocalSlots(tid, SquashMiss, decodeWidth - toRenameNum[tid]);
+            this->incLocalSlots(tid, SlotsUse::Base, toRenameNum[tid]);
+            this->incLocalSlots(tid, SlotsUse::SquashMiss,
+                    decodeWidth - toRenameNum[tid]);
         }
     } else {
         if (decodeStatus[tid] == Blocked) {
             if (stalls[tid].rename) {
                 if (fromRename->renameInfo[tid].BLB) {
-                    this->incLocalSlots(tid, LaterWait, decodeWidth);
+                    this->incLocalSlots(tid, SlotsUse::LaterWait, decodeWidth);
                 } else {
-                    this->incLocalSlots(tid, LaterMiss, decodeWidth);
+                    this->incLocalSlots(tid, SlotsUse::LaterMiss, decodeWidth);
                 }
             } else {
                 if (toRenameNum[this->another(tid)] > 0) {
-                    this->incLocalSlots(tid, WidthWait, decodeWidth);
+                    this->incLocalSlots(tid, SlotsUse::WidthWait, decodeWidth);
                 } else {
                     assert(0 && "Unknow condition\n");
                 }
@@ -985,11 +995,17 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
             bool intrinsic_miss = decodeStatus[tid] == Squashing;
 
             if (intrinsic_miss) {
-                this->incLocalSlots(tid, InstSupMiss, decodeWidth);
+                this->incLocalSlots(tid, SlotsUse::SquashMiss, decodeWidth);
             } else {
                 assert(decodeStatus[tid] == Running || decodeStatus[tid] == Idle);
+
                 for (int i = 0; i < decodeWidth; i++) {
-                    this->incLocalSlots(tid, fromFetch->slotPass[i], 1);
+                    if (fromFetch->slotPass[i] == SlotsUse::Base) {
+                        assert(numSquashedThisCycle[tid]-- > 0);
+                        this->incLocalSlots(tid, SlotsUse::SquashMiss, 1);
+                    } else {
+                        this->incLocalSlots(tid, fromFetch->slotPass[i], 1);
+                    }
                 }
             }
         }

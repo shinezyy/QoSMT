@@ -561,6 +561,13 @@ DefaultRename<Impl>::tick()
 
     passLB(HPT);
 
+    if (this->countSlot(HPT, SlotsUse::Base) != toIEWNum[HPT]) {
+        this->printSlotRow(this->slotUseRow[HPT], renameWidth);
+        panic("Slots [%i] and Insts [%i] are not coherence!\n",
+                this->countSlot(HPT, SlotsUse::Base), toIEWNum[HPT]);
+    }
+    toIEW->slotPass = this->slotUseRow[HPT];
+
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
@@ -830,6 +837,7 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
             // Change status over to SerializeStall so that other stages know
             // what this is blocked on.
             renameStatus[tid] = SerializeStall;
+            fullSource[tid] = SlotConsm::SI;
             toIEW->serialize[tid] = true;
             DPRINTF(RenameBreakdown, "Thread [%i] Rename status switched to SerializeStall\n",
                     tid);
