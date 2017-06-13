@@ -940,7 +940,7 @@ DefaultRename<Impl>::skidInsert(ThreadID tid)
 
     skidSlotBuffer[tid].push(fromDecode->slotPass);
     DPRINTF(RenameBreakdown, "skid Slot Row:\n");
-	this->printSlotRow(fromDecode->slotPass, renameWidth);
+    this->printSlotRow(fromDecode->slotPass, renameWidth);
 
     skidSlotTick[tid].push(curTick());
     assert(skidBuffer[tid].size() <= skidBufferMax);
