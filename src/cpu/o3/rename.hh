@@ -649,8 +649,8 @@ class DefaultRename : public SlotCounter<Impl>
 
   private:
 
-    int VROB;
-    int maxROB, maxIQ, maxLQ, maxSQ;
+    int VROB[Impl::MaxThreads];
+    int maxROB;
 
     std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
     std::array<int, Impl::MaxThreads> squashedThisCycle;

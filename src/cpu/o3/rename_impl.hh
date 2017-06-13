@@ -89,9 +89,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       BLBlocal(false),
       blockCycles(0),
       maxROB(params->numROBEntries),
-      maxIQ(params->numIQEntries),
-      maxLQ(params->LQEntries),
-      maxSQ(params->SQEntries),
       slotConsumer (params, params->renameWidth, name())
 {
     if (renameWidth > Impl::MaxWidth)
@@ -1107,9 +1104,7 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to Running.\n", tid);
         renameStatus[tid] = Running;
 
-        if (HPT == tid) {
-            VROB = 0;
-        }
+        VROB[tid] = 0;
         return true;
     }
     DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] unchanged.\n", tid);
@@ -1480,13 +1475,18 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         fullSource[tid] = SlotConsm::ROB;
         ret_val = true;
 
+        if (VROB[tid] == 0) {
+            if (!ROBHead[tid]->vqGenerated) {
+                VROB[tid] = calcOwnROBEntries(tid);
+                ROBHead[tid]->vqGenerated = true;
+            } else {
+                VROB[tid] = maxROB;
+            }
+        }
+        if (VROB[tid] < maxROB) {
+            VROB[tid] += renameWidth;
+        }
         if (tid == HPT) {
-            if (VROB == 0) {
-                VROB = calcOwnROBEntries(HPT);
-            }
-            if (VROB < maxROB) {
-                VROB += renameWidth;
-            }
             DPRINTF(RenameBreakdown, "HPT stall because no ROB.\n");
         }
 
@@ -1809,7 +1809,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
     }
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
-            VROB >= maxROB ?
+            VROB[tid] >= maxROB ?
             VQState::VQFull : VQState::VQNotFull;
 
     toIEW->storeRate = fromDecode->storeRate;
