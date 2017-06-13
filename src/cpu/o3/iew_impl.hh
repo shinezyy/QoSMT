@@ -1140,7 +1140,10 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
     } else {
         curCycleRow[tid] = fromRename->slotPass;
     }
-    DPRINTF(FmtSlot, "DispatchInsts(%d)\n", tid);
+    DPRINTF(DispatchBreakdown, "DispatchInsts(%d)\n", tid);
+
+    DPRINTF(DispatchBreakdown, "cur cycle row:\n");
+    this->printSlotRow(curCycleRow[tid], dispatchWidth);
     std::queue<DynInstPtr> &insts_to_dispatch =
         dispatchStatus[tid] == Unblocking ?
         skidBuffer[tid].front() : insts[tid];

@@ -190,15 +190,18 @@ cycleEnd(ThreadID tid,
             int distance_to_iq = fullSource - IQ;
             if (queueHeadState[tid][fullSource] == Normal) {
                 slotCounter->incLocalSlots(
-                        tid, static_cast<SlotsUse>(2*distance_to_iq + 0), blockedSlots);
+                        tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 0),
+                        blockedSlots);
             } else { // head inst in queue is DCache Miss
                 assert(queueHeadState[tid][fullSource] != NoState);
                 if (vqState[tid][fullSource] == VQNotFull) {
                     slotCounter->incLocalSlots(
-                            tid, static_cast<SlotsUse>(2*distance_to_iq + 0), blockedSlots);
+                            tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 0),
+                            blockedSlots);
                 } else {
                     slotCounter->incLocalSlots(
-                            tid, static_cast<SlotsUse>(2*distance_to_iq + 1), blockedSlots);
+                            tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 1),
+                            blockedSlots);
                 }
                 assert(vqState[tid][fullSource] != NoVQ);
             }
