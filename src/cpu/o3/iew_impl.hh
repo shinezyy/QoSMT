@@ -2077,6 +2077,7 @@ template<class Impl>
 void
 DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
 {
+    IQHead[tid] = instQueue.getHeadInst(tid);
     if (IQHead[tid] && isMiss(IQHead[tid]->seqNum)) {
         slotConsumer.queueHeadState[tid][SlotConsm::FullSource::IQ] =
                 HeadInstrState::DCacheMiss;
@@ -2098,6 +2099,18 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     } else {
         slotConsumer.queueHeadState[tid][SlotConsm::FullSource::SQ] =
                 HeadInstrState::Normal;
+    }
+
+    if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+        DPRINTF(DispatchBreakdown, "IQ[T%i]: %i, IQ[T%i]: %i, IQHead: %i\n",
+                HPT, instQueue.numBusyEntries(HPT),
+                LPT, instQueue.numBusyEntries(LPT),
+                IQHead[tid] ? 1 : 0);
+        if (IQHead[tid]) {
+            DPRINTF(DispatchBreakdown, "is Miss: %i\n",
+                    isMiss(IQHead[tid]->seqNum));
+        }
+        DPRINTF(DispatchBreakdown, "VIQFull: %i\n", instQueue.VIQFull(tid));
     }
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::IQ] =

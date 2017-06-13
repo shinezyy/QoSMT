@@ -630,7 +630,13 @@ class InstructionQueue
     void incVIQ(ThreadID tid, int num);
 
     bool VIQFull(ThreadID tid) {
-        return VIQ[tid] >= numEntries;
+        return VIQ[tid] >= ((float) numEntries) - 0.1;
+    }
+
+    DynInstPtr dummyInst;
+
+    DynInstPtr &getHeadInst (ThreadID tid) {
+        return instList[tid].empty() ? dummyInst: instList[tid].back();
     }
 };
 

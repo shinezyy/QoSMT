@@ -78,6 +78,16 @@ cycleEnd(ThreadID tid,
 
     int blockedSlots = 0;
     unsigned tNSN = toNextStageNum[tid];
+
+    // make ROB head status cache;
+    if (isRename) {
+        if (queueHeadState[tid][ROB] == Normal) {
+            ROBHeadMissCache[tid] = false;
+        } else {
+            ROBHeadMissCache[tid] = true;
+        }
+    }
+
     if (toNextStageNum[tid] > 0) {
         slotCounter->incLocalSlots(tid, SlotsUse::Base, toNextStageNum[tid]);
         int cursor = 0, index = 0;
@@ -188,7 +198,7 @@ cycleEnd(ThreadID tid,
         } else {
             // trick depends on sequence of enum definition to avoid duplication
             int distance_to_iq = fullSource - IQ;
-            if (queueHeadState[tid][fullSource] == Normal) {
+            if (!ROBHeadMissCache[tid]) {
                 slotCounter->incLocalSlots(
                         tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 0),
                         blockedSlots);

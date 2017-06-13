@@ -96,6 +96,8 @@ class SlotConsumer
             bool isRename, bool BLB, bool SI, bool finishSS,
             bool siTail, bool siTailNext
     );
+
+    std::array<bool, Impl::MaxThreads> ROBHeadMissCache;
 };
 
 
