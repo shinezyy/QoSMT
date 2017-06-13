@@ -48,6 +48,7 @@
 #include <map>
 #include <queue>
 #include <vector>
+#include <array>
 
 #include "base/statistics.hh"
 #include "base/types.hh"
@@ -624,7 +625,13 @@ class InstructionQueue
 
     const unsigned hptInitPriv;
 
+    std::array<float, Impl::MaxThreads> VIQ;
 
+    void incVIQ(ThreadID tid, int num);
+
+    bool VIQFull(ThreadID tid) {
+        return VIQ[tid] >= numEntries;
+    }
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__

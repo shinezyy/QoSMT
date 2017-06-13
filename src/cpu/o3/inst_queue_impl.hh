@@ -46,6 +46,7 @@
 
 #include <limits>
 #include <vector>
+#include <algorithm>
 
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/inst_queue.hh"
@@ -97,12 +98,12 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
       numUsedEntries(0),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->dumpWindowSize),
+      sampleRate((unsigned int) params->dumpWindowSize),
       hptInitPriv(unsigned(float(numEntries) * params->hptIQPrivProp))
 {
     assert(fuPool);
 
-    numThreads = params->numThreads;
+    numThreads = (ThreadID) params->numThreads;
 
     // Set the number of total physical registers
     numPhysRegs = params->numPhysIntRegs + params->numPhysFloatRegs +
@@ -204,6 +205,8 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
     iqThreadUtil[0] = 0;
     iqThreadUtil[1] = 0;
     iqUtil = 0;
+
+    std::fill(VIQ.begin(), VIQ.end(), 0.0);
 }
 
 template <class Impl>
@@ -444,6 +447,7 @@ InstructionQueue<Impl>::resetState()
     //Initialize thread IQ counts
     for (ThreadID tid = 0; tid <numThreads; tid++) {
         count[tid] = 0;
+        VIQ[tid] = 0;
         instList[tid].clear();
         if (maxEntriesUpToDate) { // no portion assigned
             portion[tid] = denominator / numThreads;
@@ -481,6 +485,7 @@ InstructionQueue<Impl>::resetState()
     blockedMemInsts.clear();
     retryMemInsts.clear();
     wbOutstanding = 0;
+    std::fill(VIQ.begin(), VIQ.end(), 0.0);
 }
 
 template <class Impl>
@@ -554,7 +559,7 @@ InstructionQueue<Impl>::resetEntries()
 {
     int allocatedNum = 0;
     if (iqPolicy != Dynamic || numThreads > 1) {
-        int active_threads = activeThreads->size();
+        int active_threads = (int) activeThreads->size();
 
         list<ThreadID>::iterator threads = activeThreads->begin();
         list<ThreadID>::iterator end = activeThreads->end();
@@ -644,9 +649,11 @@ InstructionQueue<Impl>::updateMaxEntries()
     unsigned really_taken;
 
     if (incThread_0) {
-        really_taken = sat ? thread_0_increment : numFreeEntries(1);
+        really_taken = sat ? (unsigned int) thread_0_increment :
+                       numFreeEntries(1);
     } else {
-        really_taken = sat ? -thread_0_increment : numFreeEntries(0);
+        really_taken = sat ? (unsigned int) -thread_0_increment :
+                       numFreeEntries(0);
     }
 
     if (!sat) {
@@ -703,11 +710,7 @@ template <class Impl>
 bool
 InstructionQueue<Impl>::isFull()
 {
-    if (freeEntries == 0) {
-        return(true);
-    } else {
-        return(false);
-    }
+    return freeEntries == 0;
 }
 
 template <class Impl>
@@ -771,6 +774,7 @@ InstructionQueue<Impl>::insert(DynInstPtr &new_inst)
     ++iqInstsAddedPerThread[new_inst->threadNumber];
 
     count[new_inst->threadNumber]++;
+    VIQ[new_inst->threadNumber]++;
 
     assert(freeEntries == (numEntries - countInsts()));
 }
@@ -812,6 +816,7 @@ InstructionQueue<Impl>::insertNonSpec(DynInstPtr &new_inst)
     ++iqNonSpecInstsAdded;
 
     count[new_inst->threadNumber]++;
+    VIQ[new_inst->threadNumber]++;
 
     assert(freeEntries == (numEntries - countInsts()));
 }
@@ -1048,6 +1053,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
                 // complete.
                 ++freeEntries;
                 count[tid]--;
+                VIQ[tid] -= VIQ[tid]/count[tid];
                 issuing_inst->clearInIQ();
             } else {
                 memDepUnit[tid].issue(issuing_inst);
@@ -1264,6 +1270,7 @@ InstructionQueue<Impl>::completeMemInst(DynInstPtr &completed_inst)
 
     memDepUnit[tid].completed(completed_inst);
     count[tid]--;
+    VIQ[tid] -= VIQ[tid]/count[tid];
 }
 
 template <class Impl>
@@ -1454,7 +1461,9 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
             squashed_inst->clearInIQ();
 
             //Update Thread IQ Count
+            assert(squashed_inst->threadNumber == tid);
             count[squashed_inst->threadNumber]--;
+            VIQ[tid] -= VIQ[tid]/count[tid];
 
             ++freeEntries;
         }
@@ -1834,6 +1843,12 @@ InstructionQueue<Impl>::dumpUsedEntries()
         double(numEntries*cpu->dumpWindowSize);
 
     resetUsedEntries();
+}
+
+template <class Impl>
+void
+InstructionQueue<Impl>::incVIQ(ThreadID tid, int num) {
+    VIQ[tid] = std::min(num + VIQ[tid], (float) numEntries);
 }
 
 #endif//__CPU_O3_INST_QUEUE_IMPL_HH__

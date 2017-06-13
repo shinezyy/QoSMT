@@ -628,6 +628,8 @@ class DefaultIEW : public SlotCounter<Impl>
     DynInstPtr SQHead[Impl::MaxThreads];
 
     void cycleDispatchEnd(ThreadID tid);
+
+    const float smallEnough;
 };
 
 #endif // __CPU_O3_IEW_HH__

@@ -94,7 +94,8 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       maxLQ((float) params->LQEntries),
       maxIQ(params->numIQEntries),
       blockCycles(0),
-      slotConsumer (params, params->renameWidth, name())
+      slotConsumer (params, params->renameWidth, name()),
+      smallEnough(0.001)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -1224,12 +1225,8 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             ++numIQFull[tid];
             fullSource[tid] = SlotConsm::IQ;
 
-            if (tid == HPT) {
-                if (VIQ == 0) {
-                    VIQ = instQueue.numBusyEntries(tid);
-                }
-                VIQ += dispatchWidth;
-            }
+            instQueue.incVIQ(tid, dispatchWidth);
+
             break;
         }
 
@@ -2104,7 +2101,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     }
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::IQ] =
-            VIQ >= maxIQ ?
+            instQueue.VIQFull(tid) ?
             VQState::VQFull : VQState::VQNotFull;
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::LQ] =
