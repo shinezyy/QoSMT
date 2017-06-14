@@ -49,5 +49,7 @@ enum MemAccessType {
 
 bool isSpecifiedMiss(uint64_t sn, int16_t cacheLevel, MemAccessType mat);
 
+bool isDCacheInterference(ThreadID tid, uint64_t sn);
+
 
 #endif // __MISS_TABLE_H_

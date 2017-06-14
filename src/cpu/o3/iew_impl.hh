@@ -1195,10 +1195,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             dispatched[tid]++;
             squashed[tid]++;
 
-            if (tid == HPT && !headInst[tid]) {
-                headInst[tid] = inst;
-            }
-
             continue;
         }
 
@@ -1381,10 +1377,6 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
         toRename->iewInfo[tid].dispatched++;
 
         dispatched[tid]++;
-
-        if (tid == HPT && !headInst[tid]) {
-            headInst[tid] = inst;
-        }
 
         ++iewDispatchedInsts;
 
@@ -2065,28 +2057,9 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     LQHead[tid] = ldstQueue.getLoadHeadInst(tid);
     SQHead[tid] = ldstQueue.getStoreHeadInst(tid);
 
-    if (IQHead[tid] && isMiss(IQHead[tid]->seqNum)) {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::IQ] =
-                HeadInstrState::DCacheMiss;
-    } else {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::IQ] =
-                HeadInstrState::Normal;
-    }
-
-    if (LQHead[tid] && isMiss(LQHead[tid]->seqNum)) {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::LQ] =
-                HeadInstrState::DCacheMiss;
-    } else {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::LQ] =
-                HeadInstrState::Normal;
-    }
-    if (SQHead[tid] && isMiss(SQHead[tid]->seqNum)) {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::SQ] =
-                HeadInstrState::DCacheMiss;
-    } else {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::SQ] =
-                HeadInstrState::Normal;
-    }
+    getQHeadState(IQHead, SlotConsm::FullSource::IQ, tid);
+    getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
+    getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
 
     if (fullSource[tid] == SlotConsm::FullSource::IQ) {
         DPRINTF(DispatchBreakdown, "IQ[T%i]: %i, IQ[T%i]: %i, IQ has head: %i, "
@@ -2138,11 +2111,13 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
             ldstQueue.VSQFull(tid) ?
             VQState::VQFull : VQState::VQNotFull;
 
+    bool LB_to_rename;
     slotConsumer.cycleEnd(
             tid, dispatched, fullSource[tid], curCycleRow[tid],
             skidSlotBuffer[tid], this, false, false,
-            false, false, false, false
+            false, false, false, false, LB_to_rename
     );
+    toRename->iewInfo[0].BLB = LB_to_rename;
 }
 
 
@@ -2161,7 +2136,23 @@ DefaultIEW<Impl>::clearLocalSignals()
 
     std::fill(dispatched.begin(), dispatched.end(), 0);
     std::fill(squashed.begin(), squashed.end(), 0);
-    std::fill(headInst.begin(), headInst.end(), nullptr);
+}
+
+template<class Impl>
+void
+DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
+                                typename SlotConsm::FullSource fs, ThreadID tid)
+{
+    if (QHead[tid] && isMiss(QHead[tid]->seqNum)) {
+        if (!isDCacheInterference(tid, QHead[tid]->seqNum)) {
+            slotConsumer.queueHeadState[tid][fs] = HeadInstrState::DCacheMiss;
+        } else {
+            slotConsumer.queueHeadState[tid][fs] = HeadInstrState::DCacheWait;
+        }
+    } else {
+        slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+    }
+
 }
 
 

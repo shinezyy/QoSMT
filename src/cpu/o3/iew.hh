@@ -564,14 +564,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
     std::array<bool, Impl::MaxThreads> missRecorded;
 
-    /**本周期dispatch出去的第一条指令*/
-    std::array<DynInstPtr, Impl::MaxThreads> headInst;
-
-    DynInstPtr& getHeadInst(ThreadID tid) {
-        assert(headInst[tid]);
-        return headInst[tid];
-    }
-
     /** 计算本周期不可避免的miss，注意LBLC */
     void computeMiss(ThreadID tid);
 
@@ -624,6 +616,9 @@ class DefaultIEW : public SlotCounter<Impl>
     void cycleDispatchEnd(ThreadID tid);
 
     const float smallEnough;
+
+    void getQHeadState(DynInstPtr QHead[], typename SlotConsm::FullSource fs,
+                       ThreadID tid);
 };
 
 #endif // __CPU_O3_IEW_HH__

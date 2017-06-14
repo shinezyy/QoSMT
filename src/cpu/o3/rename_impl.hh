@@ -1804,8 +1804,13 @@ void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
     if (ROBHead[tid] && isMiss(ROBHead[tid]->seqNum)) {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-            HeadInstrState::DCacheMiss;
+        if (!isDCacheInterference(tid, ROBHead[tid]->seqNum)) {
+            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                    HeadInstrState::DCacheMiss;
+        } else {
+            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                    HeadInstrState::DCacheWait;
+        }
     } else {
         slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
             HeadInstrState::Normal;
@@ -1817,13 +1822,16 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 
     toIEW->loadRate = fromDecode->loadRate;
     toIEW->storeRate = fromDecode->storeRate;
+
+    bool LB_to_decode;
     slotConsumer.cycleEnd(
             tid, toIEWNum, fullSource[tid], curCycleRow[tid],
             skidSlotBuffer[tid], this, true, fromIEW->iewInfo[HPT].BLB,
             renameStatus[tid] == SerializeStall, finishSerialize[tid],
-            tailSI[tid], tailSINext[tid]
+            tailSI[tid], tailSINext[tid], LB_to_decode
     );
     tailSI[tid] = tailSINext[tid];
+    toDecode->renameInfo[0].BLB = LB_to_decode;
 }
 
 template<class Impl>

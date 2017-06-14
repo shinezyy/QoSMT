@@ -26,6 +26,7 @@ enum HeadInstrState {
     L1DCacheMiss,
     L2DCacheMiss,
     DCacheMiss,
+    DCacheWait,
 };
 
 enum VQState {
@@ -93,8 +94,8 @@ class SlotConsumer
             std::array<SlotsUse, Impl::MaxWidth> &curCycleRow,
             std::queue<std::array<SlotsUse, Impl::MaxWidth> > &skidSlotBuffer,
             SlotCounter<Impl> *slotCounter,
-            bool isRename, bool BLB, bool SI, bool finishSS,
-            bool siTail, bool siTailNext
+            bool isRename, bool BLB_in, bool SI, bool finishSS,
+            bool siTail, bool siTailNext, bool &BLB_out
     );
 
     std::array<bool, Impl::MaxThreads> ROBHeadMissCache;

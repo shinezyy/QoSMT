@@ -68,8 +68,8 @@ cycleEnd(ThreadID tid,
          std::array<SlotsUse, Impl::MaxWidth> &curCycleRow,
          std::queue<std::array<SlotsUse, Impl::MaxWidth> > &skidSlotBuffer,
          SlotCounter<Impl> *slotCounter,
-         bool isRename, bool BLB, bool SI, bool finishSS,
-         bool siTail, bool siTailNext)
+         bool isRename, bool BLB_in, bool SI, bool finishSS,
+         bool siTail, bool siTailNext, bool &BLB_out)
 {
     // assert (localSlotIndex[tid] == stageWidth || localSlotIndex[tid] == 0);
 
@@ -78,14 +78,12 @@ cycleEnd(ThreadID tid,
 
     int blockedSlots = 0;
     unsigned tNSN = toNextStageNum[tid];
+    BLB_out = false;
 
     // make ROB head status cache;
     if (isRename) {
-        if (queueHeadState[tid][ROB] == Normal) {
-            ROBHeadMissCache[tid] = false;
-        } else {
-            ROBHeadMissCache[tid] = true;
-        }
+        ROBHeadMissCache[tid] = !(queueHeadState[tid][ROB] == Normal ||
+                queueHeadState[tid][ROB] == DCacheWait);
     }
 
     if (toNextStageNum[tid] > 0) {
@@ -144,7 +142,7 @@ cycleEnd(ThreadID tid,
             blockedSlots = stageWidth - toNextStageNum[tid] - cursor;
         }
     } else {
-        if (localSlotIndex[tid] == 8) {
+        if (localSlotIndex[tid] == stageWidth) {
             for (int i = 0; i < stageWidth; i++) {
                 slotCounter->incLocalSlots(tid, slotConsumption[tid][i], 1);
             }
@@ -167,8 +165,9 @@ cycleEnd(ThreadID tid,
 
     if (isRename) {
         if (fullSource == FullSource::IEWStage) {
-            if (BLB) {
+            if (BLB_in) {
                 slotCounter->incLocalSlots(tid, LaterWait, blockedSlots);
+                BLB_out = true;
             } else {
                 slotCounter->incLocalSlots(tid, LaterMiss, blockedSlots);
             }
@@ -177,10 +176,17 @@ cycleEnd(ThreadID tid,
         } else if (fullSource == FullSource::ROB) {
             if (queueHeadState[tid][ROB] == Normal) {
                 slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
+                BLB_out = true;
+
+            } else if (queueHeadState[tid][ROB] == HeadInstrState::DCacheWait) {
+                slotCounter->incLocalSlots(tid, DCacheInterference, blockedSlots);
+                BLB_out = true;
+
             } else { // head inst in ROB is DCache Miss
                 assert(queueHeadState[tid][ROB] != NoState);
                 if (vqState[tid][ROB] == VQNotFull) {
                     slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
+                    BLB_out = true;
                 } else {
                     slotCounter->incLocalSlots(tid, ROBMiss, blockedSlots);
                 }
@@ -202,12 +208,14 @@ cycleEnd(ThreadID tid,
                 slotCounter->incLocalSlots(
                         tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 0),
                         blockedSlots);
+                BLB_out = true;
             } else { // head inst in queue is DCache Miss
                 assert(queueHeadState[tid][fullSource] != NoState);
                 if (vqState[tid][fullSource] == VQNotFull) {
                     slotCounter->incLocalSlots(
                             tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 0),
                             blockedSlots);
+                    BLB_out = true;
                 } else {
                     slotCounter->incLocalSlots(
                             tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 1),
