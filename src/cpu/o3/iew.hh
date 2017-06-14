@@ -619,6 +619,10 @@ class DefaultIEW : public SlotCounter<Impl>
 
     void getQHeadState(DynInstPtr QHead[], typename SlotConsm::FullSource fs,
                        ThreadID tid);
+
+    void dumpStats() {
+        SlotCounter<Impl>::dumpStats();
+    }
 };
 
 #endif // __CPU_O3_IEW_HH__

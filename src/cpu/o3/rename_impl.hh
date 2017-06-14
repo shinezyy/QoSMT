@@ -1975,6 +1975,7 @@ template<class Impl>
 void
 DefaultRename<Impl>::dumpStats()
 {
+    SlotCounter<Impl>::dumpStats();
 }
 
 

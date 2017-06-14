@@ -105,6 +105,7 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
     }
 
     perCycleSlots[tid][su] += num;
+    slotsStat[su] += num;
     slots[su] += num;
 }
 
@@ -114,6 +115,7 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su,
         int32_t num, bool verbose)
 {
     perCycleSlots[tid][su] += num;
+    slotsStat[su] += num;
     slots[su] += num;
 
     if (verbose) {
@@ -185,11 +187,12 @@ SlotCounter<Impl>::regStats()
 
     for(int su = 0; su < NumUse; ++su) {
         const string suStr = slotUseStr[su];
-        slots[su]
+        slotsStat[su]
             .name(name() + "." + suStr + "_Slots")
             .desc("number of " + suStr + " Slots")
             .flags(total)
             ;
+        slots[su] = 0;
     }
 
     waitSlots
@@ -197,25 +200,17 @@ SlotCounter<Impl>::regStats()
         .desc("number of HPT wait slots in " + name())
         ;
 
-    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
-        waitSlots = waitSlots + slots[*it];
-    }
-
     missSlots
         .name(name() + ".local_miss_slots")
         .desc("number of HPT miss slots in " + name())
         ;
-
-    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
-        missSlots = missSlots + slots[*it];
-    }
 
     baseSlots
         .name(name() + ".local_base_slots")
         .desc("number of HPT base slots in " + name())
         ;
 
-    baseSlots = slots[Base];
+    baseSlots = slotsStat[Base];
 }
 
 template<class Impl>
@@ -226,6 +221,19 @@ printSlotRow(std::array<SlotsUse, Impl::MaxWidth> row, int width) {
         DPRINTFR(SlotCounter, "%s | ", slotUseStr[row[i]]);
     }
     DPRINTFR(SlotCounter, "\n");
+}
+
+template<class Impl>
+void
+SlotCounter<Impl>::dumpStats() {
+    waitSlots = 0;
+    missSlots = 0;
+    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
+        waitSlots += slots[*it];
+    }
+    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
+        missSlots += slots[*it];
+    }
 }
 
 

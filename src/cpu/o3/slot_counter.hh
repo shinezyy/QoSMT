@@ -103,11 +103,13 @@ class SlotCounter
 
     void sumLocalSlots(ThreadID tid);
 
-    Stats::Scalar slots[NumUse];
+    uint64_t slots[NumUse];
 
-    Stats::Formula waitSlots;
+    Stats::Scalar slotsStat[NumUse];
 
-    Stats::Formula missSlots;
+    Stats::Scalar waitSlots;
+
+    Stats::Scalar missSlots;
 
     Stats::Formula baseSlots;
 
@@ -130,6 +132,7 @@ class SlotCounter
 
     void printSlotRow(std::array<SlotsUse, Impl::MaxWidth> row, int width);
 
+    virtual void dumpStats();
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__
