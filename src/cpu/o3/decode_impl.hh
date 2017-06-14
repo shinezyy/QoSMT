@@ -85,10 +85,13 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
 
     // @todo: Make into a parameter
     skidBufferMax = (unsigned)fetchToDecodeDelay + 1;
-    bzero((void *) storeSample, sizeof(int) * sampleLen);
-    storeRate = 0.0;
-    numStores = 0;
-    storeIndex = 0;
+
+    for (int i = LDST::load; i < LDST::NumType; i++) {
+        bzero((void *) ldstSample[i], sizeof(int) * sampleLen);
+        ldstRate[i] = 0;
+        ldstNum[i] = 0;
+        ldstIndex[i] = 0;
+    }
 }
 
 template<class Impl>
@@ -675,7 +678,8 @@ DefaultDecode<Impl>::tick()
     }
     toRename->slotPass = this->slotUseRow[HPT];
 
-    toRename->storeRate = storeRate;
+    toRename->loadRate = ldstRate[LDST::load];
+    toRename->storeRate = ldstRate[LDST::store];
 
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
@@ -703,10 +707,7 @@ DefaultDecode<Impl>::decode(bool &status_change, ThreadID tid)
         ++decodeSquashCycles;
 
         if (HPT == tid) {
-            numStores -= storeSample[storeIndex];
-            storeSample[storeIndex] = 0;
-            storeIndex = (storeIndex + 1)%sampleLen;
-            storeRate = ((float) numStores)/((float)sampleLen);
+            noLoadStoreThisCycle();
         }
     }
 
@@ -766,10 +767,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         ++decodeIdleCycles;
 
         if (HPT == tid) {
-            numStores -= storeSample[storeIndex];
-            storeSample[storeIndex] = 0;
-            storeIndex = (storeIndex + 1)%sampleLen;
-            storeRate = ((float) numStores)/((float) sampleLen);
+            noLoadStoreThisCycle();
         }
         return;
     } else if (decodeStatus[tid] == Unblocking) {
@@ -781,8 +779,10 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
     }
 
     if (HPT == tid) {
-        numStores -= storeSample[storeIndex];
-        storeSample[storeIndex] = 0;
+        for (int i = LDST::load; i < LDST::NumType; i++) {
+            ldstNum[i] -= ldstSample[i][ldstIndex[i]];
+            ldstSample[i][ldstIndex[i]] = 0;
+        }
     }
 
     DynInstPtr inst;
@@ -842,8 +842,13 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         // see if branches were predicted correctly.
         toRename->insts[toRenameIndex] = inst;
 
-        if (inst->isStore() && HPT == tid) {
-            storeSample[storeIndex]++;
+        if (HPT == tid) {
+            if (inst->isStore()) {
+                ldstSample[LDST::store][ldstIndex[LDST::store]]++;
+            }
+            if (inst->isLoad()) {
+                ldstSample[LDST::load][ldstIndex[LDST::load]]++;
+            }
         }
 
         ++(toRename->size);
@@ -895,9 +900,11 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
 
     if (HPT == tid) {
-        numStores += storeSample[storeIndex];
-        storeIndex = (storeIndex + 1)%sampleLen;
-        storeRate = ((float) numStores)/((float)sampleLen);
+        for (int i = LDST::load; i < LDST::NumType; i++) {
+            ldstNum[i] += ldstSample[i][ldstIndex[i]];
+            ldstIndex[i] = (ldstIndex[i] + 1) % sampleLen;
+            ldstRate[i] = ((float) ldstNum[i]) / ((float) sampleLen);
+        }
     }
 
     // If we didn't process all instructions, then we will need to block
@@ -1009,6 +1016,17 @@ DefaultDecode<Impl>::passLB(ThreadID tid)
                 }
             }
         }
+    }
+}
+
+template <class Impl>
+void
+DefaultDecode<Impl>::noLoadStoreThisCycle() {
+    for (int i = LDST::load; i < LDST::NumType; i++) {
+        ldstNum[i] -= ldstSample[i][ldstIndex[i]];
+        ldstSample[i][ldstIndex[i]] = 0;
+        ldstIndex[i] = (ldstIndex[i] + 1) % sampleLen;
+        ldstRate[i] = ((float) ldstNum[i]) / ((float) sampleLen);
     }
 }
 

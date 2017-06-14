@@ -85,6 +85,7 @@ struct DefaultDecodeDefaultRename {
 
     bool frontEndMiss;
 
+    float loadRate;
     float storeRate;
 
     std::array<SlotsUse, Impl::MaxWidth> slotPass;
@@ -114,6 +115,7 @@ struct DefaultRenameDefaultIEW {
       */
     bool shine;
 
+    float loadRate;
     float storeRate;
 
     std::array<SlotsUse, Impl::MaxWidth> slotPass;

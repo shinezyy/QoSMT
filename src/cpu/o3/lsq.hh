@@ -394,8 +394,6 @@ class LSQ {
     const unsigned hptInitLQPriv;
     const unsigned hptInitSQPriv;
 
-    std::array<float, Impl::MaxThreads> VLQ, VSQ;
-
     void incVLQ(ThreadID tid, float num) {
         thread[tid].incVLQ(num);
     }

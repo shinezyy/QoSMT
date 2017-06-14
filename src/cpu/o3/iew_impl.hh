@@ -2062,6 +2062,9 @@ void
 DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
 {
     IQHead[tid] = instQueue.getHeadInst(tid);
+    LQHead[tid] = ldstQueue.getLoadHeadInst(tid);
+    SQHead[tid] = ldstQueue.getStoreHeadInst(tid);
+
     if (IQHead[tid] && isMiss(IQHead[tid]->seqNum)) {
         slotConsumer.queueHeadState[tid][SlotConsm::FullSource::IQ] =
                 HeadInstrState::DCacheMiss;
@@ -2086,15 +2089,41 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     }
 
     if (fullSource[tid] == SlotConsm::FullSource::IQ) {
-        DPRINTF(DispatchBreakdown, "IQ[T%i]: %i, IQ[T%i]: %i, IQHead: %i\n",
+        DPRINTF(DispatchBreakdown, "IQ[T%i]: %i, IQ[T%i]: %i, IQ has head: %i, "
+                "VIQ[T%i]:%f\n",
                 HPT, instQueue.numBusyEntries(HPT),
                 LPT, instQueue.numBusyEntries(LPT),
-                IQHead[tid] ? 1 : 0);
+                IQHead[tid] ? 1 : 0, tid, instQueue.VIQ[tid]);
         if (IQHead[tid]) {
-            DPRINTF(DispatchBreakdown, "is Miss: %i\n",
+            DPRINTF(DispatchBreakdown, "IQ head is Miss: %i\n",
                     isMiss(IQHead[tid]->seqNum));
         }
         DPRINTF(DispatchBreakdown, "VIQFull: %i\n", instQueue.VIQFull(tid));
+    }
+
+    if (fullSource[tid] == SlotConsm::FullSource::LQ) {
+        DPRINTF(DispatchBreakdown, "LQ[T%i]: %i, LQ[T%i]: %i, LQ has head: %i, "
+                "VLQ[T%i]:%f\n",
+                HPT, ldstQueue.numLoads(HPT),
+                LPT, ldstQueue.numLoads(LPT),
+                LQHead[tid] ? 1 : 0, tid, ldstQueue.getVLQ(tid));
+        if (LQHead[tid]) {
+            DPRINTF(DispatchBreakdown, "LQ head is Miss: %i\n",
+                    isMiss(LQHead[tid]->seqNum));
+        }
+        DPRINTF(DispatchBreakdown, "VLQFull: %i\n", ldstQueue.VLQFull(tid));
+    }
+    if (fullSource[tid] == SlotConsm::FullSource::SQ) {
+        DPRINTF(DispatchBreakdown, "SQ[T%i]: %i, SQ[T%i]: %i, SQ has head: %i, "
+                "VSQ[T%i]:%f\n",
+                HPT, ldstQueue.numLoads(HPT),
+                LPT, ldstQueue.numLoads(LPT),
+                SQHead[tid] ? 1 : 0, tid, ldstQueue.getVSQ(tid));
+        if (SQHead[tid]) {
+            DPRINTF(DispatchBreakdown, "SQ head is Miss: %i\n",
+                    isMiss(SQHead[tid]->seqNum));
+        }
+        DPRINTF(DispatchBreakdown, "VSQFull: %i\n", ldstQueue.VSQFull(tid));
     }
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::IQ] =

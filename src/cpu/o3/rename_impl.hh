@@ -1815,6 +1815,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             VROB[tid] >= maxROB ?
             VQState::VQFull : VQState::VQNotFull;
 
+    toIEW->loadRate = fromDecode->loadRate;
     toIEW->storeRate = fromDecode->storeRate;
     slotConsumer.cycleEnd(
             tid, toIEWNum, fullSource[tid], curCycleRow[tid],

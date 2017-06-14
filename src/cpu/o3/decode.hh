@@ -351,10 +351,18 @@ class DefaultDecode : public SlotCounter<Impl>
 
     const int sampleLen;
 
-    int storeSample[256];
-    float storeRate;
-    int numStores;
-    int storeIndex;
+    enum LDST {
+        load = 0,
+        store,
+        NumType,
+    };
+
+    int ldstSample[2][128];
+    float ldstRate[2];
+    int ldstNum[2];
+    int ldstIndex[2];
+
+    void noLoadStoreThisCycle();
 
     std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
     std::array<bool, Impl::MaxThreads> squashedThisCycle;
