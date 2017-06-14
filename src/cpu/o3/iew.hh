@@ -620,6 +620,8 @@ class DefaultIEW : public SlotCounter<Impl>
     void getQHeadState(DynInstPtr QHead[], typename SlotConsm::FullSource fs,
                        ThreadID tid);
 
+  public:
+
     void dumpStats() {
         SlotCounter<Impl>::dumpStats();
     }

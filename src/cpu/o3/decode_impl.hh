@@ -933,10 +933,7 @@ template <class Impl>
 void
 DefaultDecode<Impl>::passLB(ThreadID tid)
 {
-    fromRename->renameInfo[tid].BLB;
-    toRename->frontEndMiss;
-    toFetch->decodeInfo[tid].BLB;
-    fromFetch->frontEndMiss;
+    toFetch->decodeInfo[tid].BLB = fromRename->renameInfo[tid].BLB;
 
     if (toRenameNum[tid] > 0) {
         if (!squashedThisCycle[tid]) {

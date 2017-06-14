@@ -823,6 +823,7 @@ FullO3CPU<Impl>::tick()
 
         rename.dumpStats();
         rename.clearFull();
+        iew.dumpStats();
         iew.clearFull();
 
         policyCycles = 0;
