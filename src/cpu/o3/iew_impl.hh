@@ -90,9 +90,6 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       hptInitDispatchWidth((unsigned) (float(dispatchWidth) * params->hptDispatchProp)),
       BLBlocal(false),
       l1Lat(params->l1Lat),
-      maxSQ((float) params->SQEntries),
-      maxLQ((float) params->LQEntries),
-      maxIQ(params->numIQEntries),
       blockCycles(0),
       slotConsumer (params, params->renameWidth, name()),
       smallEnough(0.001)
@@ -704,9 +701,6 @@ DefaultIEW<Impl>::unblock(ThreadID tid)
         wroteToTimeBuffer = true;
         DPRINTF(IEW, "[tid:%i]: Done unblocking.\n",tid);
         dispatchStatus[tid] = Running;
-        if (HPT == tid) {
-            VSQ = 0;
-        }
     }
 }
 
@@ -1244,21 +1238,11 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 ++numSQFull[tid];
             }
 
-            if (tid == HPT) {
-                if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
-                    if (VLQ <= 0.001) {
-                        VLQ = ldstQueue.numStores(HPT);
-                    }
-                    VLQ += loadRate;
+            if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
+                ldstQueue.incVLQ(tid, loadRate);
 
-                } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
-                    if (VSQ <= 0.001) {
-                        VSQ = ldstQueue.numStores(HPT);
-                    }
-                    DPRINTF(Pard, "%llu cycles since oldest Store, VSQ is %f\n",
-                            (curTick() - missStat.oldestStoreTick[HPT])/500, VSQ);
-                    VSQ += storeRate;
-                }
+            } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
+                ldstQueue.incVSQ(tid, loadRate);
             }
             // Call function to start blocking.
             block(tid);
@@ -2118,11 +2102,11 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
             VQState::VQFull : VQState::VQNotFull;
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::LQ] =
-            VLQ >= maxLQ ?
+            ldstQueue.VLQFull(tid) ?
             VQState::VQFull : VQState::VQNotFull;
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::SQ] =
-            VSQ >= maxSQ ?
+            ldstQueue.VSQFull(tid) ?
             VQState::VQFull : VQState::VQNotFull;
 
     slotConsumer.cycleEnd(

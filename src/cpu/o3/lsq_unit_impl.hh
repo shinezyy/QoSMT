@@ -266,6 +266,7 @@ void
 LSQUnit<Impl>::resetState()
 {
     loads = stores = storesToWB = 0;
+    VLQ = VSQ = 0.0;
 
     loadHead = loadTail = 0;
 
@@ -549,6 +550,7 @@ LSQUnit<Impl>::insertLoad(DynInstPtr &load_inst)
     incrLdIdx(loadTail);
 
     ++loads;
+    ++VLQ;
 }
 
 template <class Impl>
@@ -570,6 +572,7 @@ LSQUnit<Impl>::insertStore(DynInstPtr &store_inst)
     incrStIdx(storeTail);
 
     ++stores;
+    ++VSQ;
 }
 
 template <class Impl>
@@ -912,6 +915,7 @@ LSQUnit<Impl>::commitLoad()
     incrLdIdx(loadHead);
 
     --loads;
+    VLQ -= VLQ/loads;
 }
 
 template <class Impl>
@@ -1214,6 +1218,7 @@ LSQUnit<Impl>::squash(const InstSeqNum &squashed_num)
         loadQueue[load_idx]->setSquashed();
         loadQueue[load_idx] = NULL;
         --loads;
+        VLQ -= VLQ/loads;
 
         // Inefficient!
         loadTail = load_idx;
@@ -1269,6 +1274,7 @@ LSQUnit<Impl>::squash(const InstSeqNum &squashed_num)
 
         storeQueue[store_idx].req = NULL;
         --stores;
+        VSQ -= VSQ/stores;
 
         // Inefficient!
         storeTail = store_idx;
@@ -1368,6 +1374,7 @@ LSQUnit<Impl>::completeStore(int store_idx)
         do {
             incrStIdx(storeHead);
             --stores;
+            VSQ -= VSQ/stores;
 
             if (stores > 0 && storeQueue[storeHead].inst->comTick) {
                 ThreadID tid = storeQueue[storeHead].inst->threadNumber;

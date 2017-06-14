@@ -599,12 +599,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
     float storeRate, loadRate;
 
-    float VSQ, VLQ;
-    const float maxSQ, maxLQ;
-
-    int VIQ;
-    const int maxIQ;
-
     int blockCycles;
 
     int blockedCycles;
