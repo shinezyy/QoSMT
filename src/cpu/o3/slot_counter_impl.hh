@@ -47,6 +47,36 @@ const char* slotUseStr[] = {
         "DCacheInterference",
 };
 
+std::array<SlotsUse, 11> MissEnums = {
+        InstSupMiss,
+        EntryMiss,
+        LaterMiss,
+        SerializeMiss,
+        SquashMiss,
+        NotFullInstSupMiss,
+        ROBMiss,
+        IQMiss,
+        LQMiss,
+        SQMiss,
+        SplitMiss,
+};
+
+std::array<SlotsUse, 13> WaitEnums = {
+        InstSupWait,
+        ICacheInterference,
+        FetchSliceWait,
+        WidthWait,
+        EntryWait,
+        LaterWait,
+        LBLCWait,
+        SplitWait,
+        ROBWait,
+        IQWait,
+        LQWait,
+        SQWait,
+        DCacheInterference,
+};
+
     template<class Impl>
 SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
     : width((int) _width),
@@ -131,31 +161,13 @@ template <class Impl>
 void
 SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
 {
-    miss[tid] += perCycleSlots[tid][InstSupMiss];
-    miss[tid] += perCycleSlots[tid][EntryMiss];
-    miss[tid] += perCycleSlots[tid][LaterMiss];
-    miss[tid] += perCycleSlots[tid][SerializeMiss];
-    miss[tid] += perCycleSlots[tid][SquashMiss];
-    miss[tid] += perCycleSlots[tid][NotFullInstSupMiss];
-    miss[tid] += perCycleSlots[tid][ROBMiss];
-    miss[tid] += perCycleSlots[tid][IQMiss];
-    miss[tid] += perCycleSlots[tid][LQMiss];
-    miss[tid] += perCycleSlots[tid][SQMiss];
-    miss[tid] += perCycleSlots[tid][SplitMiss];
+    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
+        miss[tid] += perCycleSlots[tid][*it];
+    }
 
-    wait[tid] += perCycleSlots[tid][InstSupWait];
-    wait[tid] += perCycleSlots[tid][ICacheInterference];
-    wait[tid] += perCycleSlots[tid][FetchSliceWait];
-    wait[tid] += perCycleSlots[tid][WidthWait];
-    wait[tid] += perCycleSlots[tid][EntryWait];
-    wait[tid] += perCycleSlots[tid][LaterWait];
-    wait[tid] += perCycleSlots[tid][LBLCWait];
-    wait[tid] += perCycleSlots[tid][SplitWait];
-    wait[tid] += perCycleSlots[tid][ROBWait];
-    wait[tid] += perCycleSlots[tid][IQWait];
-    wait[tid] += perCycleSlots[tid][LQWait];
-    wait[tid] += perCycleSlots[tid][SQWait];
-    wait[tid] += perCycleSlots[tid][DCacheInterference];
+    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
+        wait[tid] += perCycleSlots[tid][*it];
+    }
 
     std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), 0);
 
@@ -185,16 +197,18 @@ SlotCounter<Impl>::regStats()
         .desc("number of HPT wait slots in " + name())
         ;
 
-    waitSlots = slots[InstSupWait] + slots[WidthWait] +
-        slots[EntryWait] + slots[LaterWait] + slots[LBLCWait];
+    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
+        waitSlots = waitSlots + slots[*it];
+    }
 
     missSlots
         .name(name() + ".local_miss_slots")
         .desc("number of HPT miss slots in " + name())
         ;
 
-    missSlots = slots[InstSupMiss] + slots[EntryMiss] +
-        slots[LaterMiss] + slots[SerializeMiss] + slots[SquashMiss];
+    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
+        missSlots = missSlots + slots[*it];
+    }
 
     baseSlots
         .name(name() + ".local_base_slots")
