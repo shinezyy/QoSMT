@@ -119,6 +119,8 @@ struct DefaultRenameDefaultIEW {
     float storeRate;
 
     std::array<SlotsUse, Impl::MaxWidth> slotPass;
+
+    bool incVROB[Impl::MaxThreads];
 };
 
 /** Struct that defines the information passed from IEW to commit. */

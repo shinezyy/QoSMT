@@ -936,6 +936,9 @@ DefaultCommit<Impl>::commit()
 
     while (threads != end) {
         ThreadID tid = *threads++;
+        if (fromRename->incVROB) {
+            rob->incVROB(tid, renameWidth);
+        }
 
         // Not sure which one takes priority.  I think if we have
         // both, that's a bad sign.

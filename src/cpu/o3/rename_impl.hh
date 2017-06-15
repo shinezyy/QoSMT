@@ -1474,6 +1474,8 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         fullSource[tid] = SlotConsm::ROB;
         ret_val = true;
 
+        toIEW->incVROB[tid] = true;
+
         if (tid == HPT) {
             DPRINTF(RenameBreakdown, "HPT stall because no ROB.\n");
         }
