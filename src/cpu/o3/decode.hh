@@ -237,11 +237,20 @@ class DefaultDecode : public SlotCounter<Impl>
     /** Wire to get fetch's output from fetch queue. */
     typename TimeBuffer<FetchStruct>::wire fromFetch;
 
+    typedef typename std::queue<DynInstPtr> InstRow;
+    typedef typename std::array<SlotsUse, Impl::MaxWidth> SlotsUseRow;
+
     /** Queue of all instructions coming from fetch this cycle. */
-    std::queue<DynInstPtr> insts[Impl::MaxThreads];
+    InstRow insts[Impl::MaxThreads];
 
     /** Skid buffer between fetch and decode. */
-    std::queue<DynInstPtr> skidBuffer[Impl::MaxThreads];
+    std::queue<InstRow> skidBuffer[Impl::MaxThreads];
+
+    std::queue<SlotsUseRow> skidSlotBuffer[Impl::MaxThreads];
+
+    // For debug
+    std::queue<Tick> skidInstTick[Impl::MaxThreads];
+    std::queue<Tick> skidSlotTick[Impl::MaxThreads];
 
     /** Variable that tracks if decode has written to the time buffer this
      * cycle. Used to tell CPU if there is activity this cycle.
@@ -342,10 +351,22 @@ class DefaultDecode : public SlotCounter<Impl>
 
     const int sampleLen;
 
-    int storeSample[256];
-    float storeRate;
-    int numStores;
-    int storeIndex;
+    enum LDST {
+        load = 0,
+        store,
+        NumType,
+    };
+
+    int ldstSample[2][128];
+    float ldstRate[2];
+    int ldstNum[2];
+    int ldstIndex[2];
+
+    void noLoadStoreThisCycle();
+
+    std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
+    std::array<bool, Impl::MaxThreads> squashedThisCycle;
+    std::array<int, Impl::MaxThreads> numSquashedThisCycle;
 };
 
 #endif // __CPU_O3_DECODE_HH__

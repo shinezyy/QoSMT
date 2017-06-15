@@ -70,6 +70,8 @@
 #include "debug/FmtSlot2.hh"
 #include "debug/LB.hh"
 #include "debug/InstPass.hh"
+#include "debug/QoSCtrl.hh"
+#include "debug/FetchBreakdown.hh"
 #include "mem/packet.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/byteswap.hh"
@@ -97,8 +99,8 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
       fetchBufferSize(params->fetchBufferSize),
       fetchBufferMask(fetchBufferSize - 1),
       fetchQueueSize(params->fetchQueueSize),
-      numThreads(params->numThreads),
-      numFetchingThreads(params->smtNumFetchingThreads),
+      numThreads( (ThreadID) params->numThreads),
+      numFetchingThreads( (ThreadID) params->smtNumFetchingThreads),
       fetchWidthUpToDate(false),
       numTimeSlice(32)
 {
@@ -984,8 +986,9 @@ DefaultFetch<Impl>::tick()
         if (!stalls[tid].decode) {
             available_insts += fetchQueue[tid].size();
         }
-        numInsts[tid] = 0;
+        toDecodeNum[tid] = 0;
     }
+    toDecodeAll = 0;
 
     // Pick a random thread to start trying to grab instructions from
     auto tid_itr = activeThreads->begin();
@@ -1003,8 +1006,9 @@ DefaultFetch<Impl>::tick()
             wroteToTimeBuffer = true;
             fetchQueue[tid].pop_front();
             insts_to_decode_all++;
-            numInsts[tid]++;
             available_insts--;
+            toDecodeNum[tid]++;
+            toDecodeAll++;
         }
 
         tid_itr++;
@@ -1022,23 +1026,29 @@ DefaultFetch<Impl>::tick()
     // Print Inst Trace
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
-        if (numInsts[tid]) {
-            DPRINTF(InstPass, "T[%i] send %i insts to Decode\n", tid, numInsts[tid]);
+        if (toDecodeNum[tid]) {
+            DPRINTF(FetchBreakdown,
+                    "T[%i] send %i insts to Decode\n", tid, toDecodeNum[tid]);
         }
     }
 
     passLB(HPT);
 
+    if (this->countSlot(HPT, SlotsUse::Base) != toDecodeNum[HPT]) {
+        this->printSlotRow(this->slotUseRow[HPT], fetchWidth);
+        panic("Slots [%i] and Insts [%i] are not coherence!\n",
+                this->countSlot(HPT, SlotsUse::Base), toDecodeNum[HPT]);
+    }
+
+
+    toDecode->slotPass = this->slotUseRow[HPT];
+
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
-    }
-    if (numInsts[HPT]) {
-        this->assignSlots(HPT, getHeadInst(HPT));
     }
 
     // Reset the number of the instruction we've fetched.
     numInst = 0;
-    std::fill(numInsts.begin(), numInsts.end(), 0);
 }
 
 template <class Impl>
@@ -1404,7 +1414,6 @@ DefaultFetch<Impl>::fetch(bool &status_change)
 
             ppFetch->notify(instruction);
             numInst++;
-            numInsts[tid]++;
 
 #if TRACING_ON
             if (DTRACE(O3PipeView)) {
@@ -1706,8 +1715,7 @@ DefaultFetch<Impl>::pipelineIcacheAccesses(ThreadID tid)
 
 template<class Impl>
 void
-DefaultFetch<Impl>::reassignFetchSlice(int newWidthVec[],
-        int lenWidthVec, int newWidthDenominator)
+DefaultFetch<Impl>::reassignFetchSlice(int newWidthVec[], int newWidthDenominator)
 {
     //assert(lenWidthVec == numThreads);
     if (fetchPolicy != Programmable) {
@@ -1789,12 +1797,16 @@ DefaultFetch<Impl>::updateFetchSlice()
     } else {
         float hptSlice = 0;
         float hptProp = float(portion[HPT]) / float(denominator);
+        DPRINTF(QoSCtrl, "hptProp is %f\n", hptProp);
 
         for (unsigned t = 0; t < numTimeSlice; t++) {
             if (hptSlice / (float(numTimeSlice)) < hptProp) {
                 priorityList.push_back(HPT);
+                hptSlice += 1;
+                DPRINTF(QoSCtrl, "Thread %i slice inc 1\n", HPT);
             } else {
                 priorityList.push_back(HPT + 1);
+                DPRINTF(QoSCtrl, "Thread %i slice inc 1\n", HPT + 1);
             }
         }
     }
@@ -1806,52 +1818,63 @@ template <class Impl>
 void
 DefaultFetch<Impl>::passLB(ThreadID tid)
 {
-    if (fetchQueue[tid].size() == fetchQueueSize) {
-        goto _do_block;
-    }
-
-    switch(fetchStatus[tid]) {
-        case(Blocked): /** 传下去就行了*/
-_do_block:
-            toDecode->frontEndMiss = false;
-
+    if (toDecodeNum[tid] > 0) {
+        this->incLocalSlots(tid, Base, toDecodeNum[tid]);
+        this->incLocalSlots(tid, WidthWait, toDecodeNum[this->another(tid)]);
+        // 这种情况比较少，所以算作miss，其中实际上可能有wait，暂时不管了
+        this->incLocalSlots(tid, InstSupMiss, fetchWidth - toDecodeAll);
+    } else {
+        if (stalls[tid].decode){
             if (fromDecode->decodeInfo[tid].BLB) {
                 this->incLocalSlots(tid, LaterWait, fetchWidth);
             } else {
                 this->incLocalSlots(tid, LaterMiss, fetchWidth);
             }
-            break;
-        case(IcacheAccessComplete):
-        case(Running):
-            if (numInsts[tid]) {
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, Base, numInsts[tid]);
-                this->incLocalSlots(tid, InstMiss, fetchWidth - numInsts[tid]);
-
-            } else if (fromDecode->decodeInfo[tid].BLB) {
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, LaterWait, fetchWidth);
-
-            } else if (stalls[HPT].decode) {
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, LaterMiss, fetchWidth);
-
-            } else if (fetchThread == LPT){
-                toDecode->frontEndMiss = false;
-                this->incLocalSlots(tid, WidthWait, fetchWidth);
-
+        } else {
+            if (fetchThread == tid) {
+                this->incLocalSlots(tid, InstSupMiss, fetchWidth);
             } else {
-                toDecode->frontEndMiss = true;
-                this->incLocalSlots(tid, InstMiss, fetchWidth);
-            }
-            break;
-        // This should be miss ? case(Idle):
-        default: /** Icache miss and branch misPred are both front end miss*/
-            toDecode->frontEndMiss = true;
+                bool intrinsic_miss =
+                        fetchStatus[tid] == Squashing ||
+                        fetchStatus[tid] == TrapPending ||
+                        fetchStatus[tid] == QuiescePending ||
+                        fetchStatus[tid] == ItlbWait ||
+                        fetchStatus[tid] == NoGoodAddr;
+                bool cache_miss =
+                        fetchStatus[tid] == IcacheWaitResponse ||
+                        fetchStatus[tid] == IcacheWaitRetry;
 
-            this->incLocalSlots(tid, InstMiss, fetchWidth);
-            break;
+                if (intrinsic_miss) {
+                    if (fetchStatus[tid] == Squashing) {
+                        this->incLocalSlots(tid, SquashMiss, fetchWidth);
+                    } else {
+                        this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                    }
+                } else if (cache_miss) {
+                    if (AnotherThreadCauseCurrentMiss(tid)) {
+                        this->incLocalSlots(tid, ICacheInterference, fetchWidth);
+                    } else {
+                        this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                    }
+                } else {
+                    this->incLocalSlots(tid, FetchSliceWait, fetchWidth);
+                }
+            }
+        }
+    }
+
+    if (this->perCycleSlots[HPT][InstSupMiss] == fetchWidth ||
+            this->perCycleSlots[HPT][LaterMiss] == fetchWidth) {
+        toDecode->frontEndMiss = true;
     }
 }
+
+template <class Impl>
+bool
+DefaultFetch<Impl>::AnotherThreadCauseCurrentMiss(ThreadID tid)
+{
+    return false;
+}
+
 
 #endif//__CPU_O3_FETCH_IMPL_HH__

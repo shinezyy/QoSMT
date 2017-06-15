@@ -60,7 +60,7 @@
 #include "debug/O3CPU.hh"
 #include "debug/Quiesce.hh"
 #include "debug/Pard.hh"
-#include "debug/FmtCtrl.hh"
+#include "debug/QoSCtrl.hh"
 #include "debug/FMT.hh"
 #include "enums/MemoryMode.hh"
 #include "sim/core.hh"
@@ -211,7 +211,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       system(params->system),
       drainManager(NULL),
       lastRunningCycle(curCycle()),
-      expectedSlowdown(params->expectedSlowdown),
+      expectedQoS(params->expectedQoS),
       robReserved(false),
       lqReserved(false),
       sqReserved(false),
@@ -642,7 +642,7 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
         vec[1] = 1024 - vec[0];
 
         if (vec[0] != commit.rob->getHPTPortion()) {
-            DPRINTF(Pard, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
                     inc ? "Reserving":"Releasing", vec[0], vec[1]);
             commit.rob->reassignPortion(vec, 2, 1024);
         }
@@ -650,10 +650,10 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
     if (lq) {
         vec[0] = iew.ldstQueue.getHPTLQPortion() + delta;
         vec[0] = std::min(vec[0], 1024 - 64);
-        vec[0] = std::max(vec[0], 512);
+        vec[0] = std::max(vec[0], 64);
         vec[1] = 1024 - vec[0];
         if (vec[0] != iew.ldstQueue.getHPTLQPortion()) {
-            DPRINTF(Pard, "%s [LQ], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "%s [LQ], vec[0]: %d, vec[1]: %d\n",
                     inc ? "Reserving":"Releasing", vec[0], vec[1]);
             iew.ldstQueue.reassignLQPortion(vec, 2, 1024);
         }
@@ -661,14 +661,14 @@ FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
     if (sq) {
         vec[0] = iew.ldstQueue.getHPTSQPortion() + delta;
         vec[0] = std::min(vec[0], 1024 - 64);
-        vec[0] = std::max(vec[0], 512);
+        vec[0] = std::max(vec[0], 64);
         vec[1] = 1024 - vec[0];
         if (vec[0] != iew.ldstQueue.getHPTSQPortion()) {
-            DPRINTF(Pard, "%s [SQ], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "%s [SQ], vec[0]: %d, vec[1]: %d\n",
                     inc ? "Reserving":"Releasing", vec[0], vec[1]);
             iew.ldstQueue.reassignSQPortion(vec, 2, 1024);
         } else {
-            DPRINTF(Pard, "No need to %s, HPTPortion: %d",
+            DPRINTF(QoSCtrl, "No need to %s, HPTPortion: %d\n",
                     inc ? "Reserving":"Releasing",
                     iew.ldstQueue.getHPTSQPortion());
         }
@@ -681,11 +681,14 @@ FullO3CPU<Impl>::combinedControl()
 {
     uint32_t base = 1024;
     // heuristic rules:
-    ThreadID hpt = 0;
-    uint64_t robf = rename.numROBWait[hpt];
+    // ThreadID hpt = 0;
+    // uint64_t robf = rename.numROBWait[hpt];
     // uint64_t iqf = rename.numIQFull[hpt] + iew.numIQFull[hpt];
-    uint64_t lqf = rename.numLQWait[hpt] + iew.numLQWait[hpt];
-    uint64_t sqf = rename.numSQWait[hpt] + iew.numSQWait[hpt];
+    // uint64_t lqf = rename.numLQWait[hpt] + iew.numLQWait[hpt];
+    // uint64_t sqf = rename.numSQWait[hpt] + iew.numSQWait[hpt];
+    uint64_t robf = 0;
+    uint64_t lqf = 0;
+    uint64_t sqf = 0;
 
     bool nsat = fetchControl();
     if (nsat) {
@@ -693,7 +696,7 @@ FullO3CPU<Impl>::combinedControl()
                 robf * base > policyWindowSize * fullThreshold,
                 lqf * base > policyWindowSize * fullThreshold,
                 sqf * base > policyWindowSize * fullThreshold,
-                true);
+                /*inc = */true);
     } else {
         incResource(
                 robf * base < policyWindowSize * fullThreshold,
@@ -710,63 +713,73 @@ FullO3CPU<Impl>::fetchControl()
     // Treat thread 0 as high-prio as usual
     ThreadID hpt = 0;
 
-    uint64_t predicted = fmt.globalBase[hpt] + fmt.globalMiss[hpt] +
+    uint64_t predicted_st_slots = fmt.globalBase[hpt] + fmt.globalMiss[hpt] +
         fmt.getHptNonWait();
-    uint64_t real = predicted + fmt.globalWait[hpt] + fmt.getHptWait();
+    uint64_t smt_slots= predicted_st_slots + fmt.globalWait[hpt] + fmt.getHptWait();
 
-    DPRINTF(Pard, "Fetch Control Working -----------------------\n");
+    DPRINTF(QoSCtrl, "Fetch Control Working -----------------------\n");
 
-    bool nsat = predicted*1024 < real*(1024 - expectedSlowdown);
+    bool nsat = predicted_st_slots*1024 < smt_slots*expectedQoS;
 
-    bool above = predicted*1024 > real*(1024 - expectedSlowdown + 64);
+    DPRINTF(QoSCtrl, "predicted_st_slots: %i, SMT slots: %i, expectedQoS: %i"
+            ", not satisfied: %i\n", predicted_st_slots,
+            smt_slots, expectedQoS, nsat);
+
+    bool above = predicted_st_slots*1024 > smt_slots*(expectedQoS + 64);
 
     int vec[2];
 
+    int grain = 32;
+
     if (nsat) {
 
-        vec[0] = fetch.getHPTPortion() + 128;
+        vec[0] = fetch.getHPTPortion() + grain;
         vec[0] = std::min(vec[0], 1024);
         vec[0] = std::max(vec[0], 512);
         vec[1] = 1024 - vec[0];
 
         if (vec[0] != fetch.getHPTPortion()) {
-            DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
-            fetch.reassignFetchSlice(vec, 2, 1024);
+            fetch.reassignFetchSlice(vec, 1024);
         }
 
+#if 0
         vec[0] = iew.getHPTWidth() + 1;
         vec[0] = std::min(vec[0], 8);
         vec[0] = std::max(vec[0], 4);
         vec[1] = 8 - vec[0];
 
         if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d,"
+            DPRINTF(QoSCtrl, "Reserving [Dispatch], vec[0]: %d,"
                     " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
+#endif
     } else if (above) {
-        vec[0] = fetch.getHPTPortion() - 128;
+        vec[0] = fetch.getHPTPortion() - grain;
         vec[0] = std::min(vec[0], 1024);
         vec[0] = std::max(vec[0], 512);
         vec[1] = 1024 - vec[0];
 
         if (vec[0] != fetch.getHPTPortion()) {
-            DPRINTF(Pard, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
+            DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
                     vec[0], vec[1]);
-            fetch.reassignFetchSlice(vec, 2, 1024);
+            fetch.reassignFetchSlice(vec, 1024);
         }
 
+#if 0
         vec[0] = iew.getHPTWidth() - 1;
         vec[0] = std::min(vec[0], 8);
         vec[0] = std::max(vec[0], 4);
         vec[1] = 8 - vec[0];
 
         if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(Pard, "Reserving [Dispatch], vec[0]: %d,"
+            DPRINTF(QoSCtrl, "Reserving [Dispatch], vec[0]: %d,"
                     " vec[1]: %d\n", vec[0], vec[1]);
             iew.reassignDispatchWidth(vec, 2);
         }
+#endif
     }
 
     return nsat;
@@ -810,6 +823,7 @@ FullO3CPU<Impl>::tick()
 
         rename.dumpStats();
         rename.clearFull();
+        iew.dumpStats();
         iew.clearFull();
 
         policyCycles = 0;

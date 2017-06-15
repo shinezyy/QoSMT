@@ -48,6 +48,7 @@
 #include <map>
 #include <queue>
 #include <vector>
+#include <array>
 
 #include "base/statistics.hh"
 #include "base/types.hh"
@@ -586,7 +587,9 @@ class InstructionQueue
     Stats::Vector fuBusy;
     /** Number of times the FU was busy per instruction issued. */
     Stats::Formula fuBusyRate;
-   public:
+
+  public:
+
     Stats::Scalar intInstQueueReads;
     Stats::Scalar intInstQueueWrites;
     Stats::Scalar intInstQueueWakeupAccesses;
@@ -621,6 +624,20 @@ class InstructionQueue
     unsigned sampleRate;
 
     const unsigned hptInitPriv;
+
+    std::array<float, Impl::MaxThreads> VIQ;
+
+    void incVIQ(ThreadID tid, int num);
+
+    bool VIQFull(ThreadID tid) {
+        return VIQ[tid] >= ((float) numEntries) - 0.1;
+    }
+
+    DynInstPtr dummyInst;
+
+    DynInstPtr &getHeadInst (ThreadID tid) {
+        return instList[tid].empty() ? dummyInst: instList[tid].back();
+    }
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__

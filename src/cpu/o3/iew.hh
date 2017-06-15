@@ -53,6 +53,7 @@
 #include "cpu/o3/lsq.hh"
 #include "cpu/o3/scoreboard.hh"
 #include "cpu/o3/slot_counter.hh"
+#include "cpu/o3/slot_consume.hh"
 #include "cpu/timebuf.hh"
 #include "debug/IEW.hh"
 #include "sim/probe/probe.hh"
@@ -101,6 +102,10 @@ class DefaultIEW : public SlotCounter<Impl>
     typedef typename CPUPol::Fmt Fmt;
     typedef typename CPUPol::Bmt Bmt;
     typedef typename CPUPol::Voc Voc;
+    typedef SlotConsumer<Impl> SlotConsm;
+
+    typedef std::queue<DynInstPtr> InstRow;
+    typedef std::array<SlotsUse, Impl::MaxWidth> SlotsUseRow;
 
   public:
     /** Overall IEW stage status. Used to determine if the CPU can
@@ -344,10 +349,12 @@ class DefaultIEW : public SlotCounter<Impl>
     typename TimeBuffer<IEWStruct>::wire toCommit;
 
     /** Queue of all instructions coming from rename this cycle. */
-    std::queue<DynInstPtr> insts[Impl::MaxThreads];
+    InstRow insts[Impl::MaxThreads];
 
     /** Skid buffer between rename and IEW. */
-    std::queue<DynInstPtr> skidBuffer[Impl::MaxThreads];
+    std::queue<InstRow> skidBuffer[Impl::MaxThreads];
+
+    std::queue<SlotsUseRow> skidSlotBuffer[Impl::MaxThreads];
 
     /** Scoreboard pointer. */
     Scoreboard* scoreboard;
@@ -547,42 +554,20 @@ class DefaultIEW : public SlotCounter<Impl>
     unsigned hptInitDispatchWidth;
 
   private:
-    bool LB_all; /**LPT Block HPT in Dispatch*/
-
-    bool LB_part;
-
     bool LBLC; /**LPT Block HPT in last cycle*/
 
-    std::array<int, Impl::MaxThreads> dispatched;
+    std::array<unsigned, Impl::MaxThreads> dispatched;
 
-    std::array<int, Impl::MaxThreads> squashed;
-
-    std::array<int, Impl::MaxThreads> dispatchable;
+    std::array<unsigned , Impl::MaxThreads> squashed;
 
     bool BLBlocal; //For Unblocking
 
     std::array<bool, Impl::MaxThreads> missRecorded;
 
-    /**本周期dispatch出去的第一条指令*/
-    std::array<DynInstPtr, Impl::MaxThreads> headInst;
-
-    DynInstPtr& getHeadInst(ThreadID tid) {
-        assert(headInst[tid]);
-        return headInst[tid];
-    }
-
-    void getDispatchable();
-
     /** 计算本周期不可避免的miss，注意LBLC */
     void computeMiss(ThreadID tid);
 
-    int numLPTcause;
-
     const int l1Lat;
-
-    int localInstMiss;
-
-    void missTry();
 
     void genShadow();
 
@@ -601,19 +586,45 @@ class DefaultIEW : public SlotCounter<Impl>
     uint64_t numLQFull[Impl::MaxThreads];
     uint64_t numSQFull[Impl::MaxThreads];
     uint64_t numIQFull[Impl::MaxThreads];
-    uint64_t numLQWait[Impl::MaxThreads];
-    uint64_t numSQWait[Impl::MaxThreads];
-    uint64_t numIQWait[Impl::MaxThreads];
 
     void clearFull();
 
-    float storeRate;
-
-    float vsq;
+    float storeRate, loadRate;
 
     int blockCycles;
 
     int blockedCycles;
+
+  private:
+
+    std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
+    std::array<int, Impl::MaxThreads> squashedThisCycle;
+
+    std::queue<Tick> skidInstTick[Impl::MaxThreads];
+    std::queue<Tick> skidSlotTick[Impl::MaxThreads];
+
+    SlotConsumer<Impl> slotConsumer;
+
+    void clearLocalSignals();
+
+    std::array<typename SlotConsm::FullSource, Impl::MaxThreads> fullSource;
+
+    DynInstPtr IQHead[Impl::MaxThreads];
+    DynInstPtr LQHead[Impl::MaxThreads];
+    DynInstPtr SQHead[Impl::MaxThreads];
+
+    void cycleDispatchEnd(ThreadID tid);
+
+    const float smallEnough;
+
+    void getQHeadState(DynInstPtr QHead[], typename SlotConsm::FullSource fs,
+                       ThreadID tid);
+
+  public:
+
+    void dumpStats() {
+        SlotCounter<Impl>::dumpStats();
+    }
 };
 
 #endif // __CPU_O3_IEW_HH__

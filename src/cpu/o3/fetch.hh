@@ -375,8 +375,7 @@ class DefaultFetch : public SlotCounter<Impl>
 
     int denominator;
 
-    void reassignFetchSlice(int newWidthVec[],
-            int lenWidthVec, int newWidthDenominator);
+    void reassignFetchSlice(int newWidthVec[], int newWidthDenominator);
 
     int getHPTPortion() {return portion[HPT];}
 
@@ -453,7 +452,9 @@ class DefaultFetch : public SlotCounter<Impl>
     /** Tracks how many instructions has been fetched this cycle. */
     int numInst;
 
-    std::array<int, Impl::MaxThreads> numInsts;
+    std::array<int, Impl::MaxThreads> toDecodeNum;
+
+    int toDecodeAll;
 
     /** Source of possible stalls. */
     struct Stalls {
@@ -639,6 +640,10 @@ class DefaultFetch : public SlotCounter<Impl>
     const unsigned numTimeSlice;
 
     ThreadID fetchThread;
+
+  private:
+
+    bool AnotherThreadCauseCurrentMiss(ThreadID tid);
 };
 
 #endif //__CPU_O3_FETCH_HH__

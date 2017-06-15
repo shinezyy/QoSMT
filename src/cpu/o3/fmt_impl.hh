@@ -140,40 +140,31 @@ void FMT<Impl>::addBranch(DynInstPtr &bran, ThreadID tid, uint64_t timeStamp)
     DPRINTFR(FMT, "\n");
 }
 
-    template<class Impl>
-void FMT<Impl>::incBaseSlot(DynInstPtr &inst, ThreadID tid, int n)
-{
-    rBranchEntryIterator it = table[tid].rbegin();
-    for (; it->seqNum > inst->seqNum; it++);
-    it->baseSlots += n;
-    DPRINTF(FMT, "Count inst[%i] on Branch[%i]\n", inst->seqNum, it->seqNum);
-}
 
     template<class Impl>
-void FMT<Impl>::incWaitSlot(DynInstPtr &inst, ThreadID tid, int n)
-{
-    rBranchEntryIterator it = table[tid].rbegin();
-    for (; it->seqNum > inst->seqNum; it++);
-    it->waitSlots += n;
-    DPRINTF(FMT, "Count inst[%i] on Branch[%i]\n", inst->seqNum, it->seqNum);
-}
-
-    template<class Impl>
-void FMT<Impl>::incMissDirect(ThreadID tid, int n, bool Overlapped)
+void FMT<Impl>::incMissDirect(ThreadID tid, int n)
 {
     BranchEntryIterator it = table[tid].begin();
     it->missSlots += n;
-
-    if (Overlapped) {
-        numOverlappedMisses[tid] += n;
-    }
 }
     template<class Impl>
-void FMT<Impl>::incWaitDirect(ThreadID tid, int n)
+void FMT<Impl>::incWaitDirect(ThreadID tid, int n, bool isMLPRect)
 {
-    MLPrect += n;
+    if (isMLPRect) {
+        MLPrect += n;
+        BranchEntryIterator it = table[tid].begin();
+        it->waitSlots += n;
+    } else {
+        rBranchEntryIterator it = table[tid].rbegin();
+        it->waitSlots += n;
+    }
+}
+
+template<class Impl>
+void FMT<Impl>::incBaseDirect(ThreadID tid, int n)
+{
     rBranchEntryIterator it = table[tid].rbegin();
-    it->waitSlots += n;
+    it->baseSlots += n;
 }
 
 

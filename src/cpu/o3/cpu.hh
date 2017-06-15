@@ -775,7 +775,7 @@ class FullO3CPU : public BaseO3CPU
 
     void incResource(bool rob, bool lq, bool sq, bool inc);
 
-    uint32_t expectedSlowdown;
+    uint32_t expectedQoS;
 
     bool robReserved, lqReserved, sqReserved, fetchReserved;
 

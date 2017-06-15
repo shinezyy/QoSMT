@@ -18,7 +18,7 @@ def user_verify():
 
 
 def merged_cpt_dir():
-    return pjoin(os.environ['gem5_root'], 'checkpoint_merge')
+    return os.environ['checkpoint_dir']
 
 
 def has_merged_cpt(x, y):

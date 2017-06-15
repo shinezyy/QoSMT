@@ -25,4 +25,13 @@ simpoint
 /checkpoint
 /checkpoint_merge
 /smt_checkpoint
+/smt_run_bak
 merge_test
+/util/debug.sh
+/src/.idea/
+/src/arch/*.hh
+/src/cmake-build-debug/
+/src/config/
+/src/debug/
+/src/params/
+/src/enums/

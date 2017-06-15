@@ -81,7 +81,7 @@ LSQ<Impl>::LSQ(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params)
       sqUptodate(false),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->policyWindowSize),
+      sampleRate(params->dumpWindowSize),
       hptInitLQPriv(unsigned(float(LQEntries) *params->hptLQPrivProp)),
       hptInitSQPriv(unsigned(float(SQEntries) *params->hptSQPrivProp))
 {
@@ -896,7 +896,7 @@ void
 LSQ<Impl>::increaseUsedEntries()
 {
     sampleCycle++;
-    if (sampleTime*(cpu->policyWindowSize/sampleRate) <= sampleCycle) {
+    if (sampleTime*(cpu->dumpWindowSize/sampleRate) <= sampleCycle) {
         sampleTime++;
         numUsedLQEntries += numLoads();
         numThreadUsedLQEntries[0] += numLoads(0);

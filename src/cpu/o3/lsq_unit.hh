@@ -610,6 +610,24 @@ class LSQUnit {
 
     bool hasL1Miss;
     bool hasL2Miss;
+
+  public:
+
+    float VLQ, VSQ;
+
+    void incVLQ(float num) {
+        VLQ = std::min(num + VLQ, (float) LQEntries);
+    }
+    void incVSQ(float num) {
+        VSQ = std::min(num + VSQ, (float) SQEntries);
+    }
+
+    bool VLQFull() {
+        return VLQ >= ((float) LQEntries) - 0.1;
+    }
+    bool VSQFull() {
+        return VSQ >= ((float) SQEntries) - 0.1;
+    }
 };
 
 template <class Impl>

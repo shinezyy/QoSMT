@@ -46,11 +46,16 @@
 
 #include <list>
 #include <array>
+#include <queue>
+#include <deque>
 
 #include "base/statistics.hh"
 #include "config/the_isa.hh"
 #include "cpu/timebuf.hh"
 #include "cpu/o3/slot_counter.hh"
+#include "cpu/o3/slot_consume.hh"
+#include "../../base/types.hh"
+#include "../../base/statistics.hh"
 
 struct DerivO3CPUParams;
 
@@ -86,6 +91,7 @@ class DefaultRename : public SlotCounter<Impl>
     typedef typename CPUPol::Commit Commit;
 
     typedef typename CPUPol::Bmt Bmt;
+    typedef SlotConsumer<Impl> SlotConsm;
 
     // Typedefs from the ISA.
     typedef TheISA::RegIndex RegIndex;
@@ -94,7 +100,8 @@ class DefaultRename : public SlotCounter<Impl>
     // be added to the front of the queue, which is the only reason for
     // using a deque instead of a queue. (Most other stages use a
     // queue)
-    typedef std::deque<DynInstPtr> InstQueue;
+    typedef std::deque<DynInstPtr> InstRow;
+    typedef std::array<SlotsUse, Impl::MaxWidth> SlotsUseRow;
 
   public:
     /** Overall rename status. Used to determine if the CPU can
@@ -291,7 +298,7 @@ class DefaultRename : public SlotCounter<Impl>
      * thread that has the serializeAfter instruction.
      * @param tid The thread id.
      */
-    void serializeAfter(InstQueue &inst_list, ThreadID tid);
+    void serializeAfter(InstRow &inst_list, ThreadID tid);
 
     /** Holds the information for each destination register rename. It holds
      * the instruction's sequence number, the arch register, the old physical
@@ -348,10 +355,12 @@ class DefaultRename : public SlotCounter<Impl>
     typename TimeBuffer<DecodeStruct>::wire fromDecode;
 
     /** Queue of all instructions coming from decode this cycle. */
-    InstQueue insts[Impl::MaxThreads];
+    InstRow insts[Impl::MaxThreads];
 
     /** Skid buffer between rename and decode. */
-    InstQueue skidBuffer[Impl::MaxThreads];
+    std::queue<InstRow> skidBuffer[Impl::MaxThreads];
+
+    std::queue<SlotsUseRow> skidSlotBuffer[Impl::MaxThreads];
 
     /** Rename map interface. */
     RenameMap *renameMap[Impl::MaxThreads];
@@ -485,23 +494,10 @@ class DefaultRename : public SlotCounter<Impl>
 
     PhysRegIndex maxPhysicalRegs;
 
-    /** Enum to record the source of a structure full stall.  Can come from
-     * either ROB, IQ, LSQ, and it is priortized in that order.
-     */
-    enum FullSource {
-        ROB,
-        IQ,
-        LQ,
-        SQ,
-        IEWStage,
-        Register,
-        NONE
-    };
-
     /** Function used to increment the stat that corresponds to the source of
      * the stall.
      */
-    inline void incrFullStat(const FullSource &source, ThreadID tid);
+    inline void incrFullStat(const typename SlotConsm::FullSource &source, ThreadID tid);
 
     /** Stat for total number of cycles spent squashing. */
     Stats::Vector renameSquashCycles;
@@ -605,10 +601,6 @@ class DefaultRename : public SlotCounter<Impl>
         return toIEW->insts[~0];
     }
 
-    std::array<int, Impl::MaxThreads> renamable;
-
-    void getRenamable();
-
     void computeMiss(ThreadID tid);
 
     void missTry();
@@ -617,7 +609,7 @@ class DefaultRename : public SlotCounter<Impl>
     DynInstPtr LQHead[Impl::MaxThreads];
     DynInstPtr SQHead[Impl::MaxThreads];
 
-    std::array<FullSource, Impl::MaxThreads> fullSource;
+    std::array<typename SlotConsm::FullSource, Impl::MaxThreads> fullSource;
 
     void genShadow();
 
@@ -641,17 +633,9 @@ class DefaultRename : public SlotCounter<Impl>
     uint64_t numSQFull[Impl::MaxThreads];
     uint64_t numIQFull[Impl::MaxThreads];
 
-    uint64_t numROBWait[Impl::MaxThreads];
-    uint64_t numLQWait[Impl::MaxThreads];
-    uint64_t numSQWait[Impl::MaxThreads];
-    uint64_t numIQWait[Impl::MaxThreads];
-
     void clearFull();
 
   public:
-
-    float VSQ, VLQ;
-    float storeRate;
 
     int blockCycles;
     int blockedCycles;
@@ -665,8 +649,22 @@ class DefaultRename : public SlotCounter<Impl>
 
   private:
 
-    int VIQ, VROB;
-    int maxROB, maxIQ, maxLQ, maxSQ;
+    int VROB[Impl::MaxThreads];
+    int maxROB;
+
+    std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
+    std::array<int, Impl::MaxThreads> squashedThisCycle;
+
+    std::queue<Tick> skidInstTick[Impl::MaxThreads];
+    std::queue<Tick> skidSlotTick[Impl::MaxThreads];
+
+    SlotConsumer<Impl> slotConsumer;
+
+    std::array<bool, Impl::MaxThreads> finishSerialize;
+
+    void clearLocalSignals();
+    std::array<bool, Impl::MaxThreads> tailSI;
+    std::array<bool, Impl::MaxThreads> tailSINext;
 
 };
 

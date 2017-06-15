@@ -16,7 +16,7 @@ struct MissEntry {
 
     MissEntry(ThreadID _tid, int32_t level, uint64_t sn, Tick t,
             bool r)
-        : tid(std::move(_tid)), cacheLevel(std::move(level)),
+        : tid(std::move(_tid)), cacheLevel((int16_t) level),
         seqNum(sn), startTick(std::move(t)), isLoad(std::move(r)) {}
 };
 
@@ -36,6 +36,20 @@ struct MissStat {
 };
 
 extern MissStat missStat;
+
+bool inMissTable(MissTable &mt, uint64_t sn);
+
+bool isMiss(uint64_t sn);
+
+enum MemAccessType {
+    MemLoad,
+    MemStore,
+    NotCare,
+};
+
+bool isSpecifiedMiss(uint64_t sn, int16_t cacheLevel, MemAccessType mat);
+
+bool isDCacheInterference(ThreadID tid, uint64_t sn);
 
 
 #endif // __MISS_TABLE_H_

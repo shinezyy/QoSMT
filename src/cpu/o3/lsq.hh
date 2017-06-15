@@ -46,6 +46,7 @@
 
 #include <map>
 #include <queue>
+#include <array>
 
 #include "base/statistics.hh"
 #include "cpu/o3/lsq_unit.hh"
@@ -392,6 +393,27 @@ class LSQ {
 
     const unsigned hptInitLQPriv;
     const unsigned hptInitSQPriv;
+
+    void incVLQ(ThreadID tid, float num) {
+        thread[tid].incVLQ(num);
+    }
+    void incVSQ(ThreadID tid, float num) {
+        thread[tid].incVSQ(num);
+    }
+
+    bool VLQFull(ThreadID tid) {
+        return thread[tid].VLQFull();
+    }
+    bool VSQFull(ThreadID tid) {
+        return thread[tid].VSQFull();
+    }
+
+    float getVLQ(ThreadID tid) {
+        return thread[tid].VLQ;
+    }
+    float getVSQ(ThreadID tid) {
+        return thread[tid].VSQ;
+    }
 };
 
 template <class Impl>

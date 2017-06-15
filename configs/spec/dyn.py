@@ -227,12 +227,13 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    cpu.max_insts_hpt_thread = 200*(10**6)
+    #cpu.max_insts_hpt_thread = 200*(10**6)
+    cpu.max_insts_hpt_thread = 5*(10**6)
 
-    cpu.dumpWindowSize = (10**3)*10000
+    cpu.dumpWindowSize = 1*(10**6)
     cpu.policyWindowSize = (10**3)*20
 
-    cpu.expectedSlowdown = 1 * 1024 / 10 # 0~1024, lower -> higher qos
+    cpu.expectedQoS = 0 * 1024 / 100
     cpu.fullThreshold = 64 # 0~1024: lower -> more strict -> higher qos
 
     cpu.LQEntries = 64

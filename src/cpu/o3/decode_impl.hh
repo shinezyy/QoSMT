@@ -57,6 +57,7 @@
 #include "debug/LB.hh"
 #include "debug/Pard.hh"
 #include "debug/InstPass.hh"
+#include "debug/DecodeBreakdown.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/full_system.hh"
 
@@ -73,7 +74,7 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
       commitToDecodeDelay(params->commitToDecodeDelay),
       fetchToDecodeDelay(params->fetchToDecodeDelay),
       decodeWidth(params->decodeWidth),
-      numThreads(params->numThreads),
+      numThreads((ThreadID) params->numThreads),
       BLBlocal(false),
       sampleLen(params->sampleLen)
 {
@@ -83,11 +84,14 @@ DefaultDecode<Impl>::DefaultDecode(O3CPU *_cpu, DerivO3CPUParams *params)
              decodeWidth, static_cast<int>(Impl::MaxWidth));
 
     // @todo: Make into a parameter
-    skidBufferMax = (fetchToDecodeDelay + 1) *  params->fetchWidth;
-    bzero((void *) storeSample, sizeof(int) * sampleLen);
-    storeRate = 0.0;
-    numStores = 0;
-    storeIndex = 0;
+    skidBufferMax = (unsigned)fetchToDecodeDelay + 1;
+
+    for (int i = LDST::load; i < LDST::NumType; i++) {
+        bzero((void *) ldstSample[i], sizeof(int) * sampleLen);
+        ldstRate[i] = 0;
+        ldstNum[i] = 0;
+        ldstIndex[i] = 0;
+    }
 }
 
 template<class Impl>
@@ -181,9 +185,9 @@ DefaultDecode<Impl>::setTimeBuffer(TimeBuffer<TimeStruct> *tb_ptr)
     toFetch = timeBuffer->getWire(0);
 
     // Create wires to get information from proper places in time buffer.
-    fromRename = timeBuffer->getWire(-renameToDecodeDelay);
-    fromIEW = timeBuffer->getWire(-iewToDecodeDelay);
-    fromCommit = timeBuffer->getWire(-commitToDecodeDelay);
+    fromRename = timeBuffer->getWire(- (int) renameToDecodeDelay);
+    fromIEW = timeBuffer->getWire(- (int) iewToDecodeDelay);
+    fromCommit = timeBuffer->getWire(- (int) commitToDecodeDelay);
 }
 
 template<class Impl>
@@ -203,7 +207,7 @@ DefaultDecode<Impl>::setFetchQueue(TimeBuffer<FetchStruct> *fq_ptr)
     fetchQueue = fq_ptr;
 
     // Setup wire to read information from fetch queue.
-    fromFetch = fetchQueue->getWire(-fetchToDecodeDelay);
+    fromFetch = fetchQueue->getWire(- (int) fetchToDecodeDelay);
 }
 
 template<class Impl>
@@ -313,6 +317,7 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
 {
     DPRINTF(Decode, "[tid:%i]: [sn:%i] Squashing due to incorrect branch "
             "prediction detected at decode.\n", tid, inst->seqNum);
+    squashedThisCycle[tid] = true;
 
     // Send back mispredict information.
     toFetch->decodeInfo[tid].branchMispredict = true;
@@ -353,7 +358,29 @@ DefaultDecode<Impl>::squash(DynInstPtr &inst, ThreadID tid)
     }
 
     while (!skidBuffer[tid].empty()) {
+        if (!skidBuffer[tid].front().empty()) {
+            DPRINTF(DecodeBreakdown, "Squash sn[%lli] from skidbuffer of T[%i]\n",
+                    skidBuffer[tid].front().front()->seqNum, tid);
+        }
+
+#if 0
+        InstRow &popped = skidBuffer[tid].front();
+        while (!popped.empty()) {
+            DynInstPtr inst = popped.front();
+            DPRINTFR(DecodeBreakdown, "sn[%i] ", inst->seqNum);
+            popped.pop();
+        }
+
+        DPRINTFR(DecodeBreakdown, "\nSquashed------------------\n");
+#endif
+
         skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
+    }
+
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     // Squash instructions up until this one
@@ -365,6 +392,7 @@ unsigned
 DefaultDecode<Impl>::squash(ThreadID tid)
 {
     DPRINTF(Decode, "[tid:%i]: Squashing.\n",tid);
+    squashedThisCycle[tid] = true;
 
     if (decodeStatus[tid] == Blocked ||
         decodeStatus[tid] == Unblocking) {
@@ -404,7 +432,29 @@ DefaultDecode<Impl>::squash(ThreadID tid)
     }
 
     while (!skidBuffer[tid].empty()) {
+        if (!skidBuffer[tid].front().empty()) {
+            DPRINTF(DecodeBreakdown, "Squash sn[%lli] from skidbuffer of T[%i]\n",
+                    skidBuffer[tid].front().front()->seqNum, tid);
+        }
+
+#if 0
+        InstRow &popped = skidBuffer[tid].front();
+        while (!popped.empty()) {
+            DynInstPtr inst = popped.front();
+            DPRINTFR(DecodeBreakdown, "sn[%i] ", inst->seqNum);
+            popped.pop();
+        }
+
+        DPRINTF(DecodeBreakdown, "\nSquashed------------------\n");
+#endif
+
         skidBuffer[tid].pop();
+        skidInstTick[tid].pop();
+    }
+
+    while (!skidSlotBuffer[tid].empty()) {
+        skidSlotBuffer[tid].pop();
+        skidSlotTick[tid].pop();
     }
 
     return squash_count;
@@ -414,29 +464,28 @@ template<class Impl>
 void
 DefaultDecode<Impl>::skidInsert(ThreadID tid)
 {
-    DynInstPtr inst = NULL;
+    if (insts[tid].size() > 0) {
+        DPRINTF(DecodeBreakdown, "Inserting sn[%lli] into skidbuffer of T[%i]\n",
+                insts[tid].front()->seqNum, tid);
+        skidBuffer[tid].push(insts[tid]);
+        skidInstTick[tid].push(curTick());
 
-    while (!insts[tid].empty()) {
-        inst = insts[tid].front();
-
-        insts[tid].pop();
-
-        assert(tid == inst->threadNumber);
-
-        /**这条指令即将被阻塞，说明它提前到达此阶段也无法提前被处理*/
-        if (inst->getWaitSlot() > 0 && !skidBuffer[tid].empty()) {
-            this->reshape(inst);
+        InstRow &popped = insts[tid];
+        while (!popped.empty()) {
+#if 0
+            DynInstPtr inst = popped.front();
+            DPRINTFR(DecodeBreakdown, "sn[%i] ", inst->seqNum);
+#endif
+            popped.pop();
         }
 
-        skidBuffer[tid].push(inst);
+        DPRINTFR(DecodeBreakdown, "\nInserted------------------\n");
 
-        DPRINTF(Decode,"Inserting [tid:%d][sn:%lli] PC: %s into decode skidBuffer %i\n",
-                inst->threadNumber, inst->seqNum, inst->pcState(), skidBuffer[tid].size());
+
+        skidSlotBuffer[tid].push(fromFetch->slotPass);
+        skidSlotTick[tid].push(curTick());
+        assert(skidBuffer[tid].size() <= skidBufferMax);
     }
-
-    // @todo: Eventually need to enforce this by not letting a thread
-    // fetch past its skidbuffer
-    assert(skidBuffer[tid].size() <= skidBufferMax);
 }
 
 template<class Impl>
@@ -585,6 +634,8 @@ DefaultDecode<Impl>::tick()
 
     toRenameIndex = 0;
     std::fill(toRenameNum.begin(), toRenameNum.end(), 0);
+    std::fill(squashedThisCycle.begin(), squashedThisCycle.end(), false);
+    std::fill(numSquashedThisCycle.begin(), numSquashedThisCycle.end(), 0);
 
     list<ThreadID>::iterator threads = activeThreads->begin();
     list<ThreadID>::iterator end = activeThreads->end();
@@ -611,24 +662,30 @@ DefaultDecode<Impl>::tick()
         cpu->activityThisCycle();
     }
 
-    passLB(HPT);
-
-    toRename->storeRate = storeRate;
-
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
         if (toRenameNum[tid]) {
-            DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid, toRenameNum[tid]);
+            DPRINTF(InstPass, "T[%i] send %i insts to Rename\n", tid,
+                    toRenameNum[tid]);
         }
     }
+
+    passLB(HPT);
+
+    if (this->countSlot(HPT, SlotsUse::Base) != toRenameNum[HPT]) {
+        this->printSlotRow(this->slotUseRow[HPT], decodeWidth);
+        panic("Slots [%i] and Insts [%i] are not coherence!\n",
+                this->countSlot(HPT, SlotsUse::Base), toRenameNum[HPT]);
+    }
+    toRename->slotPass = this->slotUseRow[HPT];
+
+    toRename->loadRate = ldstRate[LDST::load];
+    toRename->storeRate = ldstRate[LDST::store];
 
     if (this->checkSlots(HPT)) {
         this->sumLocalSlots(HPT);
     }
 
-    if (toRenameNum[HPT]) {
-        this->assignSlots(HPT, getHeadInst(HPT));
-    }
-    DPRINTF(Pard, "Index of cur cycles: %i\n", storeIndex);
+    // DPRINTF(Pard, "Index of cur cycles: %i\n", storeIndex);
 }
 
 template<class Impl>
@@ -645,15 +702,12 @@ DefaultDecode<Impl>::decode(bool &status_change, ThreadID tid)
     if (decodeStatus[tid] == Blocked) {
         ++decodeBlockedCycles;
         ++threadDecodeBlockedCycles[tid];
-        DPRINTF(Pard, "Index not move: %i\n", storeIndex);
+        //DPRINTF(Pard, "Index not move: %i\n", storeIndex);
     } else if (decodeStatus[tid] == Squashing) {
         ++decodeSquashCycles;
 
         if (HPT == tid) {
-            numStores -= storeSample[storeIndex];
-            storeSample[storeIndex] = 0;
-            storeIndex = (storeIndex + 1)%sampleLen;
-            storeRate = ((float) numStores)/((float)sampleLen);
+            noLoadStoreThisCycle();
         }
     }
 
@@ -692,8 +746,19 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 {
     // Instructions can come either from the skid buffer or the list of
     // instructions coming from fetch, depending on decode's status.
-    int insts_available = decodeStatus[tid] == Unblocking ?
-        skidBuffer[tid].size() : insts[tid].size();
+
+    int skid_size = 0;
+    if (skidBuffer[tid].size() != 0) {
+        skid_size = skidBuffer[tid].front().size();
+        if (skid_size <= 0) {
+            DPRINTF(DecodeBreakdown, "T[%i]'s skidBuffer has empty row\n", tid);
+            panic("T[%i]'s skidBuffer has empty row\n", tid);
+        }
+    }
+
+    int insts_available =
+            decodeStatus[tid] == Unblocking ?
+            skid_size : (int) insts[tid].size();
 
     if (insts_available == 0) {
         DPRINTF(Decode, "[tid:%u] Nothing to do, breaking out"
@@ -702,10 +767,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
         ++decodeIdleCycles;
 
         if (HPT == tid) {
-            numStores -= storeSample[storeIndex];
-            storeSample[storeIndex] = 0;
-            storeIndex = (storeIndex + 1)%sampleLen;
-            storeRate = ((float) numStores)/((float) sampleLen);
+            noLoadStoreThisCycle();
         }
         return;
     } else if (decodeStatus[tid] == Unblocking) {
@@ -717,15 +779,27 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
     }
 
     if (HPT == tid) {
-        numStores -= storeSample[storeIndex];
-        storeSample[storeIndex] = 0;
+        for (int i = LDST::load; i < LDST::NumType; i++) {
+            ldstNum[i] -= ldstSample[i][ldstIndex[i]];
+            ldstSample[i][ldstIndex[i]] = 0;
+        }
     }
 
     DynInstPtr inst;
 
-    std::queue<DynInstPtr>
-        &insts_to_decode = decodeStatus[tid] == Unblocking ?
-        skidBuffer[tid] : insts[tid];
+    InstRow &insts_to_decode = decodeStatus[tid] == Unblocking ?
+        skidBuffer[tid].front() : insts[tid];
+
+    curCycleRow[tid] = decodeStatus[tid] == Unblocking ?
+            skidSlotBuffer[tid].front() : fromFetch->slotPass;
+
+    if (decodeStatus[tid] == Unblocking) {
+        DPRINTF(DecodeBreakdown, "skid inst tick: %llu, skid slot tick: %llu\n",
+                skidInstTick[tid].front(), skidSlotTick[tid].front());
+        assert(skidInstTick[tid].front() == skidSlotTick[tid].front());
+    }
+
+    ThreadStatus old_status = decodeStatus[tid];
 
     DPRINTF(Decode, "[tid:%u]: Sending instruction to rename.\n",tid);
 
@@ -745,6 +819,7 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
                     tid, inst->seqNum, inst->pcState());
 
             ++decodeSquashedInsts;
+            ++numSquashedThisCycle[tid];
 
             --insts_available;
 
@@ -759,13 +834,21 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
             inst->setCanIssue();
         }
 
+        DPRINTF(DecodeBreakdown, "T[%i] sends instruction [sn:%lli] to Rename\n",
+                tid, inst->seqNum);
+
         // This current instruction is valid, so add it into the decode
         // queue.  The next instruction may not be valid, so check to
         // see if branches were predicted correctly.
         toRename->insts[toRenameIndex] = inst;
 
-        if (inst->isStore() && HPT == tid) {
-            storeSample[storeIndex]++;
+        if (HPT == tid) {
+            if (inst->isStore()) {
+                ldstSample[LDST::store][ldstIndex[LDST::store]]++;
+            }
+            if (inst->isLoad()) {
+                ldstSample[LDST::load][ldstIndex[LDST::load]]++;
+            }
         }
 
         ++(toRename->size);
@@ -817,15 +900,26 @@ DefaultDecode<Impl>::decodeInsts(ThreadID tid)
 
 
     if (HPT == tid) {
-        numStores += storeSample[storeIndex];
-        storeIndex = (storeIndex + 1)%sampleLen;
-        storeRate = ((float) numStores)/((float)sampleLen);
+        for (int i = LDST::load; i < LDST::NumType; i++) {
+            ldstNum[i] += ldstSample[i][ldstIndex[i]];
+            ldstIndex[i] = (ldstIndex[i] + 1) % sampleLen;
+            ldstRate[i] = ((float) ldstNum[i]) / ((float) sampleLen);
+        }
     }
 
     // If we didn't process all instructions, then we will need to block
     // and put all those instructions into the skid buffer.
-    if (!insts_to_decode.empty()) {
-        block(tid);
+    if (!squashedThisCycle[tid]) {
+        if (!insts_to_decode.empty()) {
+            block(tid);
+        }
+        if (insts_to_decode.empty() && old_status == Unblocking) {
+            DPRINTF(DecodeBreakdown, "Pop empty row from skidbuffer of T[%i]\n", tid);
+            skidBuffer[tid].pop();
+            skidInstTick[tid].pop();
+            skidSlotBuffer[tid].pop();
+            skidSlotTick[tid].pop();
+        }
     }
 
     // Record that decode has written to the time buffer for activity
@@ -839,68 +933,97 @@ template <class Impl>
 void
 DefaultDecode<Impl>::passLB(ThreadID tid)
 {
-    switch(decodeStatus[tid]) {
-        case(Blocked):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toFetch->decodeInfo[tid].BLB = fromRename->renameInfo[tid].BLB;
-            if (toFetch->decodeInfo[tid].BLB) {
-                DPRINTF(LB, "Forward BLB from Rename to Fetch\n");
-            }
+    toFetch->decodeInfo[tid].BLB = fromRename->renameInfo[tid].BLB;
 
-            if (fromFetch->frontEndMiss) {
-                this->incLocalSlots(tid, InstMiss, decodeWidth);
-            } else if (fromRename->renameInfo[tid].BLB){
-                this->incLocalSlots(tid, LaterWait, decodeWidth);
-            } else {
-                this->incLocalSlots(tid, LaterMiss, decodeWidth);
-            }
-
-            break;
-
-        case(StartSquash):
-        case(Squashing):
-            toRename->frontEndMiss = true;
-            toFetch->decodeInfo[tid].BLB = false;
-            DPRINTF(LB, "No BLB because of Squashign\n");
-
-            this->incLocalSlots(tid, InstMiss, decodeWidth);
-            break;
-
-        case(Running):
-        case(Idle):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toFetch->decodeInfo[tid].BLB = false;
-
-            assert(!fromRename->renameInfo[tid].BLB);
-
-            if (toRenameNum[tid]) {
+    if (toRenameNum[tid] > 0) {
+        if (!squashedThisCycle[tid]) {
+            if (toRenameNum[tid] < decodeWidth) {
                 this->incLocalSlots(tid, Base, toRenameNum[tid]);
-                this->incLocalSlots(tid, InstMiss,
-                        decodeWidth - toRenameNum[tid]);
+
+                int cursor = 0, i = 0;
+                while (curCycleRow[tid][cursor] == SlotsUse::Referenced) {
+                    cursor++;
+                }
+
+                if (decodeStatus[tid] == Blocked) {
+                    //一定是因为另一个线程占用了decodeWidth
+                    for (; i < toRenameNum[tid]; i++) {
+                        assert(skidSlotBuffer[tid].front()[cursor+i] == Base);
+                        skidSlotBuffer[tid].front()[cursor+i] = SlotsUse::Referenced;
+                    }
+                    this->incLocalSlots(tid, SlotsUse::WidthWait,
+                            decodeWidth - toRenameNum[tid]);
+                } else {
+                    for (; i < toRenameNum[tid]; i++);
+                    if (cursor > 0) {
+                        this->incLocalSlots(tid, SlotsUse::SplitWait, cursor);
+                    }
+                    for (; cursor + i < decodeWidth; i++) {
+                        if (curCycleRow[tid][cursor+i] == SlotsUse::Base) {
+                            assert(numSquashedThisCycle[tid]-- > 0);
+                            this->incLocalSlots(tid, SlotsUse::SquashMiss, 1);
+                        } else {
+                            this->incLocalSlots(tid, curCycleRow[tid][cursor+i], 1);
+                        }
+                    }
+                }
             } else {
-                this->incLocalSlots(tid, InstMiss, decodeWidth);
+                this->incLocalSlots(tid, SlotsUse::Base, decodeWidth);
             }
 
-            break;
-
-        case(Unblocking):
-            toRename->frontEndMiss = fromFetch->frontEndMiss;
-            toFetch->decodeInfo[tid].BLB = BLBlocal;
-
-            assert(!fromRename->renameInfo[tid].BLB);
-
-            if (toRenameNum[tid]) {
-                this->incLocalSlots(tid, Base, toRenameNum[tid]);
-                this->incLocalSlots(tid, InstMiss,
-                        decodeWidth - toRenameNum[tid]);
+            assert(toRenameNum[tid] == this->perCycleSlots[tid][Base]);
+        } else {
+            this->incLocalSlots(tid, SlotsUse::Base, toRenameNum[tid]);
+            this->incLocalSlots(tid, SlotsUse::SquashMiss,
+                    decodeWidth - toRenameNum[tid]);
+        }
+    } else {
+        if (decodeStatus[tid] == Blocked) {
+            if (stalls[tid].rename) {
+                if (fromRename->renameInfo[tid].BLB) {
+                    this->incLocalSlots(tid, SlotsUse::LaterWait, decodeWidth);
+                } else {
+                    this->incLocalSlots(tid, SlotsUse::LaterMiss, decodeWidth);
+                }
             } else {
-                this->incLocalSlots(tid, InstMiss, decodeWidth);
+                if (toRenameNum[this->another(tid)] > 0) {
+                    this->incLocalSlots(tid, SlotsUse::WidthWait, decodeWidth);
+                } else {
+                    assert(0 && "Unknow condition\n");
+                }
             }
 
-            if (BLBlocal) {
-                DPRINTF(LB, "Send BLB to Fetch because of BLBlocal\n");
+        } else {
+            assert(decodeStatus[tid] != Unblocking);
+            // 如果是unblocking，那么skidBuffer中一定有指令
+            bool intrinsic_miss = decodeStatus[tid] == Squashing;
+
+            if (intrinsic_miss) {
+                this->incLocalSlots(tid, SlotsUse::SquashMiss, decodeWidth);
+            } else {
+                assert(decodeStatus[tid] == Running || decodeStatus[tid] == Idle);
+
+                for (int i = 0; i < decodeWidth; i++) {
+                    if (fromFetch->slotPass[i] == SlotsUse::Base) {
+                        assert(numSquashedThisCycle[tid]-- > 0);
+                        this->incLocalSlots(tid, SlotsUse::SquashMiss, 1);
+                    } else {
+                        this->incLocalSlots(tid, fromFetch->slotPass[i], 1);
+                    }
+                }
             }
-            break;
+        }
+    }
+}
+
+template <class Impl>
+void
+DefaultDecode<Impl>::noLoadStoreThisCycle() {
+    for (int i = LDST::load; i < LDST::NumType; i++) {
+        ldstNum[i] -= ldstSample[i][ldstIndex[i]];
+        ldstSample[i][ldstIndex[i]] = 0;
+        ldstIndex[i] = (ldstIndex[i] + 1) % sampleLen;
+        ldstRate[i] = ((float) ldstNum[i]) / ((float) sampleLen);
     }
 }
 
