@@ -228,9 +228,9 @@ else:
 
 for cpu in system.cpu:
     #cpu.max_insts_hpt_thread = 200*(10**6)
-    cpu.max_insts_hpt_thread = 1*(10**6)
+    cpu.max_insts_hpt_thread = 5*(10**6)
 
-    cpu.dumpWindowSize = (10**3)*10000
+    cpu.dumpWindowSize = 1*(10**6)
     cpu.policyWindowSize = (10**3)*20
 
     cpu.expectedQoS = 0 * 1024 / 100

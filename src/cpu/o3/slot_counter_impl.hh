@@ -88,6 +88,9 @@ SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
         std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), NotInitiated);
         std::fill(slotUseRow[tid].begin(), slotUseRow[tid].end(), NotInitiated);
         slotIndex[tid] = 0;
+        curCycleBase[tid] = 0;
+        curCycleMiss[tid] = 0;
+        curCycleWait[tid] = 0;
     }
 }
 
@@ -163,6 +166,9 @@ template <class Impl>
 void
 SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
 {
+    curCycleMiss[tid] = 0;
+    curCycleWait[tid] = 0;
+
     for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
         curCycleMiss[tid] += perCycleSlots[tid][*it];
     }
