@@ -190,7 +190,7 @@ public:
      */
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
                           int context_src, int *inCache);
-
+    CacheBlk* accessShadowtag(Addr addr);
     /**
      * Just a wrapper of above function to conform with the base interface.
      */

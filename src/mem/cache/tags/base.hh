@@ -200,7 +200,7 @@ class BaseTags : public ClockedObject
 
     virtual CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
                                   int context_src) = 0;
-
+    virtual CacheBlk* accessShadowtag(Addr addr) = 0;
     virtual Addr extractTag(Addr addr) const = 0;
 
     virtual void insertBlock(PacketPtr pkt, CacheBlk *blk) = 0;
