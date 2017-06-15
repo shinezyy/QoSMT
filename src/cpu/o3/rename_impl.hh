@@ -88,7 +88,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       availableInstCount(0),
       BLBlocal(false),
       blockCycles(0),
-      maxROB(params->numROBEntries),
       slotConsumer (params, params->renameWidth, name())
 {
     if (renameWidth > Impl::MaxWidth)
@@ -330,6 +329,7 @@ DefaultRename<Impl>::resetStage()
         storesInProgress[tid] = 0;
 
         serializeOnNextInst[tid] = false;
+        VROBFull[tid] = false;
     }
     clearFull();
 }
@@ -1104,7 +1104,6 @@ DefaultRename<Impl>::unblock(ThreadID tid)
         DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] switched to Running.\n", tid);
         renameStatus[tid] = Running;
 
-        VROB[tid] = 0;
         return true;
     }
     DPRINTF(RenameBreakdown, "Rename Status of Thread [%u] unchanged.\n", tid);
@@ -1475,20 +1474,6 @@ DefaultRename<Impl>::checkStall(ThreadID tid)
         fullSource[tid] = SlotConsm::ROB;
         ret_val = true;
 
-        if (VROB[tid] == 0) {
-            assert(ROBHead[tid] || busyEntries[tid].robEntries == 0);
-            if (!ROBHead[tid]) {
-                VROB[tid] = 0;
-            } else if (!ROBHead[tid]->vqGenerated) {
-                VROB[tid] = calcOwnROBEntries(tid);
-                ROBHead[tid]->vqGenerated = true;
-            } else {
-                VROB[tid] = maxROB;
-            }
-        }
-        if (VROB[tid] < maxROB && ROBHead[tid]) {
-            VROB[tid] += renameWidth;
-        }
         if (tid == HPT) {
             DPRINTF(RenameBreakdown, "HPT stall because no ROB.\n");
         }
@@ -1538,6 +1523,7 @@ DefaultRename<Impl>::readFreeEntries(ThreadID tid)
         maxEntries[tid].robEntries = fromCommit->commitInfo[tid].maxROBEntries;
         busyEntries[tid].robEntries = fromCommit->commitInfo[tid].busyROBEntries;
         ROBHead[tid] = fromCommit->commitInfo[tid].ROBHead;
+        VROBFull[tid] = fromCommit->commitInfo[tid].VROBFull;
     }
 
     LQHead[tid] = fromIEW->iewInfo[tid].LQHead;
@@ -1817,8 +1803,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
     }
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
-            VROB[tid] >= maxROB ?
-            VQState::VQFull : VQState::VQNotFull;
+            VROBFull[tid] ? VQState::VQFull : VQState::VQNotFull;
 
     toIEW->loadRate = fromDecode->loadRate;
     toIEW->storeRate = fromDecode->storeRate;

@@ -47,6 +47,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <array>
 
 #include "arch/registers.hh"
 #include "base/types.hh"
@@ -417,6 +418,12 @@ class ROB
     unsigned sampleRate;
 
     const unsigned hptInitPriv;
+
+    std::array<float, Impl::MaxThreads> VROB;
+
+    void incVROB(ThreadID tid, int num);
+
+    bool VROBFull(ThreadID tid);
 };
 
 #endif //__CPU_O3_ROB_HH__

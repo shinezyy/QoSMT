@@ -447,7 +447,7 @@ InstructionQueue<Impl>::resetState()
     //Initialize thread IQ counts
     for (ThreadID tid = 0; tid <numThreads; tid++) {
         count[tid] = 0;
-        VIQ[tid] = 0;
+        VIQ[tid] = 0.0;
         instList[tid].clear();
         if (maxEntriesUpToDate) { // no portion assigned
             portion[tid] = denominator / numThreads;
@@ -774,7 +774,7 @@ InstructionQueue<Impl>::insert(DynInstPtr &new_inst)
     ++iqInstsAddedPerThread[new_inst->threadNumber];
 
     count[new_inst->threadNumber]++;
-    VIQ[new_inst->threadNumber]++;
+    VIQ[new_inst->threadNumber] = std::min(VIQ[new_inst->threadNumber] + 1, (float) numEntries);
 
     assert(freeEntries == (numEntries - countInsts()));
 }
@@ -816,7 +816,7 @@ InstructionQueue<Impl>::insertNonSpec(DynInstPtr &new_inst)
     ++iqNonSpecInstsAdded;
 
     count[new_inst->threadNumber]++;
-    VIQ[new_inst->threadNumber]++;
+    VIQ[new_inst->threadNumber] = std::min(VIQ[new_inst->threadNumber] + 1, (float) numEntries);
 
     assert(freeEntries == (numEntries - countInsts()));
 }
@@ -1052,8 +1052,8 @@ InstructionQueue<Impl>::scheduleReadyInsts()
                 // Memory instructions can not be freed from the IQ until they
                 // complete.
                 ++freeEntries;
+                VIQ[tid] = std::max(VIQ[tid] - VIQ[tid]/count[tid], (float) 0.0);
                 count[tid]--;
-                VIQ[tid] -= VIQ[tid]/count[tid];
                 issuing_inst->clearInIQ();
             } else {
                 memDepUnit[tid].issue(issuing_inst);
@@ -1269,8 +1269,8 @@ InstructionQueue<Impl>::completeMemInst(DynInstPtr &completed_inst)
     completed_inst->memOpDone(true);
 
     memDepUnit[tid].completed(completed_inst);
+    VIQ[tid] = std::max(VIQ[tid] - VIQ[tid]/count[tid], (float) 0.0);
     count[tid]--;
-    VIQ[tid] -= VIQ[tid]/count[tid];
 }
 
 template <class Impl>
@@ -1462,8 +1462,8 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
 
             //Update Thread IQ Count
             assert(squashed_inst->threadNumber == tid);
+            VIQ[tid] = std::max(VIQ[tid] - VIQ[tid]/count[tid], (float) 0.0);
             count[squashed_inst->threadNumber]--;
-            VIQ[tid] -= VIQ[tid]/count[tid];
 
             ++freeEntries;
         }

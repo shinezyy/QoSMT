@@ -649,9 +649,6 @@ class DefaultRename : public SlotCounter<Impl>
 
   private:
 
-    int VROB[Impl::MaxThreads];
-    int maxROB;
-
     std::array<SlotsUseRow, Impl::MaxThreads> curCycleRow;
     std::array<int, Impl::MaxThreads> squashedThisCycle;
 
@@ -666,6 +663,7 @@ class DefaultRename : public SlotCounter<Impl>
     std::array<bool, Impl::MaxThreads> tailSI;
     std::array<bool, Impl::MaxThreads> tailSINext;
 
+    std::array<bool, Impl::MaxThreads> VROBFull;
 };
 
 #endif // __CPU_O3_RENAME_HH__

@@ -290,6 +290,8 @@ struct TimeBufStruct {
         unsigned busyROBEntries;
 
         DynInstPtr ROBHead;
+
+        bool VROBFull;
     };
 
     commitComm commitInfo[Impl::MaxThreads];
