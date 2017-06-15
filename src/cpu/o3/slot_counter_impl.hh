@@ -164,12 +164,16 @@ void
 SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
 {
     for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
-        miss[tid] += perCycleSlots[tid][*it];
+        curCycleMiss[tid] += perCycleSlots[tid][*it];
     }
+    miss[tid] += curCycleMiss[tid];
 
     for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
-        wait[tid] += perCycleSlots[tid][*it];
+        curCycleWait[tid] += perCycleSlots[tid][*it];
     }
+    wait[tid] += curCycleWait[tid];
+
+    curCycleBase[tid] = perCycleSlots[tid][SlotsUse::Base];
 
     std::fill(perCycleSlots[tid].begin(), perCycleSlots[tid].end(), 0);
 

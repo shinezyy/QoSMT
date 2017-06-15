@@ -1744,7 +1744,11 @@ DefaultIEW<Impl>::tick()
     if (this->checkSlots(HPT)) {
         //only inst miss should be counted
         this->sumLocalSlots(HPT);
+        fmt->incBaseDirect(HPT, this->curCycleBase[HPT]);
+        fmt->incMissDirect(HPT, this->curCycleMiss[HPT]);
+        fmt->incWaitDirect(HPT, this->curCycleWait[HPT], false);
     }
+
 
     if (exeStatus != Squashing) {
         executeInsts();

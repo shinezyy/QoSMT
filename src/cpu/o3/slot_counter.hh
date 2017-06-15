@@ -133,6 +133,8 @@ class SlotCounter
     void printSlotRow(std::array<SlotsUse, Impl::MaxWidth> row, int width);
 
     virtual void dumpStats();
+
+    std::array<int, Impl::MaxThreads> curCycleBase, curCycleWait, curCycleMiss;
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__
