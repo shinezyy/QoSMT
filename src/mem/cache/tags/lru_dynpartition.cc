@@ -51,17 +51,17 @@
 
 
 LRUDynPartition::LRUDynPartition(const Params *p)
-    : BaseSetAssoc(p)
+        : BaseSetAssoc(p)
 {
     assert(numSets <= MAX_NUM_SETS);
     int rationFirst = p->thread_0_assoc;
     for (int i = 0; i < numSets; i++) {
         threadWayRation[i][0] = rationFirst;
         threadWayRation[i][1] = assoc - rationFirst;
-	wayaccount[i][0] = 0;
-	wayaccount[i][1] = 0;
-	invalid_empty[i][0] = 0;
-	invalid_empty[i][1] = 0;
+        wayCount[i][0] = 0;
+        wayCount[i][1] = 0;
+        noInvalid[i][0] = false;
+        noInvalid[i][1] = false;
     }
 
     for (int i = 0; i < numSets; i++) {
@@ -97,69 +97,70 @@ LRUDynPartition::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_
 
     return blk;
 }
+
 CacheBlk*
-LRUDynPartition::accessShadowtag(Addr addr)
+LRUDynPartition::accessShadowTag(Addr addr)
 {
     int set = extractSet(addr);
-    Addr stag = extractTag(addr);
-    BlkType *blk = NULL;
-    int i;
-    for ( i = assoc - 1; i >= 0; i--) {
-        blk = sets[set].blks[i];
-	if ( blk->shadowtag == stag ) break;	
+    Addr tag = extractTag(addr);
+
+    for (int nWay = 0; nWay < assoc; nWay++) {
+        auto blk = sets[set].blks[nWay];
+        if (blk && blk->shadowtag == tag) {
+            return blk;
+        }
     }
-	if (( blk->shadowtag != stag ) & ( i == 0 )) {
-	blk = NULL; 
-    }
-    return blk;
+    return NULL;
 }
+
 CacheBlk*
 LRUDynPartition::findVictim(Addr addr)
 {
     assert(curThreadID >= 0);
     int set = extractSet(addr);
-    Addr stag = extractTag(addr); // prepare to store the shadow tag 
+    Addr tag = extractTag(addr); // prepare to store the shadow tag
     // grab a replacement candidate
     BlkType *blk = NULL;
-    if ((threadWayRation[set][curThreadID] > wayaccount[set][curThreadID]) & (~invalid_empty[set][curThreadID])) {  // find invlaid ones
+
+    if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
+        && (!noInvalid[set][curThreadID])) {  // find invlaid ones
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
             if (blk->threadID == -1) {
-          	break;
+                break;
             }
         }
 
         // Consume ration in invalid cases.
         // This has pityfalls when performing cache coherence.
         // But we don't care that now.
-        //assert(i >= 0);
-        wayaccount[set][curThreadID]++;
-        blk->threadID = curThreadID;
-	if (threadWayRation[set][curThreadID] == wayaccount[set][curThreadID]) {
-	   invalid_empty[set][curThreadID] = 1;
-	}
-	if (curThreadID == 0) {
-	   blk->shadowtag = stag;
-	}
-      }
-     else if ((threadWayRation[set][curThreadID] > wayaccount[set][curThreadID]) & (invalid_empty[set][curThreadID])) { // find victim after new allocation     
+        wayCount[set][curThreadID]++;
+        assert(blk);
+        blk->threadID = (ThreadID) curThreadID;
+        if (threadWayRation[set][curThreadID] == wayCount[set][curThreadID]) {
+            noInvalid[set][curThreadID] = true;
+        }
+        if (curThreadID == 0) {
+            blk->shadowtag = tag;
+        }
+    } else if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
+             && (noInvalid[set][curThreadID])) { // find victim after new allocation
         for (int i = assoc - 1; i >= 0; i--) {
-	       blk = sets[set].blks[i];
-               if (blk->threadID != curThreadID) break;
-	}
-        assert(i >= 0);
-        blk->threadID = curThreadID;
-        wayaccount[set][curThreadID]++;
-        wayaccount[set][1-curThreadID]--;
-        assert(wayaccount[set][curThreadID] <= assoc);  
-	assert(wayaccount[set][curThreadID] >= 0);
-        assert(wayaccount[set][1 - curThreadID] <= assoc);  
-	assert(wayaccount[set][1 - curThreadID] >= 0);
-	if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-	   blk->shadowtag = stag;
-	}
-    }
-    else {  // find last used line inside its own ways.
+            blk = sets[set].blks[i];
+            if (blk->threadID != curThreadID) break;
+        }
+        assert(blk);
+        blk->threadID = (ThreadID) curThreadID;
+        wayCount[set][curThreadID]++;
+        wayCount[set][1-curThreadID]--;
+        assert(wayCount[set][curThreadID] <= assoc);
+        assert(wayCount[set][curThreadID] >= 0);
+        assert(wayCount[set][1 - curThreadID] <= assoc);
+        assert(wayCount[set][1 - curThreadID] >= 0);
+        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
+            blk->shadowtag = tag;
+        }
+    } else {  // find last used line inside its own ways.
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
             if (blk->threadID == curThreadID) break;
@@ -168,12 +169,10 @@ LRUDynPartition::findVictim(Addr addr)
         DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
                 set, regenerateBlkAddr(blk->tag, set));
         if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-           blk->shadowtag = stag;
+            blk->shadowtag = tag;
         }
     }
-
     assert(threadWayRation[set][curThreadID] >= 0);
-
     return blk;
 }
 
@@ -198,18 +197,18 @@ LRUDynPartition::invalidate(CacheBlk *blk)
     // should be evicted before valid blocks
     int set = blk->set;
     sets[set].moveToTail(blk);
-    invalid_empty[set][curThreadID] = 0;  
+    noInvalid[set][curThreadID] = false;
     // Reset block belonging status
     assert(blk->threadID >= 0);
-    wayaccount[set][blk->threadID]--;
+    wayCount[set][blk->threadID]--;
     blk->threadID = -1;
 }
-void 
-LRUDynPartition::wayrealloc(ThreadID tid, int waynum)
+void
+LRUDynPartition::wayRealloc(ThreadID tid, int wayNum)
 {
     for (int i = 0; i < numSets; i++) {
-        threadWayRation[i][tid] = waynum ;
-        threadWayRation[i][1-tid] = assoc - waynum ;
+        threadWayRation[i][tid] = wayNum ;
+        threadWayRation[i][1-tid] = assoc - wayNum ;
     }
 }
 LRUDynPartition*

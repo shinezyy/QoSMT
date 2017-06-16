@@ -213,7 +213,7 @@ public:
      * @return Pointer to the cache block if found.
      */
     CacheBlk* findBlock(Addr addr, bool is_secure) const;
-    CacheBlk* accessShadowtag(Addr addr);    
+    CacheBlk* accessShadowTag(Addr addr);
     /**
      * Find an invalid block to evict for the address provided.
      * If there are no invalid blocks, this will return the block

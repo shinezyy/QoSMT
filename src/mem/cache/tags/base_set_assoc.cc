@@ -129,7 +129,7 @@ BaseSetAssoc::findBlock(Addr addr, bool is_secure) const
     return blk;
 }
 CacheBlk*
-BaseSetAssoc::accessShadowtag(Addr addr)
+BaseSetAssoc::accessShadowTag(Addr addr)
 {
     int set = extractSet(addr);
     Addr stag = extractTag(addr);

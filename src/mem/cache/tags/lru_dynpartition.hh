@@ -71,11 +71,17 @@ class LRUDynPartition : public BaseSetAssoc
 
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
                          int context_src);
-    CacheBlk* accessShadowtag(Addr addr);
+
+    CacheBlk* accessShadowTag(Addr addr);
+
     CacheBlk* findVictim(Addr addr);
+
     void insertBlock(PacketPtr pkt, BlkType *blk);
+
     void invalidate(CacheBlk *blk);
-    void wayrealloc(ThreadID tid, int waynum);
+
+    void wayRealloc(ThreadID tid, int wayNum);
+
     void setThread(ThreadID tid) override {
         curThreadID = tid;
     }
@@ -91,8 +97,8 @@ class LRUDynPartition : public BaseSetAssoc
      */
 #define MAX_NUM_SETS 4096
     int threadWayRation[MAX_NUM_SETS][2];
-    int wayaccount[MAX_NUM_SETS][2];
-    int invalid_empty[MAX_NUM_SETS][2];
+    int wayCount[MAX_NUM_SETS][2];
+    bool noInvalid[MAX_NUM_SETS][2];
     int curThreadID;
 };
 

@@ -174,7 +174,7 @@ FALRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int context_src)
 }
 
 CacheBlk*
-FALRU::accessShadowtag(Addr addr)
+FALRU::accessShadowTag(Addr addr)
 {
     return NULL;
 }

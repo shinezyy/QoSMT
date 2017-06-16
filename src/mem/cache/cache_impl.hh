@@ -336,7 +336,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Here lat is the value passed as parameter to accessBlock() function
     // that can modify its value.
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), lat, id);
-    shadowblk = tags->accessShadowtag(pkt->getAddr()); // access the shadow tag
+    shadowblk = tags->accessShadowTag(pkt->getAddr()); // access the shadow tag
     if ((blk == NULL) & (shadowblk != NULL)) {
 	DPRINTF(Cache,"A wait event happened!");
     }
