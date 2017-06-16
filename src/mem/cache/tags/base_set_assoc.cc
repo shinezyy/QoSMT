@@ -108,6 +108,7 @@ BaseSetAssoc::BaseSetAssoc(const Params *p)
             blk->size = blkSize;
             sets[i].blks[j]=blk;
             blk->set = i;
+	    blk->shadowtag = j;
         }
     }
 }
@@ -127,7 +128,22 @@ BaseSetAssoc::findBlock(Addr addr, bool is_secure) const
     BlkType *blk = sets[set].findBlk(tag, is_secure);
     return blk;
 }
-
+CacheBlk*
+BaseSetAssoc::accessShadowTag(Addr addr)
+{
+    int set = extractSet(addr);
+    Addr stag = extractTag(addr);
+    BlkType *blk = NULL;
+    int i;
+    for ( i = assoc - 1; i >= 0; i--) {
+        blk = sets[set].blks[i];
+        if ( blk->shadowtag == stag ) break;
+    }
+        if (( blk->shadowtag != stag ) & ( i == 0 )) {
+        blk = NULL;
+    }
+    return blk;
+}
 void
 BaseSetAssoc::clearLocks()
 {
