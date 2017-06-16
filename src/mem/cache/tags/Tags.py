@@ -74,6 +74,11 @@ class LRUPartition(BaseSetAssoc):
     cxx_class = 'LRUPartition'
     cxx_header = "mem/cache/tags/lru_partition.hh"
 
+class LRUDynPartition(BaseSetAssoc):
+    type = 'LRUDynPartition'
+    cxx_class = 'LRUDynPartition'
+    cxx_header = "mem/cache/tags/lru_dynpartition.hh"
+
 class RandomRepl(BaseSetAssoc):
     type = 'RandomRepl'
     cxx_class = 'RandomRepl'

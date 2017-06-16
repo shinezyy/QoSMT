@@ -87,7 +87,9 @@ class CacheBlk
 
     /** Indicate this block belongs to which thread */
     ThreadID threadID;
-
+    
+    /**HP thread Shadow TAG*/
+    Addr shadowtag; 
     /** The address space ID of this block. */
     int asid;
     /** Data block tag value. */
