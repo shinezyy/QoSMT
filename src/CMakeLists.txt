@@ -132,7 +132,10 @@ set(SOURCE_FILES
         mem/cache/SConscript
         cpu/o3/slot_consume.cc
         cpu/o3/slot_consume_impl.hh
-        cpu/o3/slot_consume.hh)
+        cpu/o3/slot_consume.hh
+        mem/cache/control_panel.cc
+        mem/cache/control_panel.hh
+        mem/cache/miss_descpriptor.hh)
 
 include_directories(.)
 
