@@ -27,7 +27,8 @@ enum SlotsUse {
      * were blocked in earlier stage by LPT
      */
     InstSupWait,
-    ICacheInterference,
+    L1ICacheInterference,
+    L2ICacheInterference,
     FetchSliceWait,
     // Have insts to process , but other thread occupied some dispatchWidth
     WidthWait,
@@ -61,7 +62,8 @@ enum SlotsUse {
     SQWait,
     SQMiss,
     SplitMiss,
-    DCacheInterference,
+    L1DCacheInterference,
+    L2DCacheInterference,
     NumUse
 };
 

@@ -1791,17 +1791,28 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
-    if (ROBHead[tid] && isMiss(ROBHead[tid]->seqNum)) {
-        if (!isDCacheInterference(tid, ROBHead[tid]->seqNum)) {
-            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                    HeadInstrState::DCacheMiss;
-        } else {
-            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                    HeadInstrState::DCacheWait;
-        }
-    } else {
+    MissDescriptor md;
+
+    if (!ROBHead[tid]) {
         slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-            HeadInstrState::Normal;
+                HeadInstrState::Normal;
+    } else {
+        bool isMiss = missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md);
+        if (!isMiss) {
+            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                    HeadInstrState::Normal;
+        } else {
+            // trick
+            if (md.isCacheInterference) {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        static_cast<HeadInstrState>(
+                                HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
+            } else {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        static_cast<HeadInstrState>(
+                                HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
+            }
+        }
     }
 
     slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
@@ -1858,11 +1869,14 @@ DefaultRename<Impl>::missTry()
 
     DPRINTF(missTry, "====== HPT blocked ======!\n");
 
+    MissStat &ms = missTables.missStat;
+
     DPRINTFR(missTry, "Number of pending misses:\n"
             "L2 cache ---- T0: %i, T1: %i;\n"
             "L1 cache ---- T0: %i, T1: %i;\n",
-            missStat.numL2MissLoad[HPT], missStat.numL2MissLoad[LPT],
-            missStat.numL1Miss[HPT], missStat.numL1Miss[LPT]);
+             ms.numL2DataMiss[HPT], ms.numL2DataMiss[LPT],
+             ms.numL1LoadMiss[HPT] + ms.numL1StoreMiss[HPT],
+             ms.numL1LoadMiss[LPT] + ms.numL1StoreMiss[LPT]);
 
     DPRINTFR(missTry, "Queue utilization:\n"
             "ROB: T0 ---- %i,\t T1: %i;\n"
@@ -1921,8 +1935,8 @@ DefaultRename<Impl>::genShadow()
 
     InstSeqNum start = ~0, end = 0;
 
-    for (MissTable::const_iterator it = l2MissTable.begin();
-            it != l2MissTable.end(); it++) {
+    for (MissTable::const_iterator it = missTables.l2MissTable.begin();
+            it != missTables.l2MissTable.end(); it++) {
         if (it->second.cacheLevel == 2 && it->second.tid == HPT) {
             if (it->second.seqNum < start) {
                 start = it->second.seqNum;

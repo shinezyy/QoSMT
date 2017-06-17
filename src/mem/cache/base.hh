@@ -616,7 +616,7 @@ class BaseCache : public MemObject
                     pkt->cmdToIndex() == MemCmd::ReadExReq) {
                     mat = MemAccessType::MemLoad;
                 } else {
-                    MemAccessType::MemStore;
+                    mat = MemAccessType::MemStore;
                 }
             }
 

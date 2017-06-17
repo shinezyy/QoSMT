@@ -1366,7 +1366,8 @@ LSQUnit<Impl>::completeStore(int store_idx)
             VSQ = std::max(VSQ - VSQ/stores, (float) 0.0);
 
             if (stores > 0 && storeQueue[storeHead].inst->comTick) {
-                ThreadID tid = storeQueue[storeHead].inst->threadNumber;
+                // Here usefull codes might have be deleted?
+                // ThreadID tid = storeQueue[storeHead].inst->threadNumber;
             }
 
         } while (storeQueue[storeHead].completed &&

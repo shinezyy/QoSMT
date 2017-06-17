@@ -21,7 +21,8 @@ const char* slotUseStr[] = {
         "NotUsed",
         "InstSupMiss",
         "InstSupWait",
-        "ICacheInterference",
+        "L1ICacheInterference",
+        "L2ICacheInterference",
         "FetchSliceWait",
         "WidthWait",
         "EntryWait",
@@ -44,7 +45,8 @@ const char* slotUseStr[] = {
         "SQWait",
         "SQMiss",
         "SplitMiss",
-        "DCacheInterference",
+        "L1DCacheInterference",
+        "L2DCacheInterference",
 };
 
 std::array<SlotsUse, 11> MissEnums = {
@@ -61,9 +63,10 @@ std::array<SlotsUse, 11> MissEnums = {
         SplitMiss,
 };
 
-std::array<SlotsUse, 13> WaitEnums = {
+std::array<SlotsUse, 15> WaitEnums = {
         InstSupWait,
-        ICacheInterference,
+        L1ICacheInterference,
+        L2ICacheInterference,
         FetchSliceWait,
         WidthWait,
         EntryWait,
@@ -74,7 +77,8 @@ std::array<SlotsUse, 13> WaitEnums = {
         IQWait,
         LQWait,
         SQWait,
-        DCacheInterference,
+        L1DCacheInterference,
+        L2DCacheInterference,
 };
 
     template<class Impl>

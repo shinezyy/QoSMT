@@ -58,7 +58,6 @@
 #include "base/types.hh"
 #include "config/the_isa.hh"
 #include "cpu/base.hh"
-//#include "cpu/checker/cpu.hh"
 #include "cpu/o3/fetch.hh"
 #include "cpu/exetrace.hh"
 #include "debug/Activity.hh"
@@ -73,12 +72,14 @@
 #include "debug/QoSCtrl.hh"
 #include "debug/FetchBreakdown.hh"
 #include "mem/packet.hh"
+#include "mem/cache/miss_table.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/byteswap.hh"
 #include "sim/core.hh"
 #include "sim/eventq.hh"
 #include "sim/full_system.hh"
 #include "sim/system.hh"
+//#include "cpu/checker/cpu.hh"
 
 using namespace std;
 
@@ -1851,10 +1852,24 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
                         this->incLocalSlots(tid, InstSupMiss, fetchWidth);
                     }
                 } else if (cache_miss) {
-                    if (AnotherThreadCauseCurrentMiss(tid)) {
-                        this->incLocalSlots(tid, ICacheInterference, fetchWidth);
-                    } else {
+                    MissDescriptor md;
+                    if (!memReq[tid]) {
+                        // Maybe waitign translation
                         this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                    } else {
+                        Addr address = memReq[tid]->getPaddr();
+                        if (!missTables.isSpecifiedMiss(address, false, md)) {
+                            this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                        } else {
+                            if (md.isCacheInterference) {
+                                this->incLocalSlots(tid,
+                                        static_cast<SlotsUse> (
+                                        L1ICacheInterference + md.missCacheLevel - 1),
+                                        fetchWidth);
+                            } else {
+                                this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                            }
+                        }
                     }
                 } else {
                     this->incLocalSlots(tid, FetchSliceWait, fetchWidth);
@@ -1867,13 +1882,6 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
             this->perCycleSlots[HPT][LaterMiss] == fetchWidth) {
         toDecode->frontEndMiss = true;
     }
-}
-
-template <class Impl>
-bool
-DefaultFetch<Impl>::AnotherThreadCauseCurrentMiss(ThreadID tid)
-{
-    return false;
 }
 
 
