@@ -16,6 +16,7 @@ m5out
 /util/m5/*.a
 /util/m5/m5
 *.txt
+!/src/CMakeLists.txt
 spec_run
 tags
 .clang_complete
