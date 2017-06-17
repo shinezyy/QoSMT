@@ -223,7 +223,7 @@ class BaseCache : public MemObject
         // overlap
         assert(addr == blockAlign(addr));
 
-        MSHR *mshr = mq->allocate(addr, size, pkt, time, order++);
+        MSHR *mshr = mq->allocate(addr, (unsigned int) size, pkt, time, order++);
 
         if (mq->isFull()) {
             setBlocked((BlockedCause)mq->index);
@@ -597,7 +597,7 @@ class BaseCache : public MemObject
 
     virtual bool inMissQueue(Addr addr, bool is_secure) const = 0;
 
-    void incMissCount(PacketPtr pkt)
+    void incMissCount(PacketPtr pkt, bool isInterference)
     {
         assert(pkt->req->threadId() < numThreads);
         misses[pkt->cmdToIndex()][pkt->req->threadId()]++;
@@ -608,47 +608,53 @@ class BaseCache : public MemObject
                 exitSimLoop("A cache reached the maximum miss count");
         }
 
-        if (isDcache && pkt->req->seqNum && pkt->needsResponse()) {
-
-            bool isLoad = pkt->cmdToIndex() == MemCmd::ReadReq ||
-                    pkt->cmdToIndex() == MemCmd::ReadExReq;
+        if (isDCache && pkt->req->seqNum && pkt->needsResponse()) {
+            MemAccessType mat = UnKnown;
+            if (cacheLevel == 1) {
+                //仅L1 cache的访存类型对我们有意义
+                if (pkt->cmdToIndex() == MemCmd::ReadReq ||
+                    pkt->cmdToIndex() == MemCmd::ReadExReq) {
+                    mat = MemAccessType::MemLoad;
+                } else {
+                    MemAccessType::MemStore;
+                }
+            }
 
             DPRINTF(missTry, "T[%i] Add L%i cache miss to miss table,"
                     " requested by [sn:%lli]\n",
                     pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
 
+            ThreadID tid = pkt->req->threadId();
+            missTable->emplace(pkt->getAddr(),
+                               MissEntry{
+                                       tid,
+                                       cacheLevel,
+                                       isInterference,
+                                       mat,
+                                       curTick(),
+                                       pkt->req->seqNum
+                               });
+
+            MissStat &ms = missTables.missStat;
             if (cacheLevel == 1) {
-                l1MissTable.emplace(pkt->req->seqNum,
-                        MissEntry{pkt->req->threadId(), cacheLevel,
-                        pkt->req->seqNum, curTick(), isLoad});
-
-                missStat.numL1Miss[pkt->req->threadId()]++;
-                if (isLoad) {
-                    missStat.numL1MissLoad[pkt->req->threadId()]++;
+                if (isDCache) {
+                    if (mat == MemAccessType::MemLoad) {
+                        ms.numL1LoadMiss[tid]++;
+                    } else {
+                        ms.numL1StoreMiss[tid]++;
+                    }
+                } else {
+                    ms.numL1InstMiss[tid]++;
                 }
-
-                if (missStat.numL1Miss[pkt->req->threadId()] > 1000 ||
-                        missStat.numL1MissLoad[pkt->req->threadId()]
-                        > 1000) {
-                    panic("Too many pending miss, DEBUG!\n");
-                }
-
             } else if (cacheLevel == 2) {
-                missStat.numL2Miss[pkt->req->threadId()]++;
-
-                MissTable::const_iterator it = l1MissTable.find(pkt->req->seqNum);
-                if (it != l1MissTable.end() && it->second.isLoad) {
-                    isLoad = true;
-                    missStat.numL2MissLoad[pkt->req->threadId()]++;
+                bool is_data;
+                if (!missTables.isL1Miss(pkt->getAddr(), is_data)) {
+                    panic("L2 miss has no miss in L1!\n");
                 }
-                l2MissTable.emplace(pkt->req->seqNum,
-                        MissEntry{pkt->req->threadId(), cacheLevel,
-                        pkt->req->seqNum, curTick(), isLoad});
-
-                if (missStat.numL2Miss[pkt->req->threadId()] > 1000 ||
-                        missStat.numL2MissLoad[pkt->req->threadId()]
-                        > 1000) {
-                    panic("Too many pending miss, DEBUG!\n");
+                if (is_data) {
+                    ms.numL2DataMiss[tid]++;
+                } else {
+                    ms.numL2InstMiss[tid]++;
                 }
             }
         }
@@ -664,7 +670,9 @@ class BaseCache : public MemObject
 
     const int numThreads;
 
-    const bool isDcache;
+    const bool isDCache;
+
+    MissTable *missTable;
 };
 
 #endif //__BASE_CACHE_HH__

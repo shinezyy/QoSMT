@@ -2015,8 +2015,8 @@ DefaultIEW<Impl>::genShadow()
 
     InstSeqNum start = (InstSeqNum) ~0, end = 0;
 
-    for (MissTable::const_iterator it = l2MissTable.begin();
-            it != l2MissTable.end(); it++) {
+    for (MissTable::const_iterator it = missTables.l2MissTable.begin();
+            it != missTables.l2MissTable.end(); it++) {
         if (it->second.cacheLevel == 2 && it->second.tid == HPT) {
             if (it->second.seqNum < start) {
                 start = it->second.seqNum;

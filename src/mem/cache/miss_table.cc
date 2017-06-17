@@ -1,44 +1,40 @@
-#include <mem/cache/miss_table.hh>
+#include "mem/cache/miss_table.hh"
 
-MissTable l1MissTable;
-MissTable l2MissTable;
 
-MissStat missStat;
+bool MissTables::isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md) {
+    MissTable *l1_table = isDCache ? &l1DMissTable : &l1IMissTable;
+    MissTable *l2_table = &l2MissTable;
+    MissTable::iterator l1_it, l2_it;
 
-bool inMissTable(MissTable &mt, uint64_t sn) {
-    return mt.find(sn) != mt.end();
-}
-
-bool isMiss(uint64_t sn) {
-    return inMissTable(l1MissTable, sn) || inMissTable(l2MissTable, sn);
-}
-
-bool isSpecifiedMiss(uint64_t sn, int16_t cacheLevel, MemAccessType mat) {
-    MissEntry *me = nullptr;
-    auto l1_result = l1MissTable.find(sn);
-    auto l2_result = l2MissTable.find(sn);
-    if (cacheLevel == 1 && l1_result != l1MissTable.end()) {
-        me = &(l1_result->second);
-    } else if (cacheLevel == 2 && l2_result != l2MissTable.end()) {
-        me = &(l2_result->second);
-    } else {
-        if (l2_result != l2MissTable.end()) {
-            me = &(l2_result->second);
-        } else if (l1_result != l1MissTable.end()) {
-            me = &(l1_result->second);
-        }
-    }
-    if (me == nullptr) {
+    l1_it = l1_table->find(address);
+    if (l1_it == l1_table->end()) {
+        md.valid = false;
         return false;
     } else {
-        if (mat == MemAccessType::NotCare) {
-            return true;
-        } else {
-            return me->isLoad == (mat == MemAccessType::MemLoad);
-        }
+        md.valid = true;
     }
+    // found in L1 table
+    l2_it = l2_table->find(address);
+    if (l2_it != l2_table->end()) {
+        md.missCacheLevel = 2;
+        md.isCacheInterference = l2_it->second.isInterference;
+    } else {
+        md.missCacheLevel = 1;
+        md.isCacheInterference = l1_it->second.isInterference;
+    }
+    // 到L2访存类型可能丢失，所以以L1为准
+    md.mat = l1_it->second.mat;
+    return true;
 }
 
-bool isDCacheInterference(ThreadID tid, uint64_t sn) {
-    return false;
+bool MissTables::isL1Miss(Addr address, bool &isData) {
+    MissTable::iterator data_it, inst_it;
+    data_it = l1DMissTable.find(address);
+    inst_it = l1IMissTable.find(address);
+
+    isData = data_it != l1DMissTable.end();
+    return isData || l1IMissTable.end() != inst_it;
 }
+
+
+MissTables missTables;

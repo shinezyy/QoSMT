@@ -61,6 +61,7 @@
 #include "debug/FmtSlot.hh"
 #include "debug/LLM.hh"
 #include "debug/missTry.hh"
+#include "debug/MissTable.hh"
 #include "mem/packet.hh"
 #include "mem/request.hh"
 #include "mem/cache/miss_table.hh"
@@ -120,54 +121,42 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
 
     DPRINTF(LLM, "Finished cache access of [sn:%lli]\n", inst->seqNum);
 
-    if (l1MissTable.size() > 1000 || l2MissTable.size() > 1000) {
-        panic("Miss table size is too large, check memory leak!\n");
+    MissStat &ms = missTables.missStat;
+    Addr phyAddress = inst->physEffAddr;
+    MissTable &l1_table = missTables.l1DMissTable;
+    MissTable &l2_table = missTables.l2MissTable;
+    ThreadID tid = inst->threadNumber;
+
+    if (l1_table.size() > 100 || l2_table.size() > 100) {
+        panic("Miss table size is too large, find bug!\n");
     }
 
-    hasL1Miss = false;
-    hasL2Miss = false;
+    MissTable::const_iterator &&it1 = l1_table.find(phyAddress);
+    if (it1 != l1_table.end()) {
+        DPRINTF(MissTable, "T[%i] Remove L%i cache miss from L1 miss table.\n",
+                tid, it1->second.cacheLevel);
 
-    MissTable::const_iterator &&it1 = l1MissTable.find(inst->seqNum);
-    if (it1 != l1MissTable.end()) {
-        DPRINTF(missTry, "T[%i] Remove L%i cache miss from L1 miss table,"
-                " which start at %llu\n", inst->threadNumber,
-                it1->second.cacheLevel, it1->second.startTick);
-
-        if (missStat.numL1Miss[it1->second.tid] > 0) {
-            missStat.numL1Miss[it1->second.tid]--;
+        if (inst->isLoad()) {
+            ms.numL1LoadMiss[tid]--;
+        } else {
+            ms.numL1StoreMiss[tid]--;
         }
-
-        if (inst->isLoad() &&
-                missStat.numL1MissLoad[it1->second.tid] > 0) {
-            missStat.numL1MissLoad[it1->second.tid]--;
-        }
-
-        l1MissTable.erase(it1);
+        l1_table.erase(it1);
     }
 
-    MissTable::const_iterator &&it2 = l2MissTable.find(inst->seqNum);
-    if (it2 != l2MissTable.end()) {
-        DPRINTF(missTry, "T[%i] Remove L%i cache miss from L2 miss table,"
-                " which start at %llu\n", inst->threadNumber,
-                it2->second.cacheLevel, it2->second.startTick);
-        inst->setMiss();
-        inst->missTime = int(curTick() - it2->second.startTick);
-
-        if (missStat.numL2Miss[it2->second.tid] > 0) {
-            missStat.numL2Miss[it2->second.tid]--;
-        }
-
-        if (inst->isLoad() &&
-                missStat.numL2MissLoad[it2->second.tid] > 0) {
-            missStat.numL2MissLoad[it2->second.tid]--;
-        }
-        l2MissTable.erase(it2);
+    MissTable::const_iterator &&it2 = l2_table.find(inst->seqNum);
+    if (it2 != l2_table.end()) {
+        DPRINTF(MissTable, "T[%i] Remove L%i cache miss from L2 miss table.\n",
+                tid, it2->second.cacheLevel);
+        ms.numL2DataMiss[tid]--;
+        l2_table.erase(it2);;
     }
 
-    if (missStat.numL2Miss[inst->threadNumber] > 100) {
-        DPRINTF(missTry, "Print miss table:\n");
-        MissTable::const_iterator itx = l2MissTable.begin();
-        while (itx != l2MissTable.end()) {
+    if (ms.numL1StoreMiss[tid] > 100 || ms.numL1LoadMiss[tid] > 100 ||
+            ms.numL2DataMiss[tid] > 100) {
+        DPRINTF(MissTable, "Print miss table:\n");
+        MissTable::const_iterator itx = l2_table.begin();
+        while (itx != l2_table.end()) {
             DPRINTFR(missTry, "T[%i]  L%i  SN:%llu  start:%llu\n",
                     itx->second.tid, itx->second.cacheLevel,
                     itx->second.seqNum, itx->second.startTick);
@@ -1378,8 +1367,6 @@ LSQUnit<Impl>::completeStore(int store_idx)
 
             if (stores > 0 && storeQueue[storeHead].inst->comTick) {
                 ThreadID tid = storeQueue[storeHead].inst->threadNumber;
-                missStat.oldestStoreTick[tid] =
-                    storeQueue[storeHead].inst->enLSQTick;
             }
 
         } while (storeQueue[storeHead].completed &&

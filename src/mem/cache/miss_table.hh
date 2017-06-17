@@ -1,55 +1,56 @@
-#ifndef __MISS_TABLE_H_
-#define __MISS_TABLE_H_
+#ifndef __MISS_TABLE_H__
+#define __MISS_TABLE_H__
 
 #include <cinttypes>
 #include <unordered_map>
 #include <vector>
 
-#include <base/types.hh>
+#include "base/types.hh"
+#include "mem/cache/miss_descpriptor.hh"
 
 struct MissEntry {
     ThreadID tid;
     int16_t cacheLevel;
-    uint64_t seqNum;
+    bool isInterference;
+    MemAccessType mat;
     Tick startTick;
-    bool isLoad;
+    uint64_t seqNum;
 
-    MissEntry(ThreadID _tid, int32_t level, uint64_t sn, Tick t,
-            bool r)
-        : tid(std::move(_tid)), cacheLevel((int16_t) level),
-        seqNum(sn), startTick(std::move(t)), isLoad(std::move(r)) {}
+    MissEntry(ThreadID _tid, int32_t level, bool interf,
+            MemAccessType _mat, Tick st, uint64_t sn)
+        : tid(_tid), cacheLevel((int16_t) level),
+        isInterference(interf), mat(_mat), startTick(st),
+        seqNum(sn) {}
 };
 
 
 
-typedef std::unordered_map<uint64_t, MissEntry> MissTable;
+typedef std::unordered_map<Addr, MissEntry> MissTable;
 
-extern MissTable l1MissTable;
-extern MissTable l2MissTable;
-
+#define MaxThreads 2
 struct MissStat {
-    std::vector<int> numL1Miss;
-    std::vector<int> numL2Miss;
-    std::vector<int> numL1MissLoad;
-    std::vector<int> numL2MissLoad;
-    std::vector<uint64_t> oldestStoreTick;
+    std::array<int, MaxThreads> numL1InstMiss;
+    std::array<int, MaxThreads> numL1StoreMiss;
+    std::array<int, MaxThreads> numL1LoadMiss;
+    std::array<int, MaxThreads> numL2InstMiss;
+    std::array<int, MaxThreads> numL2DataMiss;
+};
+#undef MaxThreads
+
+
+class MissTables {
+public:
+    MissTable l1IMissTable;
+    MissTable l1DMissTable;
+    MissTable l2MissTable;
+
+    MissStat missStat;
+
+    bool isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md);
+
+    bool isL1Miss(Addr address, bool &isInst);
 };
 
-extern MissStat missStat;
+extern MissTables missTables;
 
-bool inMissTable(MissTable &mt, uint64_t sn);
-
-bool isMiss(uint64_t sn);
-
-enum MemAccessType {
-    MemLoad,
-    MemStore,
-    NotCare,
-};
-
-bool isSpecifiedMiss(uint64_t sn, int16_t cacheLevel, MemAccessType mat);
-
-bool isDCacheInterference(ThreadID tid, uint64_t sn);
-
-
-#endif // __MISS_TABLE_H_
+#endif // __MISS_TABLE_H__
