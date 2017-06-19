@@ -48,7 +48,6 @@
 #include "cpu/o3/rob.hh"
 #include "cpu/o3/store_set.hh"
 #include "cpu/o3/fmt.hh"
-#include "cpu/o3/voc.hh"
 #include "cpu/o3/bmt.hh"
 #include "cpu/o3/slot_consume.hh"
 
@@ -92,8 +91,6 @@ struct SimpleCPUPolicy
 
     /** Typedef for front-end miss evnet table */
     typedef FMT<Impl> Fmt;
-
-    typedef VOC<Impl> Voc;
 
     typedef BMT<Impl> Bmt;
 

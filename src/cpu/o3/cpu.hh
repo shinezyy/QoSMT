@@ -556,8 +556,6 @@ class FullO3CPU : public BaseO3CPU
 
     typename CPUPolicy::Fmt fmt;
 
-    typename CPUPolicy::Voc voc;
-
     typename CPUPolicy::Bmt bmt;
 
 

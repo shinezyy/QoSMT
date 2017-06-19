@@ -68,7 +68,6 @@ class ROB
     //Typedefs from the Impl.
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::DynInstPtr DynInstPtr;
-    typedef typename Impl::CPUPol::Voc Voc;
 
     typedef std::pair<RegIndex, PhysRegIndex> UnmapInfo;
     typedef typename std::list<DynInstPtr>::iterator InstIt;
@@ -382,17 +381,10 @@ class ROB
     // ROB utilization in past period
     Stats::Vector robUtilization;
 
-    Voc *voc;
-
   public:
     bool isDynamicPolicy() const;
 
     bool isProgrammablePolicy() const;
-
-    void setVoc(Voc *_voc)
-    {
-        voc = _voc;
-    }
 
     /** rob utilization (accumulation). */
     uint64_t numThreadUsedEntries[2];

@@ -101,7 +101,6 @@ class DefaultIEW : public SlotCounter<Impl>
 
     typedef typename CPUPol::Fmt Fmt;
     typedef typename CPUPol::Bmt Bmt;
-    typedef typename CPUPol::Voc Voc;
     typedef SlotConsumer<Impl> SlotConsm;
 
     typedef std::queue<DynInstPtr> InstRow;
@@ -533,15 +532,11 @@ class DefaultIEW : public SlotCounter<Impl>
 
     uint32_t tempWaitSlots[Impl::MaxThreads];
 
-    Voc *voc;
-
   public:
 
     void setFmt(Fmt *_fmt);
 
     void setBmt(Bmt *_bmt) {bmt = _bmt;}
-
-    void setVoc(Voc *_voc);
 
     bool Programmable;
 

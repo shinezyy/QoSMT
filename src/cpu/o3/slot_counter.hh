@@ -90,16 +90,7 @@ class SlotCounter
 
     SlotCounter(DerivO3CPUParams *params, uint32_t _width);
 
-    void assignSlots(ThreadID tid, DynInstPtr& inst);
-
     virtual std::string name() const = 0;
-
-    void reshape(DynInstPtr& inst) {
-        inst->incWaitSlot(-inst->getWaitSlot());
-        inst->incMissSlot(-inst->getMissSlot());
-    }
-
-
 
     bool checkSlots(ThreadID tid);
 

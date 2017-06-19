@@ -131,17 +131,6 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su,
     }
 }
 
-template <class Impl>
-void
-SlotCounter<Impl>::assignSlots(ThreadID tid, DynInstPtr& inst)
-{
-    inst->incWaitSlot(wait[tid]);
-    wait[tid] = 0;
-    inst->incMissSlot(miss[tid]);
-    miss[tid] = 0;
-    DPRINTF(LB, "T[%u]: Assigning %i wait slots, %i miss slots "
-            "to Inst[%llu]\n", tid, wait[tid], miss[tid], inst->seqNum);
-}
 
 template <class Impl>
 bool

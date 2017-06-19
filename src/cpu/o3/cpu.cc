@@ -178,7 +178,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       commit(this, params),
 
       fmt(this, params),
-      voc(this, params),
       bmt(this, params),
 
       regFile(params->numPhysIntRegs,
@@ -284,11 +283,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     fetch.setFmt(&fmt);
     iew.setFmt(&fmt);
     commit.setFmt(&fmt);
-
-    voc.setStage(&fetch, &decode, &iew, &commit);
-    rob.setVoc(&voc);
-    iew.setVoc(&voc);
-    commit.setVoc(&voc);
 
     rename.setBmt(&bmt);
     iew.setBmt(&bmt);

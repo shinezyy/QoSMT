@@ -1955,13 +1955,6 @@ DefaultIEW<Impl>::setFmt(Fmt *_fmt)
 
 template<class Impl>
 void
-DefaultIEW<Impl>::setVoc(Voc *_voc)
-{
-    voc = _voc;
-}
-
-template<class Impl>
-void
 DefaultIEW<Impl>::reassignDispatchWidth(int newWidthVec[], int lenWidthVec)
 {
     //assert(lenWidthVec == numThreads);
