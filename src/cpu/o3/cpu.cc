@@ -78,6 +78,7 @@
 #endif
 
 #include <fstream>
+#include <numeric>
 
 struct BaseCPUParams;
 
@@ -1857,7 +1858,8 @@ FullO3CPU<Impl>::dumpStats()
 
 template <class Impl>
 bool
-FullO3CPU<Impl>::satisfiedQoS() {
+FullO3CPU<Impl>::satisfiedQoS()
+{
 
     uint64_t predicted_st_slots = fmt.globalBase[HPT] + fmt.globalMiss[HPT] +
         fmt.getHptNonWait();
@@ -1874,7 +1876,8 @@ FullO3CPU<Impl>::satisfiedQoS() {
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustFetch(bool incHPT) {
+FullO3CPU<Impl>::adjustFetch(bool incHPT)
+{
     int vec[2];
     int delta = incHPT ? 32 : -32;
 
@@ -1899,7 +1902,8 @@ do { \
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustROB(bool incHPT) {
+FullO3CPU<Impl>::adjustROB(bool incHPT)
+{
     int vec[2];
     int delta = incHPT ? 64 : -64;
     vec[HPT] = commit.rob->getHPTPortion() + delta;
@@ -1914,7 +1918,8 @@ FullO3CPU<Impl>::adjustROB(bool incHPT) {
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustIQ(bool incHPT) {
+FullO3CPU<Impl>::adjustIQ(bool incHPT)
+{
     int vec[2];
     int delta = incHPT ? 64 : -64;
     vec[HPT] = iew.instQueue.getHPTPortion() + delta;
@@ -1929,7 +1934,8 @@ FullO3CPU<Impl>::adjustIQ(bool incHPT) {
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustLQ(bool incHPT) {
+FullO3CPU<Impl>::adjustLQ(bool incHPT)
+{
     int vec[2];
     int delta = incHPT ? 64 : -64;
     vec[0] = iew.ldstQueue.getHPTLQPortion() + delta;
@@ -1944,7 +1950,8 @@ FullO3CPU<Impl>::adjustLQ(bool incHPT) {
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustSQ(bool incHPT) {
+FullO3CPU<Impl>::adjustSQ(bool incHPT)
+{
     int vec[2];
     int delta = incHPT ? 64 : -64;
     vec[0] = iew.ldstQueue.getHPTSQPortion() + delta;
@@ -1961,7 +1968,8 @@ FullO3CPU<Impl>::adjustSQ(bool incHPT) {
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustCache(int cacheLevel, bool DCache, bool incHPT) {
+FullO3CPU<Impl>::adjustCache(int cacheLevel, bool DCache, bool incHPT)
+{
     WayRationConfig *wayRationConfig = nullptr;
     if (cacheLevel == 2) {
         wayRationConfig = &controlPanel.l2CacheWayConfig;
@@ -1985,6 +1993,37 @@ FullO3CPU<Impl>::adjustCache(int cacheLevel, bool DCache, bool incHPT) {
         wayRationConfig->updatedByCore = true;
         wayRationConfig->threadWayRations[HPT] = newHPTAssoc;
         wayRationConfig->threadWayRations[LPT] = wayRationConfig->assoc - newHPTAssoc;
+    }
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::sortContention() {
+    std::array<uint64_t, ContentionNum> contNums;
+    std::array<size_t , ContentionNum> contIndices;
+    std::iota(contIndices.begin(), contIndices.end(), 0);
+
+    //<editor-fold desc="Contention aggregation">
+    contNums[Contention::FetchCont] = iew.slots[SlotsUse::FetchSliceWait]
+                                      + iew.slots[SlotsUse::SplitWait]
+                                      + iew.slots[SlotsUse::WidthWait];
+
+    contNums[Contention::ROBCont] = iew.slots[SlotsUse::ROBWait];
+    contNums[Contention::IQCont] = iew.slots[SlotsUse::IQWait];
+    contNums[Contention::LQCont] = iew.slots[SlotsUse::LQWait];
+    contNums[Contention::SQCont] = iew.slots[SlotsUse::SQWait];
+
+    contNums[Contention::L1DCacheCont] = iew.slots[SlotsUse::L1DCacheInterference];
+    contNums[Contention::L1ICacheCont] = iew.slots[SlotsUse::L1ICacheInterference];
+    contNums[Contention::L2CacheCont] = iew.slots[SlotsUse::L2DCacheInterference]
+                                        + iew.slots[SlotsUse::L2ICacheInterference];
+    //</editor-fold>
+
+    std::sort(contIndices.begin(), contIndices.end(),
+              [&contNums](size_t x, size_t y) {return contNums[x] < contNums[y];});
+
+    for (size_t i = 0; i < ContentionNum; ++i) {
+        rankedContentions[i] = static_cast<Contention>(contIndices[i]);
     }
 }
 

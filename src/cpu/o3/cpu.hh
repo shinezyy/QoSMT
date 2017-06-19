@@ -822,6 +822,22 @@ class FullO3CPU : public BaseO3CPU
     void adjustSQ(bool incHPT);
 
     void adjustCache(int cacheLevel, bool DCache, bool incHPT);
+
+    enum Contention {
+        L1DCacheCont = 0,
+        L1ICacheCont,
+        L2CacheCont,
+        FetchCont,
+        ROBCont,
+        IQCont,
+        LQCont,
+        SQCont,
+        ContentionNum
+    };
+
+    std::array<Contention, ContentionNum> rankedContentions; // Ascending order
+
+    void sortContention();
 };
 
 #endif // __CPU_O3_CPU_HH__
