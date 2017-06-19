@@ -20,12 +20,10 @@ const char* slotUseStr[] = {
         "NotInitiated",
         "NotUsed",
         "InstSupMiss",
-        "InstSupWait",
         "L1ICacheInterference",
         "L2ICacheInterference",
         "FetchSliceWait",
         "WidthWait",
-        "EntryWait",
         "EntryMiss",
         "Base",
         "LaterMiss",
@@ -49,7 +47,7 @@ const char* slotUseStr[] = {
         "L2DCacheInterference",
 };
 
-std::array<SlotsUse, 11> MissEnums = {
+std::array<SlotsUse, 11> missEnums = {
         InstSupMiss,
         EntryMiss,
         LaterMiss,
@@ -63,22 +61,20 @@ std::array<SlotsUse, 11> MissEnums = {
         SplitMiss,
 };
 
-std::array<SlotsUse, 15> WaitEnums = {
-        InstSupWait,
+std::array<SlotsUse, 13> waitEnums = {
         L1ICacheInterference,
         L2ICacheInterference,
         FetchSliceWait,
-        WidthWait,
-        EntryWait,
-        LaterWait,
-        LBLCWait,
-        SplitWait,
         ROBWait,
         IQWait,
         LQWait,
         SQWait,
         L1DCacheInterference,
         L2DCacheInterference,
+        WidthWait,
+        LaterWait,
+        LBLCWait,
+        SplitWait,
 };
 
     template<class Impl>
@@ -162,12 +158,12 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     curCycleMiss[tid] = 0;
     curCycleWait[tid] = 0;
 
-    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
+    for (auto it = missEnums.begin(); it != missEnums.end(); ++it) {
         curCycleMiss[tid] += perCycleSlots[tid][*it];
     }
     miss[tid] += curCycleMiss[tid];
 
-    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
+    for (auto it = waitEnums.begin(); it != waitEnums.end(); ++it) {
         curCycleWait[tid] += perCycleSlots[tid][*it];
     }
     wait[tid] += curCycleWait[tid];
@@ -231,10 +227,10 @@ void
 SlotCounter<Impl>::dumpStats() {
     waitSlots = 0;
     missSlots = 0;
-    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
+    for (auto it = waitEnums.begin(); it != waitEnums.end(); ++it) {
         waitSlots += slots[*it];
     }
-    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
+    for (auto it = missEnums.begin(); it != missEnums.end(); ++it) {
         missSlots += slots[*it];
     }
 }

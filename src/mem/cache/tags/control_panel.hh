@@ -11,6 +11,7 @@ struct WayRationConfig {
 #define MaxThreads 2
     int threadWayRations[MaxThreads];
 #undef MaxThreads
+    int assoc;
 };
 
 class ControlPanel {

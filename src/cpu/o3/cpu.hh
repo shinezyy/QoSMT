@@ -60,14 +60,15 @@
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/cpu_policy.hh"
 #include "cpu/o3/scoreboard.hh"
+#include "cpu/o3/slot_counter.hh"
 #include "cpu/o3/thread_state.hh"
 #include "cpu/activity.hh"
 #include "cpu/base.hh"
 #include "cpu/simple_thread.hh"
 #include "cpu/timebuf.hh"
-//#include "cpu/o3/thread_context.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/process.hh"
+//#include "cpu/o3/thread_context.hh"
 
 template <class>
 class Checker;
@@ -771,13 +772,11 @@ class FullO3CPU : public BaseO3CPU
      */
     void setUpSrcManagerConfigs(const std::string filename);
 
-    void incResource(bool rob, bool lq, bool sq, bool inc);
-
     uint32_t expectedQoS;
 
     bool robReserved, lqReserved, sqReserved, fetchReserved;
 
-    bool fetchControl();
+    void frontendControl();
 
     void combinedControl();
 
@@ -796,8 +795,6 @@ class FullO3CPU : public BaseO3CPU
 
     unsigned numContCtrl;
 
-    bool checkAbn();
-
     void dumpStats();
 
     enum ControlPolicy {
@@ -809,6 +806,22 @@ class FullO3CPU : public BaseO3CPU
     ControlPolicy controlPolicy;
 
     uint32_t fullThreshold;
+
+  private:
+
+    bool satisfiedQoS();
+
+    void adjustFetch(bool incHPT);
+
+    void adjustROB(bool incHPT);
+
+    void adjustIQ(bool incHPT);
+
+    void adjustLQ(bool incHPT);
+
+    void adjustSQ(bool incHPT);
+
+    void adjustCache(int cacheLevel, bool DCache, bool incHPT);
 };
 
 #endif // __CPU_O3_CPU_HH__

@@ -638,6 +638,10 @@ class InstructionQueue
     DynInstPtr &getHeadInst (ThreadID tid) {
         return instList[tid].empty() ? dummyInst: instList[tid].back();
     }
+
+    int getHPTPortion() {
+        return portion[HPT];
+    }
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__

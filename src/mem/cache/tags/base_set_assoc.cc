@@ -108,7 +108,7 @@ BaseSetAssoc::BaseSetAssoc(const Params *p)
             blk->size = blkSize;
             sets[i].blks[j]=blk;
             blk->set = i;
-	    blk->shadowtag = j;
+            blk->shadowtag = j;
         }
     }
 }

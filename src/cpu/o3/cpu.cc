@@ -70,6 +70,7 @@
 #include "sim/system.hh"
 #include "sim/async.hh"
 #include "sim/eventq.hh"
+#include "mem/cache/tags/control_panel.hh"
 
 #if THE_ISA == ALPHA_ISA
 #include "arch/alpha/osfpal.hh"
@@ -618,165 +619,16 @@ FullO3CPU<Impl>::regStats()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::incResource(bool rob, bool lq, bool sq, bool inc)
+FullO3CPU<Impl>::frontendControl()
 {
-    int delta = 0;
 
-    if (inc) {
-        delta = 64;
-    } else {
-        delta = -64;
-    }
-
-    int vec[2];
-    if (rob) {
-        vec[0] = commit.rob->getHPTPortion() + delta;
-        vec[0] = std::min(vec[0], 1024 - 64);
-        vec[0] = std::max(vec[0], 64);
-        vec[1] = 1024 - vec[0];
-
-        if (vec[0] != commit.rob->getHPTPortion()) {
-            DPRINTF(QoSCtrl, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
-                    inc ? "Reserving":"Releasing", vec[0], vec[1]);
-            commit.rob->reassignPortion(vec, 2, 1024);
-        }
-    }
-    if (lq) {
-        vec[0] = iew.ldstQueue.getHPTLQPortion() + delta;
-        vec[0] = std::min(vec[0], 1024 - 64);
-        vec[0] = std::max(vec[0], 64);
-        vec[1] = 1024 - vec[0];
-        if (vec[0] != iew.ldstQueue.getHPTLQPortion()) {
-            DPRINTF(QoSCtrl, "%s [LQ], vec[0]: %d, vec[1]: %d\n",
-                    inc ? "Reserving":"Releasing", vec[0], vec[1]);
-            iew.ldstQueue.reassignLQPortion(vec, 2, 1024);
-        }
-    }
-    if (sq) {
-        vec[0] = iew.ldstQueue.getHPTSQPortion() + delta;
-        vec[0] = std::min(vec[0], 1024 - 64);
-        vec[0] = std::max(vec[0], 64);
-        vec[1] = 1024 - vec[0];
-        if (vec[0] != iew.ldstQueue.getHPTSQPortion()) {
-            DPRINTF(QoSCtrl, "%s [SQ], vec[0]: %d, vec[1]: %d\n",
-                    inc ? "Reserving":"Releasing", vec[0], vec[1]);
-            iew.ldstQueue.reassignSQPortion(vec, 2, 1024);
-        } else {
-            DPRINTF(QoSCtrl, "No need to %s, HPTPortion: %d\n",
-                    inc ? "Reserving":"Releasing",
-                    iew.ldstQueue.getHPTSQPortion());
-        }
-    }
 }
 
 template <class Impl>
 void
 FullO3CPU<Impl>::combinedControl()
 {
-    uint32_t base = 1024;
-    // heuristic rules:
-    // ThreadID hpt = 0;
-    // uint64_t robf = rename.numROBWait[hpt];
-    // uint64_t iqf = rename.numIQFull[hpt] + iew.numIQFull[hpt];
-    // uint64_t lqf = rename.numLQWait[hpt] + iew.numLQWait[hpt];
-    // uint64_t sqf = rename.numSQWait[hpt] + iew.numSQWait[hpt];
-    uint64_t robf = 0;
-    uint64_t lqf = 0;
-    uint64_t sqf = 0;
 
-    bool nsat = fetchControl();
-    if (nsat) {
-        incResource(
-                robf * base > policyWindowSize * fullThreshold,
-                lqf * base > policyWindowSize * fullThreshold,
-                sqf * base > policyWindowSize * fullThreshold,
-                /*inc = */true);
-    } else {
-        incResource(
-                robf * base < policyWindowSize * fullThreshold,
-                lqf * base < policyWindowSize * fullThreshold,
-                sqf * base < policyWindowSize * fullThreshold,
-                /*inc = */false);
-    }
-}
-
-template <class Impl>
-bool
-FullO3CPU<Impl>::fetchControl()
-{
-    // Treat thread 0 as high-prio as usual
-    ThreadID hpt = 0;
-
-    uint64_t predicted_st_slots = fmt.globalBase[hpt] + fmt.globalMiss[hpt] +
-        fmt.getHptNonWait();
-    uint64_t smt_slots= predicted_st_slots + fmt.globalWait[hpt] + fmt.getHptWait();
-
-    DPRINTF(QoSCtrl, "Fetch Control Working -----------------------\n");
-
-    bool nsat = predicted_st_slots*1024 < smt_slots*expectedQoS;
-
-    DPRINTF(QoSCtrl, "predicted_st_slots: %i, SMT slots: %i, expectedQoS: %i"
-            ", not satisfied: %i\n", predicted_st_slots,
-            smt_slots, expectedQoS, nsat);
-
-    bool above = predicted_st_slots*1024 > smt_slots*(expectedQoS + 64);
-
-    int vec[2];
-
-    int grain = 32;
-
-    if (nsat) {
-
-        vec[0] = fetch.getHPTPortion() + grain;
-        vec[0] = std::min(vec[0], 1024);
-        vec[0] = std::max(vec[0], 512);
-        vec[1] = 1024 - vec[0];
-
-        if (vec[0] != fetch.getHPTPortion()) {
-            DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
-                    vec[0], vec[1]);
-            fetch.reassignFetchSlice(vec, 1024);
-        }
-
-#if 0
-        vec[0] = iew.getHPTWidth() + 1;
-        vec[0] = std::min(vec[0], 8);
-        vec[0] = std::max(vec[0], 4);
-        vec[1] = 8 - vec[0];
-
-        if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(QoSCtrl, "Reserving [Dispatch], vec[0]: %d,"
-                    " vec[1]: %d\n", vec[0], vec[1]);
-            iew.reassignDispatchWidth(vec, 2);
-        }
-#endif
-    } else if (above) {
-        vec[0] = fetch.getHPTPortion() - grain;
-        vec[0] = std::min(vec[0], 1024);
-        vec[0] = std::max(vec[0], 512);
-        vec[1] = 1024 - vec[0];
-
-        if (vec[0] != fetch.getHPTPortion()) {
-            DPRINTF(QoSCtrl, "Reserving [Fetch], vec[0]: %d, vec[1]: %d\n",
-                    vec[0], vec[1]);
-            fetch.reassignFetchSlice(vec, 1024);
-        }
-
-#if 0
-        vec[0] = iew.getHPTWidth() - 1;
-        vec[0] = std::min(vec[0], 8);
-        vec[0] = std::max(vec[0], 4);
-        vec[1] = 8 - vec[0];
-
-        if (vec[0] != iew.getHPTWidth()) {
-            DPRINTF(QoSCtrl, "Reserving [Dispatch], vec[0]: %d,"
-                    " vec[1]: %d\n", vec[0], vec[1]);
-            iew.reassignDispatchWidth(vec, 2);
-        }
-#endif
-    }
-
-    return nsat;
 }
 
 template <class Impl>
@@ -810,7 +662,7 @@ FullO3CPU<Impl>::tick()
 
     if (policyCycles >= policyWindowSize) {
         if (controlPolicy == FrontEnd) {
-            fetchControl();
+            frontendControl();
         } else if (controlPolicy == Combined) {
             combinedControl();
         }
@@ -2001,6 +1853,139 @@ FullO3CPU<Impl>::dumpStats()
     uint64_t real = predicted + fmt.globalWait[hpt] + fmt.getHptWait();
 
     HPTQoS = double(predicted)/double(real);
+}
+
+template <class Impl>
+bool
+FullO3CPU<Impl>::satisfiedQoS() {
+
+    uint64_t predicted_st_slots = fmt.globalBase[HPT] + fmt.globalMiss[HPT] +
+        fmt.getHptNonWait();
+    uint64_t smt_slots= predicted_st_slots + fmt.globalWait[HPT] + fmt.getHptWait();
+
+    bool satisfied = predicted_st_slots*1024 > smt_slots*expectedQoS;
+
+    DPRINTF(QoSCtrl, "predicted_st_slots: %i, SMT slots: %i, expectedQoS: %i"
+            ", satisfied: %i\n", predicted_st_slots,
+            smt_slots, expectedQoS, satisfied);
+
+    return satisfied;
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::adjustFetch(bool incHPT) {
+    int vec[2];
+    int delta = incHPT ? 32 : -32;
+
+    vec[HPT] = fetch.getHPTPortion() + delta;
+    vec[HPT] = std::min(vec[HPT], 1024);
+    vec[HPT] = std::max(vec[HPT], 256);
+    vec[LPT] = 1024 - vec[HPT];
+
+    if (vec[HPT] != fetch.getHPTPortion()) {
+        DPRINTF(QoSCtrl, "%s [Fetch], vec[0]: %d, vec[1]: %d\n",
+                incHPT ? "Reserving":"Releasing", vec[HPT], vec[LPT]);
+        fetch.reassignFetchSlice(vec, 1024);
+    }
+}
+
+#define portionRangeCheck \
+do { \
+    vec[HPT] = std::min(vec[HPT], 1024 - delta); \
+    vec[HPT] = std::max(vec[HPT], delta); \
+    vec[LPT] = 1024 - vec[HPT]; \
+} while(0)
+
+template <class Impl>
+void
+FullO3CPU<Impl>::adjustROB(bool incHPT) {
+    int vec[2];
+    int delta = incHPT ? 64 : -64;
+    vec[HPT] = commit.rob->getHPTPortion() + delta;
+    portionRangeCheck;
+
+    if (vec[HPT] != commit.rob->getHPTPortion()) {
+        DPRINTF(QoSCtrl, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
+                incHPT ? "Reserving":"Releasing", vec[0], vec[1]);
+        commit.rob->reassignPortion(vec, 2, 1024);
+    }
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::adjustIQ(bool incHPT) {
+    int vec[2];
+    int delta = incHPT ? 64 : -64;
+    vec[HPT] = iew.instQueue.getHPTPortion() + delta;
+    portionRangeCheck;
+
+    if (vec[HPT] != iew.instQueue.getHPTPortion()) {
+        DPRINTF(QoSCtrl, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
+                incHPT ? "Reserving":"Releasing", vec[0], vec[1]);
+        iew.instQueue.reassignPortion(vec, 2, 1024);
+    }
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::adjustLQ(bool incHPT) {
+    int vec[2];
+    int delta = incHPT ? 64 : -64;
+    vec[0] = iew.ldstQueue.getHPTLQPortion() + delta;
+    portionRangeCheck;
+
+    if (vec[0] != iew.ldstQueue.getHPTLQPortion()) {
+        DPRINTF(QoSCtrl, "%s [LQ], vec[0]: %d, vec[1]: %d\n",
+                incHPT ? "Reserving":"Releasing", vec[0], vec[1]);
+        iew.ldstQueue.reassignLQPortion(vec, 2, 1024);
+    }
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::adjustSQ(bool incHPT) {
+    int vec[2];
+    int delta = incHPT ? 64 : -64;
+    vec[0] = iew.ldstQueue.getHPTSQPortion() + delta;
+    portionRangeCheck;
+
+    if (vec[0] != iew.ldstQueue.getHPTSQPortion()) {
+        DPRINTF(QoSCtrl, "%s [SQ], vec[0]: %d, vec[1]: %d\n",
+                incHPT ? "Reserving":"Releasing", vec[0], vec[1]);
+        iew.ldstQueue.reassignSQPortion(vec, 2, 1024);
+    }
+}
+
+#undef portionRangeCheck
+
+template <class Impl>
+void
+FullO3CPU<Impl>::adjustCache(int cacheLevel, bool DCache, bool incHPT) {
+    WayRationConfig *wayRationConfig = nullptr;
+    if (cacheLevel == 2) {
+        wayRationConfig = &controlPanel.l2CacheWayConfig;
+    } else if (cacheLevel == 1) {
+        if (DCache) {
+            wayRationConfig = &controlPanel.l1DCacheWayConfig;
+        } else {
+            wayRationConfig = &controlPanel.l1ICacheWayConfig;
+        }
+    } else {
+        panic("Unknown cache level: %i\n", cacheLevel);
+        wayRationConfig = &controlPanel.l2CacheWayConfig;
+    }
+
+    using namespace std;
+
+    int delta = incHPT ? 1 : -1;
+    int HPTAssoc = wayRationConfig->threadWayRations[HPT];
+    int newHPTAssoc = min(max(HPTAssoc + delta, 1), wayRationConfig->assoc - 1);
+    if (newHPTAssoc != HPTAssoc) {
+        wayRationConfig->updatedByCore = true;
+        wayRationConfig->threadWayRations[HPT] = newHPTAssoc;
+        wayRationConfig->threadWayRations[LPT] = wayRationConfig->assoc - newHPTAssoc;
+    }
 }
 
 // Forward declaration of FullO3CPU.

@@ -67,6 +67,8 @@ enum SlotsUse {
     NumUse
 };
 
+extern std::array<SlotsUse, 13> waitEnums;
+
 
 template <class Impl>
 class SlotCounter

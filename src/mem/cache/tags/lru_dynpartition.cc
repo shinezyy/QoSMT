@@ -133,6 +133,7 @@ LRUDynPartition::findVictim(Addr addr)
             threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
         }
         wayRationConfig->updatedByCore = false;
+        wayRationConfig->assoc = assoc;
     }
 
     assert(curThreadID >= 0);
