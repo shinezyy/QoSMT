@@ -69,6 +69,15 @@ LRUDynPartition::LRUDynPartition(const Params *p)
             sets[i].blks[j]->threadID = -1;
         }
     }
+    if (cacheLevel == 2) {
+        wayRationConfig = &controlPanel.l2CacheWayConfig;
+    } else if (cacheLevel == 1) {
+        if (isDCache) {
+            wayRationConfig = &controlPanel.l1DCacheWayConfig;
+        } else {
+            wayRationConfig = &controlPanel.l1ICacheWayConfig;
+        }
+    }
 }
 
 CacheBlk*
@@ -116,6 +125,16 @@ LRUDynPartition::accessShadowTag(Addr addr)
 CacheBlk*
 LRUDynPartition::findVictim(Addr addr)
 {
+    if (wayRationConfig->updatedByCore) {
+        assert(wayRationConfig->threadWayRations[0] +
+               wayRationConfig->threadWayRations[1] == assoc);
+        for (int i = 0; i < numSets; i++) {
+            threadWayRation[i][0] = wayRationConfig->threadWayRations[0];
+            threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
+        }
+        wayRationConfig->updatedByCore = false;
+    }
+
     assert(curThreadID >= 0);
     int set = extractSet(addr);
     Addr tag = extractTag(addr); // prepare to store the shadow tag
