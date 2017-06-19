@@ -51,7 +51,7 @@
 
 
 LRUDynPartition::LRUDynPartition(const Params *p)
-        : BaseSetAssoc(p)
+        : BaseSetAssoc(p), cacheLevel(p->cache_level), isDCache(p->is_dcache)
 {
     assert(numSets <= MAX_NUM_SETS);
     int rationFirst = p->thread_0_assoc;

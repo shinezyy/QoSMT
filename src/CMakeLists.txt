@@ -85,9 +85,6 @@ set(SOURCE_FILES
         cpu/o3/thread_context.hh
         cpu/o3/thread_context_impl.hh
         cpu/o3/thread_state.hh
-        cpu/o3/voc.cc
-        cpu/o3/voc.hh
-        cpu/o3/voc_impl.hh
         mem/cache/prefetch/base.cc
         mem/cache/prefetch/base.hh
         mem/cache/prefetch/Prefetcher.py
@@ -133,8 +130,8 @@ set(SOURCE_FILES
         cpu/o3/slot_consume.cc
         cpu/o3/slot_consume_impl.hh
         cpu/o3/slot_consume.hh
-        mem/cache/control_panel.cc
-        mem/cache/control_panel.hh
+        mem/cache/tags/control_panel.cc
+        mem/cache/tags/control_panel.hh
         mem/cache/miss_descpriptor.hh)
 
 include_directories(.)
