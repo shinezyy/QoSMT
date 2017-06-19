@@ -342,10 +342,6 @@ class BaseO3DynInst : public BaseDynInst<Impl>
 
     bool everMispredicted;
 
-    int32_t priorWaitSlots;
-
-    int32_t priorMissSlots;
-
   public:
 
     void setMispred()
@@ -356,28 +352,6 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     bool EverMispred()
     {
         return everMispredicted;
-    }
-
-    void incWaitSlot(int32_t n)
-    {
-        priorWaitSlots += n;
-        assert(priorWaitSlots >= 0);
-    }
-
-    int32_t getWaitSlot()
-    {
-        return priorWaitSlots;
-    }
-
-    void incMissSlot(int32_t n)
-    {
-        priorMissSlots += n;
-        assert(priorMissSlots >= 0);
-    }
-
-    int32_t getMissSlot()
-    {
-        return priorMissSlots;
     }
 
   public:
@@ -418,8 +392,6 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     Tick comTick;
 
     int blockedCycles;
-
-    bool vqGenerated;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

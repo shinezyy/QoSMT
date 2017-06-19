@@ -51,6 +51,7 @@
 #define __MEM_CACHE_TAGS_LRUDynPartition_HH__
 
 #include "mem/cache/tags/base_set_assoc.hh"
+#include "mem/cache/tags/control_panel.hh"
 #include "params/LRUDynPartition.hh"
 
 class LRUDynPartition : public BaseSetAssoc
@@ -96,10 +97,17 @@ class LRUDynPartition : public BaseSetAssoc
      * the max numSets is 128 (to simplify implementation).
      */
 #define MAX_NUM_SETS 4096
-    int threadWayRation[MAX_NUM_SETS][2];
-    int wayCount[MAX_NUM_SETS][2];
-    bool noInvalid[MAX_NUM_SETS][2];
+#define MaxThreads 2
+    int threadWayRation[MAX_NUM_SETS][MaxThreads];
+    int wayCount[MAX_NUM_SETS][MaxThreads];
+    bool noInvalid[MAX_NUM_SETS][MaxThreads];
     int curThreadID;
+#undef MaxThreads
+
+    const int cacheLevel;
+    const bool isDCache;
+
+    WayRationConfig *wayRationConfig;
 };
 
 #endif // __MEM_CACHE_TAGS_LRUDynPartition_HH__

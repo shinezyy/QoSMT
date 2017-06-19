@@ -54,6 +54,8 @@
  * Cache definitions.
  */
 
+#include <algorithm>
+
 #include "base/misc.hh"
 #include "base/types.hh"
 #include "debug/Cache.hh"
@@ -85,11 +87,16 @@ Cache::Cache(const Params *p)
     if (prefetcher)
         prefetcher->setCache(this);
 
-    missStat.numL1Miss.resize(numThreads, 0);
-    missStat.numL2Miss.resize(numThreads, 0);
-    missStat.numL1MissLoad.resize(numThreads, 0);
-    missStat.numL2MissLoad.resize(numThreads, 0);
-    missStat.oldestStoreTick.resize(numThreads, 0);
+    std::fill(missTables.missStat.numL1InstMiss.begin(),
+              missTables.missStat.numL1InstMiss.end(), 0);
+    std::fill(missTables.missStat.numL1StoreMiss.begin(),
+              missTables.missStat.numL1StoreMiss.end(), 0);
+    std::fill(missTables.missStat.numL1LoadMiss.begin(),
+              missTables.missStat.numL1LoadMiss.end(), 0);
+    std::fill(missTables.missStat.numL2InstMiss.begin(),
+              missTables.missStat.numL2InstMiss.end(), 0);
+    std::fill(missTables.missStat.numL2DataMiss.begin(),
+              missTables.missStat.numL2DataMiss.end(), 0);
 }
 
 Cache::~Cache()
@@ -337,11 +344,12 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // that can modify its value.
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), lat, id);
     shadowblk = tags->accessShadowTag(pkt->getAddr()); // access the shadow tag
+    bool is_interference = false;
     if ((blk == NULL) & (shadowblk != NULL)) {
-	DPRINTF(Cache,"A wait event happened!");
-    }
-    else if ((blk == NULL) & (shadowblk == NULL)) {
-	DPRINTF(Cache,"A miss event happened!");
+        is_interference = true;
+        DPRINTF(Cache,"A wait event happened!");
+    } else if ((blk == NULL) & (shadowblk == NULL)) {
+        DPRINTF(Cache,"A miss event happened!");
     } 
     DPRINTF(Cache, "%s%s addr %#llx size %d (%s) %s\n", pkt->cmdString(),
             pkt->req->isInstFetch() ? " (ifetch)" : "",
@@ -359,7 +367,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             tags->clearThread();
             if (blk == NULL) {
                 // no replaceable block available: give up, fwd to next level.
-                incMissCount(pkt);
+                incMissCount(pkt, is_interference);
                 return false;
             }
             tags->insertBlock(pkt, blk);
@@ -391,7 +399,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Can't satisfy access normally... either no block (blk == NULL)
     // or have block but need exclusive & only have shared.
 
-    incMissCount(pkt);
+    incMissCount(pkt, is_interference);
 
 
     if (blk == NULL && pkt->isLLSC() && pkt->isWrite()) {
@@ -631,6 +639,7 @@ Cache::recvTimingReq(PacketPtr pkt)
         // processing happens before any MSHR munging on the behalf of
         // this request because this new Request will be the one stored
         // into the MSHRs, not the original.
+        //<editor-fold desc="Software prefetch handling">
         if (pkt->cmd.isSWPrefetch() && isTopLevel) {
             assert(needsResponse);
             assert(pkt->req->hasPaddr());
@@ -667,6 +676,7 @@ Cache::recvTimingReq(PacketPtr pkt)
             // MSHR) this is set to null
             pkt = pf;
         }
+        //</editor-fold>
 
         if (mshr) {
             /// MSHR hit

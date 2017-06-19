@@ -80,12 +80,6 @@ cycleEnd(ThreadID tid,
     unsigned tNSN = toNextStageNum[tid];
     BLB_out = false;
 
-    // make ROB head status cache;
-    if (isRename) {
-        ROBHeadMissCache[tid] = !(queueHeadState[tid][ROB] == Normal ||
-                queueHeadState[tid][ROB] == DCacheWait);
-    }
-
     if (toNextStageNum[tid] > 0) {
         slotCounter->incLocalSlots(tid, SlotsUse::Base, toNextStageNum[tid]);
         int cursor = 0, index = 0;
@@ -178,8 +172,12 @@ cycleEnd(ThreadID tid,
                 slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
                 BLB_out = true;
 
-            } else if (queueHeadState[tid][ROB] == HeadInstrState::DCacheWait) {
-                slotCounter->incLocalSlots(tid, DCacheInterference, blockedSlots);
+            } else if (queueHeadState[tid][ROB] == HeadInstrState::L1DCacheWait) {
+                slotCounter->incLocalSlots(tid, L1DCacheInterference, blockedSlots);
+                BLB_out = true;
+
+            } else if (queueHeadState[tid][ROB] == HeadInstrState::L2DCacheWait) {
+                slotCounter->incLocalSlots(tid, L2DCacheInterference, blockedSlots);
                 BLB_out = true;
 
             } else { // head inst in ROB is DCache Miss
@@ -204,11 +202,14 @@ cycleEnd(ThreadID tid,
         } else {
             // trick depends on sequence of enum definition to avoid duplication
             int distance_to_iq = fullSource - IQ;
-            if (!ROBHeadMissCache[tid]) {
-                slotCounter->incLocalSlots(
-                        tid, static_cast<SlotsUse>(IQWait + 2*distance_to_iq + 0),
-                        blockedSlots);
+            if (queueHeadState[tid][fullSource] == HeadInstrState::L1DCacheWait) {
+                slotCounter->incLocalSlots(tid, L1DCacheInterference, blockedSlots);
                 BLB_out = true;
+
+            } else if (queueHeadState[tid][fullSource] == HeadInstrState::L2DCacheWait) {
+                slotCounter->incLocalSlots(tid, L2DCacheInterference, blockedSlots);
+                BLB_out = true;
+
             } else { // head inst in queue is DCache Miss
                 assert(queueHeadState[tid][fullSource] != NoState);
                 if (vqState[tid][fullSource] == VQNotFull) {

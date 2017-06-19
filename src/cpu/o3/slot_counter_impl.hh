@@ -20,11 +20,10 @@ const char* slotUseStr[] = {
         "NotInitiated",
         "NotUsed",
         "InstSupMiss",
-        "InstSupWait",
-        "ICacheInterference",
+        "L1ICacheInterference",
+        "L2ICacheInterference",
         "FetchSliceWait",
         "WidthWait",
-        "EntryWait",
         "EntryMiss",
         "Base",
         "LaterMiss",
@@ -44,10 +43,11 @@ const char* slotUseStr[] = {
         "SQWait",
         "SQMiss",
         "SplitMiss",
-        "DCacheInterference",
+        "L1DCacheInterference",
+        "L2DCacheInterference",
 };
 
-std::array<SlotsUse, 11> MissEnums = {
+std::array<SlotsUse, 11> missEnums = {
         InstSupMiss,
         EntryMiss,
         LaterMiss,
@@ -61,20 +61,20 @@ std::array<SlotsUse, 11> MissEnums = {
         SplitMiss,
 };
 
-std::array<SlotsUse, 13> WaitEnums = {
-        InstSupWait,
-        ICacheInterference,
+std::array<SlotsUse, 13> waitEnums = {
+        L1ICacheInterference,
+        L2ICacheInterference,
         FetchSliceWait,
-        WidthWait,
-        EntryWait,
-        LaterWait,
-        LBLCWait,
-        SplitWait,
         ROBWait,
         IQWait,
         LQWait,
         SQWait,
-        DCacheInterference,
+        L1DCacheInterference,
+        L2DCacheInterference,
+        WidthWait,
+        LaterWait,
+        LBLCWait,
+        SplitWait,
 };
 
     template<class Impl>
@@ -127,17 +127,6 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su,
     }
 }
 
-template <class Impl>
-void
-SlotCounter<Impl>::assignSlots(ThreadID tid, DynInstPtr& inst)
-{
-    inst->incWaitSlot(wait[tid]);
-    wait[tid] = 0;
-    inst->incMissSlot(miss[tid]);
-    miss[tid] = 0;
-    DPRINTF(LB, "T[%u]: Assigning %i wait slots, %i miss slots "
-            "to Inst[%llu]\n", tid, wait[tid], miss[tid], inst->seqNum);
-}
 
 template <class Impl>
 bool
@@ -169,12 +158,12 @@ SlotCounter<Impl>::sumLocalSlots(ThreadID tid)
     curCycleMiss[tid] = 0;
     curCycleWait[tid] = 0;
 
-    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
+    for (auto it = missEnums.begin(); it != missEnums.end(); ++it) {
         curCycleMiss[tid] += perCycleSlots[tid][*it];
     }
     miss[tid] += curCycleMiss[tid];
 
-    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
+    for (auto it = waitEnums.begin(); it != waitEnums.end(); ++it) {
         curCycleWait[tid] += perCycleSlots[tid][*it];
     }
     wait[tid] += curCycleWait[tid];
@@ -238,10 +227,10 @@ void
 SlotCounter<Impl>::dumpStats() {
     waitSlots = 0;
     missSlots = 0;
-    for (auto it = WaitEnums.begin(); it != WaitEnums.end(); ++it) {
+    for (auto it = waitEnums.begin(); it != waitEnums.end(); ++it) {
         waitSlots += slots[*it];
     }
-    for (auto it = MissEnums.begin(); it != MissEnums.end(); ++it) {
+    for (auto it = missEnums.begin(); it != missEnums.end(); ++it) {
         missSlots += slots[*it];
     }
 }

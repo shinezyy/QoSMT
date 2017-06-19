@@ -45,6 +45,7 @@
 #define __CPU_O3_ROB_IMPL_HH__
 
 #include <list>
+#include <algorithm>
 
 #include "cpu/o3/rob.hh"
 #include "debug/Fetch.hh"
@@ -63,10 +64,10 @@ ROB<Impl>::ROB(O3CPU *_cpu, DerivO3CPUParams *params)
       squashWidth(params->squashWidth),
       numInstsInROB(0),
       denominator(1024),
-      numThreads(params->numThreads),
+      numThreads((ThreadID) params->numThreads),
       sampleCycle(0),
       sampleTime(0),
-      sampleRate(params->dumpWindowSize),
+      sampleRate((unsigned int) params->dumpWindowSize),
       hptInitPriv(unsigned(float(numEntries) * params->hptROBPrivProp))
 {
 }
@@ -144,6 +145,7 @@ ROB<Impl>::resetState()
         threadEntries[tid] = 0;
         squashIt[tid] = instList[tid].end();
         squashedSeqNum[tid] = 0;
+        VROB[tid] = 0;
     }
     numInstsInROB = 0;
 
@@ -267,6 +269,7 @@ ROB<Impl>::insertInst(DynInstPtr &inst)
     inst->setInROB();
 
     ++numInstsInROB;
+    VROB[tid] = std::min(VROB[tid] + 1, (float) numEntries);
     ++threadEntries[tid];
 
     assert((*tail) == inst);
@@ -294,6 +297,7 @@ ROB<Impl>::retireHead(ThreadID tid)
             head_inst->seqNum);
 
     --numInstsInROB;
+    VROB[tid] = std::max(VROB[tid] - VROB[tid]/threadEntries[tid], (float) 0.0);
     --threadEntries[tid];
 
     head_inst->clearInROB();
@@ -707,8 +711,6 @@ ROB<Impl>::updateMaxEntries()
 
     *taker += really_taken;
     *giver -= really_taken;
-    //voc->setVrobSize(0, maxEntries[0]);
-    //voc->setVrobSize(1, maxEntries[1]);
 
     maxEntriesUpToDate = sat;
     DPRINTF(Pard, "maxEntries[0]: %d\n", maxEntries[0]);
@@ -761,6 +763,17 @@ ROB<Impl>::dumpUsedEntries()
     resetUsedEntries();
 }
 
+template <class Impl>
+void
+ROB<Impl>::incVROB(ThreadID tid, int num) {
+    VROB[tid] = std::min(num + VROB[tid], (float) numEntries);
+}
+
+template <class Impl>
+bool
+ROB<Impl>::VROBFull(ThreadID tid) {
+    return VROB[tid] >= ((float) numEntries) - 0.1;
+}
 
 
 #endif//__CPU_O3_ROB_IMPL_HH__

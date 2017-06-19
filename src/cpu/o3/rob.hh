@@ -47,6 +47,7 @@
 #include <string>
 #include <utility>
 #include <vector>
+#include <array>
 
 #include "arch/registers.hh"
 #include "base/types.hh"
@@ -67,7 +68,6 @@ class ROB
     //Typedefs from the Impl.
     typedef typename Impl::O3CPU O3CPU;
     typedef typename Impl::DynInstPtr DynInstPtr;
-    typedef typename Impl::CPUPol::Voc Voc;
 
     typedef std::pair<RegIndex, PhysRegIndex> UnmapInfo;
     typedef typename std::list<DynInstPtr>::iterator InstIt;
@@ -381,17 +381,10 @@ class ROB
     // ROB utilization in past period
     Stats::Vector robUtilization;
 
-    Voc *voc;
-
   public:
     bool isDynamicPolicy() const;
 
     bool isProgrammablePolicy() const;
-
-    void setVoc(Voc *_voc)
-    {
-        voc = _voc;
-    }
 
     /** rob utilization (accumulation). */
     uint64_t numThreadUsedEntries[2];
@@ -417,6 +410,12 @@ class ROB
     unsigned sampleRate;
 
     const unsigned hptInitPriv;
+
+    std::array<float, Impl::MaxThreads> VROB;
+
+    void incVROB(ThreadID tid, int num);
+
+    bool VROBFull(ThreadID tid);
 };
 
 #endif //__CPU_O3_ROB_HH__

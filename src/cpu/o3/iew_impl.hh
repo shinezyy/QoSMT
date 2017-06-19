@@ -1955,13 +1955,6 @@ DefaultIEW<Impl>::setFmt(Fmt *_fmt)
 
 template<class Impl>
 void
-DefaultIEW<Impl>::setVoc(Voc *_voc)
-{
-    voc = _voc;
-}
-
-template<class Impl>
-void
 DefaultIEW<Impl>::reassignDispatchWidth(int newWidthVec[], int lenWidthVec)
 {
     //assert(lenWidthVec == numThreads);
@@ -2015,8 +2008,8 @@ DefaultIEW<Impl>::genShadow()
 
     InstSeqNum start = (InstSeqNum) ~0, end = 0;
 
-    for (MissTable::const_iterator it = l2MissTable.begin();
-            it != l2MissTable.end(); it++) {
+    for (MissTable::const_iterator it = missTables.l2MissTable.begin();
+            it != missTables.l2MissTable.end(); it++) {
         if (it->second.cacheLevel == 2 && it->second.tid == HPT) {
             if (it->second.seqNum < start) {
                 start = it->second.seqNum;
@@ -2065,6 +2058,8 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
     getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
 
+    bool no_use;
+
     if (fullSource[tid] == SlotConsm::FullSource::IQ) {
         DPRINTF(DispatchBreakdown, "IQ[T%i]: %i, IQ[T%i]: %i, IQ has head: %i, "
                 "VIQ[T%i]:%f\n",
@@ -2073,7 +2068,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 IQHead[tid] ? 1 : 0, tid, instQueue.VIQ[tid]);
         if (IQHead[tid]) {
             DPRINTF(DispatchBreakdown, "IQ head is Miss: %i\n",
-                    isMiss(IQHead[tid]->seqNum));
+                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VIQFull: %i\n", instQueue.VIQFull(tid));
     }
@@ -2086,7 +2081,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 LQHead[tid] ? 1 : 0, tid, ldstQueue.getVLQ(tid));
         if (LQHead[tid]) {
             DPRINTF(DispatchBreakdown, "LQ head is Miss: %i\n",
-                    isMiss(LQHead[tid]->seqNum));
+                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VLQFull: %i\n", ldstQueue.VLQFull(tid));
     }
@@ -2098,7 +2093,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 SQHead[tid] ? 1 : 0, tid, ldstQueue.getVSQ(tid));
         if (SQHead[tid]) {
             DPRINTF(DispatchBreakdown, "SQ head is Miss: %i\n",
-                    isMiss(SQHead[tid]->seqNum));
+                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VSQFull: %i\n", ldstQueue.VSQFull(tid));
     }
@@ -2147,16 +2142,26 @@ void
 DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
                                 typename SlotConsm::FullSource fs, ThreadID tid)
 {
-    if (QHead[tid] && isMiss(QHead[tid]->seqNum)) {
-        if (!isDCacheInterference(tid, QHead[tid]->seqNum)) {
-            slotConsumer.queueHeadState[tid][fs] = HeadInstrState::DCacheMiss;
-        } else {
-            slotConsumer.queueHeadState[tid][fs] = HeadInstrState::DCacheWait;
-        }
-    } else {
+    MissDescriptor md;
+
+    if (!QHead[tid]) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+        return;
     }
 
+    bool isMiss = missTables.isSpecifiedMiss(QHead[tid]->physEffAddr, true, md);
+    if (!isMiss) {
+        slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+    } else {
+        // trick
+        if (md.isCacheInterference) {
+            slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
+                    HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
+        } else {
+            slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
+                    HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
+        }
+    }
 }
 
 

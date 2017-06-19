@@ -27,7 +27,8 @@ enum SlotsUse {
      * were blocked in earlier stage by LPT
      */
     InstSupWait,
-    ICacheInterference,
+    L1ICacheInterference,
+    L2ICacheInterference,
     FetchSliceWait,
     // Have insts to process , but other thread occupied some dispatchWidth
     WidthWait,
@@ -61,9 +62,12 @@ enum SlotsUse {
     SQWait,
     SQMiss,
     SplitMiss,
-    DCacheInterference,
+    L1DCacheInterference,
+    L2DCacheInterference,
     NumUse
 };
+
+extern std::array<SlotsUse, 13> waitEnums;
 
 
 template <class Impl>
@@ -88,16 +92,7 @@ class SlotCounter
 
     SlotCounter(DerivO3CPUParams *params, uint32_t _width);
 
-    void assignSlots(ThreadID tid, DynInstPtr& inst);
-
     virtual std::string name() const = 0;
-
-    void reshape(DynInstPtr& inst) {
-        inst->incWaitSlot(-inst->getWaitSlot());
-        inst->incMissSlot(-inst->getMissSlot());
-    }
-
-
 
     bool checkSlots(ThreadID tid);
 

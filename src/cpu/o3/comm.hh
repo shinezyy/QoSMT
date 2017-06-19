@@ -119,6 +119,8 @@ struct DefaultRenameDefaultIEW {
     float storeRate;
 
     std::array<SlotsUse, Impl::MaxWidth> slotPass;
+
+    bool incVROB[Impl::MaxThreads];
 };
 
 /** Struct that defines the information passed from IEW to commit. */
@@ -290,6 +292,8 @@ struct TimeBufStruct {
         unsigned busyROBEntries;
 
         DynInstPtr ROBHead;
+
+        bool VROBFull;
     };
 
     commitComm commitInfo[Impl::MaxThreads];

@@ -87,8 +87,11 @@ BaseCache::BaseCache(const Params *p)
       system(p->system),
       cacheLevel(p->cache_level),
       numThreads(p->numThreads),
-      isDcache(p->is_dcache)
+      isDCache(p->is_dcache)
+
 {
+    missTable = cacheLevel==2 ? &missTables.l2MissTable :
+                isDCache ? &missTables.l1DMissTable : &missTables.l1IMissTable;
 }
 
 void

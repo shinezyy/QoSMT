@@ -138,10 +138,6 @@ BaseO3DynInst<Impl>::initVars()
     // For PTA:
     everMispredicted = false;
 
-    priorWaitSlots = 0;
-
-    priorMissSlots = 0;
-
     loadStartCycle = 0;
 
     LLMissed = false;

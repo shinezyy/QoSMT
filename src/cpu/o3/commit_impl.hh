@@ -936,6 +936,9 @@ DefaultCommit<Impl>::commit()
 
     while (threads != end) {
         ThreadID tid = *threads++;
+        if (fromRename->incVROB) {
+            rob->incVROB(tid, renameWidth);
+        }
 
         // Not sure which one takes priority.  I think if we have
         // both, that's a bad sign.
@@ -1048,6 +1051,7 @@ DefaultCommit<Impl>::commit()
             toIEW->commitInfo[tid].busyROBEntries = rob->numBusyEntries(tid);
 
             toIEW->commitInfo[tid].ROBHead = rob->readHeadInst(tid);
+            toIEW->commitInfo[tid].VROBFull = rob->VROBFull(tid);
 
             wroteToTimeBuffer = true;
             changedROBNumEntries[tid] = false;
@@ -1436,7 +1440,6 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
 
     // Finally clear the head ROB entry.
     rob->retireHead(tid);
-    //voc->freeVrob(tid, head_inst);
 
 #if TRACING_ON
     if (DTRACE(O3PipeView)) {
