@@ -776,9 +776,7 @@ class FullO3CPU : public BaseO3CPU
 
     bool robReserved, lqReserved, sqReserved, fetchReserved;
 
-    void frontendControl();
-
-    void combinedControl();
+    void resourceAdjust();
 
   public:
     unsigned dumpWindowSize;
@@ -838,6 +836,10 @@ class FullO3CPU : public BaseO3CPU
     std::array<Contention, ContentionNum> rankedContentions; // Ascending order
 
     void sortContention();
+
+    const int numResourceToAdjust;
+
+    int adjustRoute(Contention contention, bool incHPT);
 };
 
 #endif // __CPU_O3_CPU_HH__

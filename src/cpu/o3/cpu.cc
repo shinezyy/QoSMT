@@ -224,7 +224,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       localCycles(0),
       abnormal(false),
       numContCtrl(0),
-      fullThreshold(params->fullThreshold)
+      fullThreshold(params->fullThreshold),
+      numResourceToAdjust(4)
 {
     if (!params->switched_out) {
         _status = Running;
@@ -618,19 +619,6 @@ FullO3CPU<Impl>::regStats()
 
 }
 
-template <class Impl>
-void
-FullO3CPU<Impl>::frontendControl()
-{
-
-}
-
-template <class Impl>
-void
-FullO3CPU<Impl>::combinedControl()
-{
-
-}
 
 template <class Impl>
 void
@@ -662,11 +650,7 @@ FullO3CPU<Impl>::tick()
     }
 
     if (policyCycles >= policyWindowSize) {
-        if (controlPolicy == FrontEnd) {
-            frontendControl();
-        } else if (controlPolicy == Combined) {
-            combinedControl();
-        }
+        resourceAdjust();
 
         rename.dumpStats();
         rename.clearFull();
@@ -2023,8 +2007,69 @@ FullO3CPU<Impl>::sortContention() {
               [&contNums](size_t x, size_t y) {return contNums[x] < contNums[y];});
 
     for (size_t i = 0; i < ContentionNum; ++i) {
-        rankedContentions[i] = static_cast<Contention>(contIndices[i]);
+        rankedContentions[i] = static_cast<Contention>((int)contIndices[i]);
     }
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::resourceAdjust()
+{
+    int numAdjusted = 0;
+
+    if (!satisfiedQoS()) {
+        for (auto it = rankedContentions.rbegin();
+             it != rankedContentions.rend() && numAdjusted < numResourceToAdjust;
+             ++it) {
+            numAdjusted += adjustRoute(*it, true);
+        }
+    } else {
+        for (auto it = rankedContentions.begin();
+             it != rankedContentions.end() && numAdjusted < numResourceToAdjust;
+             ++it) {
+            numAdjusted += adjustRoute(*it, false);
+        }
+    }
+}
+
+template <class Impl>
+int
+FullO3CPU<Impl>::adjustRoute(Contention contention, bool incHPT)
+{
+    switch (contention) {
+        case Contention::L1DCacheCont:
+            adjustCache(1, true, incHPT);
+            break;
+        case Contention::L1ICacheCont:
+            adjustCache(1, false, incHPT);
+            break;
+        case Contention::L2CacheCont:
+            adjustCache(2, true, incHPT);
+            break;
+        case Contention::FetchCont:
+            adjustFetch(incHPT);
+            break;
+        case Contention::ROBCont:
+            if (controlPolicy == ControlPolicy::FrontEnd) return 0;
+            adjustROB(incHPT);
+            break;
+        case Contention::IQCont:
+            if (controlPolicy == ControlPolicy::FrontEnd) return 0;
+            adjustIQ(incHPT);
+            break;
+        case Contention::LQCont:
+            if (controlPolicy == ControlPolicy::FrontEnd) return 0;
+            adjustLQ(incHPT);
+            break;
+        case Contention::SQCont:
+            if (controlPolicy == ControlPolicy::FrontEnd) return 0;
+            adjustSQ(incHPT);
+            break;
+        default:
+            panic("Unexpected type of contention!\n");
+
+    }
+    return 1;
 }
 
 // Forward declaration of FullO3CPU.
