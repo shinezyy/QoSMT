@@ -38,8 +38,10 @@ bool MissTables::isL1Miss(Addr address, bool &isData) {
 
 void MissTables::printMiss(MissTable &mt) {
     for (auto it = mt.begin(); it != mt.end(); ++it) {
-        DPRINTF(MissTable, "L%i cache miss @ addr [0x%x]\n",
-                it->second.cacheLevel, it->first);
+        DPRINTF(MissTable, "L%i cache %s miss @ addr [0x%x]\n",
+                it->second.cacheLevel,
+                it->second.mat == MemAccessType::MemStore ? "store" : "load",
+                it->first);
     }
 }
 

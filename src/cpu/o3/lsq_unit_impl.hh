@@ -122,19 +122,20 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     DPRINTF(LLM, "Finished cache access of [sn:%lli]\n", inst->seqNum);
 
     MissStat &ms = missTables.missStat;
-    Addr phyAddress = inst->physEffAddr;
+    Addr phyAddress = blockAlign(inst->physEffAddr);
     MissTable &l1_table = missTables.l1DMissTable;
     MissTable &l2_table = missTables.l2MissTable;
     ThreadID tid = inst->threadNumber;
+
 
     if (l1_table.size() > 100 || l2_table.size() > 100) {
         panic("Miss table size is too large, find bug!\n");
     }
 
-    MissTable::const_iterator &&it1 = l1_table.find(blockAlign(phyAddress));
+    MissTable::const_iterator &&it1 = l1_table.find(phyAddress);
     if (it1 != l1_table.end()) {
-        DPRINTF(MissTable, "T[%i] Remove L%i cache miss from L1 miss table.\n",
-                tid, it1->second.cacheLevel);
+        DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L1 miss table.\n",
+                tid, it1->second.cacheLevel, phyAddress);
 
         if (inst->isLoad()) {
             ms.numL1LoadMiss[tid]--;
@@ -144,25 +145,23 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         l1_table.erase(it1);
     }
 
-    MissTable::const_iterator &&it2 = l2_table.find(blockAlign(phyAddress));
+    MissTable::const_iterator &&it2 = l2_table.find(phyAddress);
     if (it2 != l2_table.end()) {
-        DPRINTF(MissTable, "T[%i] Remove L%i cache miss from L2 miss table.\n",
-                tid, it2->second.cacheLevel);
+        DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L2 miss table.\n",
+                tid, it2->second.cacheLevel, phyAddress);
         ms.numL2DataMiss[tid]--;
         l2_table.erase(it2);;
     }
 
+#if 0
     if (ms.numL1StoreMiss[tid] > 100 || ms.numL1LoadMiss[tid] > 100 ||
             ms.numL2DataMiss[tid] > 100) {
-        DPRINTF(MissTable, "Print miss table:\n");
-        MissTable::const_iterator itx = l2_table.begin();
-        while (itx != l2_table.end()) {
-            DPRINTFR(MissTable, "T[%i]  L%i  SN:%llu  start:%llu\n",
-                    itx->second.tid, itx->second.cacheLevel,
-                    itx->second.seqNum, itx->second.startTick);
-            itx++;
-        }
+        DPRINTF(MissTable, "L1 store miss: %i, L1 load miss: %i, L2 miss: %i\n",
+                ms.numL1StoreMiss[tid], ms.numL1LoadMiss[tid],
+                ms.numL2DataMiss[tid]);
+        missTables.printAllMiss();
     }
+#endif
 
     assert(!cpu->switchedOut());
     if (!inst->isSquashed()) {
