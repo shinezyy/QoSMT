@@ -1870,6 +1870,7 @@ DefaultRename<Impl>::missTry()
     DPRINTF(missTry, "====== HPT blocked ======!\n");
 
     MissStat &ms = missTables.missStat;
+    ms.numL2DataMiss[HPT] = ms.numL2DataMiss[HPT];
 
     DPRINTFR(missTry, "Number of pending misses:\n"
             "L2 cache ---- T0: %i, T1: %i;\n"

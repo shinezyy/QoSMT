@@ -2058,7 +2058,8 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
     getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
 
-    bool no_use;
+    bool no_use = true;
+    no_use = !no_use;
 
     if (fullSource[tid] == SlotConsm::FullSource::IQ) {
         DPRINTF(DispatchBreakdown, "IQ[T%i]: %i, IQ[T%i]: %i, IQ has head: %i, "
