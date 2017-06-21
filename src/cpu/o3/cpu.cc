@@ -2014,6 +2014,9 @@ template <class Impl>
 void
 FullO3CPU<Impl>::resourceAdjust()
 {
+    if (controlPolicy == ControlPolicy::None)
+        return;
+    sortContention();
     int numAdjusted = 0;
 
     if (!satisfiedQoS()) {
