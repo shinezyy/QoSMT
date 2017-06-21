@@ -157,7 +157,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         DPRINTF(MissTable, "Print miss table:\n");
         MissTable::const_iterator itx = l2_table.begin();
         while (itx != l2_table.end()) {
-            DPRINTFR(missTry, "T[%i]  L%i  SN:%llu  start:%llu\n",
+            DPRINTFR(MissTable, "T[%i]  L%i  SN:%llu  start:%llu\n",
                     itx->second.tid, itx->second.cacheLevel,
                     itx->second.seqNum, itx->second.startTick);
             itx++;

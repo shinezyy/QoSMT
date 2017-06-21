@@ -632,7 +632,8 @@ class BaseCache : public MemObject
                                        isInterference,
                                        mat,
                                        curTick(),
-                                       pkt->req->seqNum
+                                       pkt->req->seqNum,
+                                       pkt->getAddr()
                                });
 
             MissStat &ms = missTables.missStat;
@@ -649,6 +650,7 @@ class BaseCache : public MemObject
             } else if (cacheLevel == 2) {
                 bool is_data;
                 if (!missTables.isL1Miss(pkt->getAddr(), is_data)) {
+                    missTables.printAllMiss();
                     panic("L2 miss has no miss in L1!\n");
                 }
                 if (is_data) {

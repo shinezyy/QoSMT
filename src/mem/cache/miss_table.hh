@@ -6,6 +6,8 @@
 #include <vector>
 
 #include "base/types.hh"
+#include "base/trace.hh"
+#include "debug/MissTable.hh"
 #include "mem/cache/miss_descpriptor.hh"
 
 struct MissEntry {
@@ -17,10 +19,14 @@ struct MissEntry {
     uint64_t seqNum;
 
     MissEntry(ThreadID _tid, int32_t level, bool interf,
-            MemAccessType _mat, Tick st, uint64_t sn)
+            MemAccessType _mat, Tick st, uint64_t sn, Addr address)
         : tid(_tid), cacheLevel((int16_t) level),
         isInterference(interf), mat(_mat), startTick(st),
-        seqNum(sn) {}
+        seqNum(sn)
+    {
+        address = address;
+        DPRINTF(MissTable, "L%i cache miss @ addr [0x%x]\n", level, address);
+    }
 };
 
 
@@ -49,6 +55,10 @@ public:
     bool isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md);
 
     bool isL1Miss(Addr address, bool &isInst);
+
+    void printMiss(MissTable &mt);
+
+    void printAllMiss();
 };
 
 extern MissTables missTables;

@@ -36,5 +36,20 @@ bool MissTables::isL1Miss(Addr address, bool &isData) {
     return isData || l1IMissTable.end() != inst_it;
 }
 
+void MissTables::printMiss(MissTable &mt) {
+    for (auto it = mt.begin(); it != mt.end(); ++it) {
+        DPRINTF(MissTable, "L%i cache miss @ addr [0x%x]\n",
+                it->second.cacheLevel, it->first);
+    }
+}
+
+void MissTables::printAllMiss() {
+    DPRINTF(MissTable, "L1 I-Cache:\n");
+    printMiss(l1IMissTable);
+    DPRINTF(MissTable, "L1 D-Cache:\n");
+    printMiss(l1DMissTable);
+    DPRINTF(MissTable, "L2 Cache:\n");
+    printMiss(l2MissTable);
+}
 
 MissTables missTables;
