@@ -73,6 +73,9 @@
 
 using namespace std;
 
+#define dis(x) \
+    x ? (x)->staticInst->disassemble((x)->instAddr()) : "Nothing"
+
 template <class Impl>
 DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
     : SlotCounter<Impl>(params, params->renameWidth),
@@ -1793,30 +1796,41 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 {
     MissDescriptor md;
 
-    if (!ROBHead[tid]) {
-        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                HeadInstrState::Normal;
-    } else {
-        bool isMiss = missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md);
-        if (!isMiss) {
+    if (fullSource[tid] == SlotConsm::FullSource::ROB) {
+        if (!ROBHead[tid]) {
             slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                    HeadInstrState::Normal;
+                HeadInstrState::Normal;
+            DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
         } else {
-            // trick
-            if (md.isCacheInterference) {
+            DPRINTFR(missTry, "ROB Head[T%i] ----: %s\n",
+                    tid, dis(ROBHead[tid]));
+            bool isMiss = missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr,
+                    true, md);
+            if (!isMiss) {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                    HeadInstrState::Normal;
+                DPRINTF(missTry, "ROBHead[T%i] is not miss\n", tid);
+            } else {
+                // trick
+                if (md.isCacheInterference) {
+                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                         static_cast<HeadInstrState>(
                                 HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
-            } else {
-                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                    DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
+                } else {
+                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                         static_cast<HeadInstrState>(
                                 HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
+                    DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
+                            tid);
+                }
             }
         }
-    }
 
-    slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
+        slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
             VROBFull[tid] ? VQState::VQFull : VQState::VQNotFull;
+        DPRINTF(missTry, "VROB[T%i] is %s full\n", tid, VROBFull[tid] ? "" : "not");
+    }
 
     toIEW->loadRate = fromDecode->loadRate;
     toIEW->storeRate = fromDecode->storeRate;
@@ -1864,8 +1878,6 @@ template<class Impl>
 void
 DefaultRename<Impl>::missTry()
 {
-#define dis(x) \
-    x ? (x)->staticInst->disassemble((x)->instAddr()) : "Nothing"
 
     DPRINTF(missTry, "====== HPT blocked ======!\n");
 
@@ -1919,7 +1931,6 @@ DefaultRename<Impl>::missTry()
             DPRINTF(missTry, "Other reason\n");
     }
 
-#undef dis
 }
 
 template<class Impl>
@@ -2000,5 +2011,7 @@ DefaultRename<Impl>::clearLocalSignals()
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
     std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
 }
+
+#undef dis
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

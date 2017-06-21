@@ -52,6 +52,7 @@
 #include "debug/ROB.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtCtrl.hh"
+#include "debug/missTry.hh"
 #include "params/DerivO3CPU.hh"
 #include "cpu/o3/log.hh"
 
@@ -766,13 +767,18 @@ ROB<Impl>::dumpUsedEntries()
 template <class Impl>
 void
 ROB<Impl>::incVROB(ThreadID tid, int num) {
+    DPRINTF(missTry, "Before incVROB, VROB[%i] = %f\n", tid, VROB[tid]);
     VROB[tid] = std::min(num + VROB[tid], (float) numEntries);
 }
 
 template <class Impl>
 bool
 ROB<Impl>::VROBFull(ThreadID tid) {
-    return VROB[tid] >= ((float) numEntries) - 0.1;
+    bool ret = VROB[tid] >= ((float) numEntries) - 0.1;
+    if (!ret) {
+        DPRINTF(missTry, "VROB[%i] = %f\n", tid, VROB[tid]);
+    }
+    return ret;
 }
 
 
