@@ -412,6 +412,26 @@ void
 DefaultFetch<Impl>::processCacheCompletion(PacketPtr pkt)
 {
     ThreadID tid = pkt->req->threadId();
+    MissStat &ms = missTables.missStat;
+    MissTable &l1_table = missTables.l1IMissTable;
+    MissTable &l2_table = missTables.l2MissTable;
+    Addr phyAddress = blockAlign(pkt->getAddr());
+
+    auto it = l1_table.find(phyAddress);
+    if (it != l1_table.end()) {
+        DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L1 miss table.\n",
+                tid, it->second.cacheLevel, phyAddress);
+        ms.numL1InstMiss[tid]--;
+        l1_table.erase(it);
+    }
+
+    it = l2_table.find(phyAddress);
+    if (it != l2_table.end()) {
+        DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L2 miss table.\n",
+                tid, it->second.cacheLevel, phyAddress);
+        ms.numL2InstMiss[tid]--;
+        l2_table.erase(it);
+    }
 
     DPRINTF(Fetch, "[tid:%u] Waking up from cache miss.\n", tid);
     assert(!cpu->switchedOut());
