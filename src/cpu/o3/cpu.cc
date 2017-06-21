@@ -224,7 +224,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       localCycles(0),
       abnormal(false),
       numContCtrl(0),
-      fullThreshold(params->fullThreshold),
       numResourceToAdjust(4)
 {
     if (!params->switched_out) {

@@ -185,9 +185,6 @@ class DerivO3CPU(BaseCPU):
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")
 
-    fullThreshold = Param.Int(128, 'when full/cycle > threshold,' +
-                             'it should be controlled')
-
     sampleLen = Param.Int(32, 'store Sample len')
 
     def addCheckerCpu(self):

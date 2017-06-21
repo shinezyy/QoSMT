@@ -803,8 +803,6 @@ class FullO3CPU : public BaseO3CPU
 
     ControlPolicy controlPolicy;
 
-    uint32_t fullThreshold;
-
   private:
 
     bool satisfiedQoS();
