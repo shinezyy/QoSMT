@@ -628,6 +628,12 @@ class LSQUnit {
     bool VSQFull() {
         return VSQ >= ((float) SQEntries) - 0.1;
     }
+
+    unsigned blkSize;
+
+    Addr blockAlign(Addr addr) {
+        return (addr & ~(Addr(blkSize - 1)));
+    }
 };
 
 template <class Impl>

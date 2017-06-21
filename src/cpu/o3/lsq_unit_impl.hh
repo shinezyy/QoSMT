@@ -131,7 +131,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         panic("Miss table size is too large, find bug!\n");
     }
 
-    MissTable::const_iterator &&it1 = l1_table.find(phyAddress);
+    MissTable::const_iterator &&it1 = l1_table.find(blockAlign(phyAddress));
     if (it1 != l1_table.end()) {
         DPRINTF(MissTable, "T[%i] Remove L%i cache miss from L1 miss table.\n",
                 tid, it1->second.cacheLevel);
@@ -144,7 +144,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         l1_table.erase(it1);
     }
 
-    MissTable::const_iterator &&it2 = l2_table.find(inst->seqNum);
+    MissTable::const_iterator &&it2 = l2_table.find(blockAlign(phyAddress));
     if (it2 != l2_table.end()) {
         DPRINTF(MissTable, "T[%i] Remove L%i cache miss from L2 miss table.\n",
                 tid, it2->second.cacheLevel);
@@ -245,6 +245,8 @@ LSQUnit<Impl>::init(O3CPU *cpu_ptr, IEW *iew_ptr, DerivO3CPUParams *params,
 
     hasL1Miss = false;
     hasL2Miss = false;
+
+    blkSize = params->system->cacheLineSize();
 
     resetState();
 }

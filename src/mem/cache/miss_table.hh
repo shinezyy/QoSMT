@@ -25,7 +25,7 @@ struct MissEntry {
         seqNum(sn)
     {
         address = address;
-        DPRINTF(MissTable, "L%i cache miss @ addr [0x%x]\n", level, address);
+        DPRINTF(MissTable, "Insert L%i cache miss @ addr [0x%x]\n", level, address);
     }
 };
 
