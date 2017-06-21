@@ -131,18 +131,7 @@ BaseSetAssoc::findBlock(Addr addr, bool is_secure) const
 CacheBlk*
 BaseSetAssoc::accessShadowTag(Addr addr)
 {
-    int set = extractSet(addr);
-    Addr stag = extractTag(addr);
-    BlkType *blk = NULL;
-    int i;
-    for ( i = assoc - 1; i >= 0; i--) {
-        blk = sets[set].blks[i];
-        if ( blk->shadowtag == stag ) break;
-    }
-        if (( blk->shadowtag != stag ) & ( i == 0 )) {
-        blk = NULL;
-    }
-    return blk;
+    return NULL;
 }
 void
 BaseSetAssoc::clearLocks()
