@@ -1802,8 +1802,8 @@ DefaultRename<Impl>::passLB(ThreadID tid)
                 HeadInstrState::Normal;
             DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
         } else {
-            DPRINTFR(missTry, "ROB Head[T%i] ----: %s\n",
-                    tid, dis(ROBHead[tid]));
+            DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
+                    tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
             bool isMiss = missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr,
                     true, md);
             if (!isMiss) {
