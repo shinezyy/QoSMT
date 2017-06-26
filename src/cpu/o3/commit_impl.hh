@@ -1052,7 +1052,7 @@ DefaultCommit<Impl>::commit()
             toIEW->commitInfo[tid].busyROBEntries = rob->numBusyEntries(tid);
 
             toIEW->commitInfo[tid].ROBHead = rob->readHeadInst(tid);
-            toIEW->commitInfo[tid].VROBFull = rob->VROBFull(tid);
+            toIEW->commitInfo[tid].numVROB = rob->VROB[tid];
 
             wroteToTimeBuffer = true;
             changedROBNumEntries[tid] = false;

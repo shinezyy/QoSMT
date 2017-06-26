@@ -332,7 +332,7 @@ DefaultRename<Impl>::resetStage()
         storesInProgress[tid] = 0;
 
         serializeOnNextInst[tid] = false;
-        VROBFull[tid] = false;
+        numVROB[tid] = 0.0;
     }
     clearFull();
 }
@@ -1528,7 +1528,7 @@ DefaultRename<Impl>::readFreeEntries(ThreadID tid)
         maxEntries[tid].robEntries = fromCommit->commitInfo[tid].maxROBEntries;
         busyEntries[tid].robEntries = fromCommit->commitInfo[tid].busyROBEntries;
         ROBHead[tid] = fromCommit->commitInfo[tid].ROBHead;
-        VROBFull[tid] = fromCommit->commitInfo[tid].VROBFull;
+        numVROB[tid] = fromCommit->commitInfo[tid].numVROB;
     }
 
     LQHead[tid] = fromIEW->iewInfo[tid].LQHead;
@@ -1827,8 +1827,23 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             }
         }
 
+        int num_insts_in_flight;
+        if (commit_ptr->isROBPolicyDynamic() ||
+            commit_ptr->isROBPolicyProgrammable()) {
+            // Calc number of all instructions in flight.
+            num_insts_in_flight = availableInstCount;
+            num_insts_in_flight +=
+                    (instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched);
+        } else {
+            num_insts_in_flight = instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched;
+        }
+
+        float calculated_VROB = numVROB[tid] + num_insts_in_flight;
+        DPRINTF(missTry, "VROB[T%i] is %i\n", tid, calculated_VROB);
+
         slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
-            VROBFull[tid] ? VQState::VQFull : VQState::VQNotFull;
+                calculated_VROB >
+                maxEntries[tid].robEntries ? VQState::VQFull : VQState::VQNotFull;
         DPRINTF(missTry, "VROB[T%i] is %s full\n", tid, VROBFull[tid] ? "" : "not");
     }
 

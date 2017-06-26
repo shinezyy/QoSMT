@@ -293,7 +293,7 @@ struct TimeBufStruct {
 
         DynInstPtr ROBHead;
 
-        bool VROBFull;
+        float numVROB;
     };
 
     commitComm commitInfo[Impl::MaxThreads];
