@@ -540,7 +540,7 @@ LSQUnit<Impl>::insertLoad(DynInstPtr &load_inst)
     incrLdIdx(loadTail);
 
     ++loads;
-    VLQ = std::min(VLQ + 1, (float) LQEntries);
+    incVLQ(1);
 }
 
 template <class Impl>
@@ -562,7 +562,7 @@ LSQUnit<Impl>::insertStore(DynInstPtr &store_inst)
     incrStIdx(storeTail);
 
     ++stores;
-    VSQ = std::min(VSQ + 1, (float) SQEntries);
+    incVSQ(1);
 }
 
 template <class Impl>

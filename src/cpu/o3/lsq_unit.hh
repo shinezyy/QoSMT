@@ -616,17 +616,18 @@ class LSQUnit {
     float VLQ, VSQ;
 
     void incVLQ(float num) {
-        VLQ = std::min(num + VLQ, (float) LQEntries);
+        VLQ = std::min(num + VLQ, (float) LQEntries - 1);
     }
     void incVSQ(float num) {
-        VSQ = std::min(num + VSQ, (float) SQEntries);
+        VSQ = std::min(num + VSQ, (float) SQEntries - 1);
     }
 
     bool VLQFull() {
-        return VLQ >= ((float) LQEntries) - 0.1;
+        // note dummy entry in LSQ !
+        return VLQ >= ((float) LQEntries) - 1.1;
     }
     bool VSQFull() {
-        return VSQ >= ((float) SQEntries) - 0.1;
+        return VSQ >= ((float) SQEntries) - 1.1;
     }
 
     unsigned blkSize;
