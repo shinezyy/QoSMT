@@ -2082,7 +2082,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 LQHead[tid] ? 1 : 0, tid, ldstQueue.getVLQ(tid));
         if (LQHead[tid]) {
             DPRINTF(DispatchBreakdown, "LQ head is Miss: %i\n",
-                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
+                    missTables.isL1Miss(LQHead[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VLQFull: %i\n", ldstQueue.VLQFull(tid));
     }
@@ -2094,7 +2094,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 SQHead[tid] ? 1 : 0, tid, ldstQueue.getVSQ(tid));
         if (SQHead[tid]) {
             DPRINTF(DispatchBreakdown, "SQ head is Miss: %i\n",
-                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
+                    missTables.isL1Miss(SQHead[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VSQFull: %i\n", ldstQueue.VSQFull(tid));
     }
