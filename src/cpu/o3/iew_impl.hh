@@ -63,6 +63,7 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
+#include "debug/missTry2.hh"
 #include "debug/FmtSlot2.hh"
 #include "debug/DispatchBreakdown.hh"
 #include "debug/BMT.hh"
@@ -1010,6 +1011,7 @@ DefaultIEW<Impl>::sortInsts()
     }
 
     storeRate = fromRename->storeRate;
+    loadRate = fromRename->loadRate;
 }
 
 template <class Impl>
@@ -1234,11 +1236,13 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 ++numSQFull[tid];
             }
 
-            if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
+            if (inst->isLoad()) {
+                DPRINTF(missTry2, "increase VLQ %f\n", loadRate);
                 ldstQueue.incVLQ(tid, loadRate);
 
-            } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
-                ldstQueue.incVSQ(tid, loadRate);
+            } else if (inst->isStore()) {
+                ldstQueue.incVSQ(tid, storeRate);
+                DPRINTF(missTry2, "increase VSQ %f\n", storeRate);
             }
             // Call function to start blocking.
             block(tid);
@@ -2058,7 +2062,8 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
     getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
 
-    bool no_use;
+    bool no_use = true;
+    no_use = !no_use;
 
     if (fullSource[tid] == SlotConsm::FullSource::IQ) {
         DPRINTF(DispatchBreakdown, "IQ[T%i]: %i, IQ[T%i]: %i, IQ has head: %i, "
@@ -2081,7 +2086,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 LQHead[tid] ? 1 : 0, tid, ldstQueue.getVLQ(tid));
         if (LQHead[tid]) {
             DPRINTF(DispatchBreakdown, "LQ head is Miss: %i\n",
-                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
+                    missTables.isL1Miss(LQHead[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VLQFull: %i\n", ldstQueue.VLQFull(tid));
     }
@@ -2093,7 +2098,7 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 SQHead[tid] ? 1 : 0, tid, ldstQueue.getVSQ(tid));
         if (SQHead[tid]) {
             DPRINTF(DispatchBreakdown, "SQ head is Miss: %i\n",
-                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
+                    missTables.isL1Miss(SQHead[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VSQFull: %i\n", ldstQueue.VSQFull(tid));
     }

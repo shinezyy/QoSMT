@@ -224,7 +224,6 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       localCycles(0),
       abnormal(false),
       numContCtrl(0),
-      fullThreshold(params->fullThreshold),
       numResourceToAdjust(4)
 {
     if (!params->switched_out) {
@@ -2015,6 +2014,9 @@ template <class Impl>
 void
 FullO3CPU<Impl>::resourceAdjust()
 {
+    if (controlPolicy == ControlPolicy::None)
+        return;
+    sortContention();
     int numAdjusted = 0;
 
     if (!satisfiedQoS()) {

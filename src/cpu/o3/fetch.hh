@@ -640,6 +640,12 @@ class DefaultFetch : public SlotCounter<Impl>
     const unsigned numTimeSlice;
 
     ThreadID fetchThread;
+
+  private:
+
+    Addr blockAlign(Addr addr) {
+        return (addr & ~(Addr(cacheBlkSize - 1)));
+    }
 };
 
 #endif //__CPU_O3_FETCH_HH__

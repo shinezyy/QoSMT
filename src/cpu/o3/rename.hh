@@ -663,7 +663,9 @@ class DefaultRename : public SlotCounter<Impl>
     std::array<bool, Impl::MaxThreads> tailSI;
     std::array<bool, Impl::MaxThreads> tailSINext;
 
-    std::array<bool, Impl::MaxThreads> VROBFull;
+    std::array<float, Impl::MaxThreads> numVROB;
+
+    std::array<unsigned, Impl::MaxThreads> toROBNum;
 };
 
 #endif // __CPU_O3_RENAME_HH__

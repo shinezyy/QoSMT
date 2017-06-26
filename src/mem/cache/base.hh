@@ -608,7 +608,7 @@ class BaseCache : public MemObject
                 exitSimLoop("A cache reached the maximum miss count");
         }
 
-        if (isDCache && pkt->req->seqNum && pkt->needsResponse()) {
+        if (pkt->needsResponse()) {
             MemAccessType mat = UnKnown;
             if (cacheLevel == 1) {
                 //仅L1 cache的访存类型对我们有意义
@@ -625,14 +625,15 @@ class BaseCache : public MemObject
                     pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
 
             ThreadID tid = pkt->req->threadId();
-            missTable->emplace(pkt->getAddr(),
+            missTable->emplace(blockAlign(pkt->getAddr()),
                                MissEntry{
                                        tid,
                                        cacheLevel,
                                        isInterference,
                                        mat,
                                        curTick(),
-                                       pkt->req->seqNum
+                                       pkt->req->seqNum,
+                                       blockAlign(pkt->getAddr())
                                });
 
             MissStat &ms = missTables.missStat;
@@ -649,6 +650,7 @@ class BaseCache : public MemObject
             } else if (cacheLevel == 2) {
                 bool is_data;
                 if (!missTables.isL1Miss(pkt->getAddr(), is_data)) {
+                    missTables.printAllMiss();
                     panic("L2 miss has no miss in L1!\n");
                 }
                 if (is_data) {

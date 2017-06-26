@@ -23,17 +23,11 @@ enum SlotsUse {
      * front end miss (iTLB miss, icache miss, miss prediction)
      */
     InstSupMiss,
-    /** Doesn't have enough insts because of instrutions of HPT
-     * were blocked in earlier stage by LPT
-     */
-    InstSupWait,
     L1ICacheInterference,
     L2ICacheInterference,
     FetchSliceWait,
     // Have insts to process , but other thread occupied some dispatchWidth
     WidthWait,
-    // Have insts to process , but other thread occupied some entries
-    EntryWait,
     // Have insts to process , but there's no enough entries because of itself (HPT)
     EntryMiss,
     // process insts

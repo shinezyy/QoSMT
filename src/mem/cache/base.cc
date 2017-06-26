@@ -90,6 +90,7 @@ BaseCache::BaseCache(const Params *p)
       isDCache(p->is_dcache)
 
 {
+    missTables.cacheBlockSize = blkSize;
     missTable = cacheLevel==2 ? &missTables.l2MissTable :
                 isDCache ? &missTables.l1DMissTable : &missTables.l1IMissTable;
 }

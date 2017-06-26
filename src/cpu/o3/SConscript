@@ -94,9 +94,11 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('LLM')
     DebugFlag('SI')
     DebugFlag('missTry')
+    DebugFlag('missTry2')
     DebugFlag('QoSCtrl')
     DebugFlag('SlotConsume')
     DebugFlag('MissTable')
+    DebugFlag('MissJudge')
 
     CompoundFlag('PardAll', ['FmtCtrl', 'Pard', 'FMT', 'VOC', 'BMT'])
 
