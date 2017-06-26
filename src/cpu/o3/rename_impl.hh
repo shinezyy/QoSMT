@@ -1827,18 +1827,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             }
         }
 
-        int num_insts_in_flight;
-        if (commit_ptr->isROBPolicyDynamic() ||
-            commit_ptr->isROBPolicyProgrammable()) {
-            // Calc number of all instructions in flight.
-            num_insts_in_flight = availableInstCount;
-            num_insts_in_flight +=
-                    (instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched);
-        } else {
-            num_insts_in_flight = instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched;
-        }
-
-        float calculated_VROB = numVROB[tid] + num_insts_in_flight;
+        float calculated_VROB = numVROB[tid] + toIEWNum[tid] + toROBNum[tid];
         DPRINTF(missTry, "VROB[T%i] is %i\n", tid, calculated_VROB);
 
         bool VROB_full = calculated_VROB > maxEntries[tid].robEntries;
@@ -2022,6 +2011,8 @@ DefaultRename<Impl>::clearLocalSignals()
     LB_part = false;
     numLPTcause = 0;
     blockedCycles = 0;
+
+    toROBNum = toIEWNum;
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
     std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
