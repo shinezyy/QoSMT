@@ -7,7 +7,8 @@ bool MissTables::isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md
     MissTable *l2_table = &l2MissTable;
     MissTable::iterator l1_it, l2_it;
 
-    DPRINTF(missTry, "Address to look up is 0x%x", address);
+    address = blockAlign(address);
+    DPRINTF(missTry, "Address to look up is 0x%x\n", address);
 
     l1_it = l1_table->find(address);
     if (l1_it == l1_table->end()) {
@@ -33,6 +34,10 @@ bool MissTables::isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md
 
 bool MissTables::isL1Miss(Addr address, bool &isData) {
     MissTable::iterator data_it, inst_it;
+
+    address = blockAlign(address);
+    DPRINTF(MissTable, "Address to look up is 0x%x\n", address);
+
     data_it = l1DMissTable.find(address);
     inst_it = l1IMissTable.find(address);
 

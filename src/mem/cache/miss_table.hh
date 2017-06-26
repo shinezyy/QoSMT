@@ -59,6 +59,12 @@ public:
     void printMiss(MissTable &mt);
 
     void printAllMiss();
+
+    int cacheBlockSize;
+
+    Addr blockAlign(Addr addr) {
+        return (addr & ~(Addr(cacheBlockSize - 1)));
+    }
 };
 
 extern MissTables missTables;
