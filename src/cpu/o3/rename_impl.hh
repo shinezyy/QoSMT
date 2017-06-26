@@ -1830,6 +1830,10 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
             VROBFull[tid] ? VQState::VQFull : VQState::VQNotFull;
         DPRINTF(missTry, "VROB[T%i] is %s full\n", tid, VROBFull[tid] ? "" : "not");
+
+        if (ROBHead[tid]->seqNum > 967) {
+            panic("debug finished\n");
+        }
     }
 
     toIEW->loadRate = fromDecode->loadRate;

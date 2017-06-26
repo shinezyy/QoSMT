@@ -1,4 +1,5 @@
 #include "mem/cache/miss_table.hh"
+#include "debug/missTry.hh"
 
 
 bool MissTables::isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md) {
@@ -6,8 +7,11 @@ bool MissTables::isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md
     MissTable *l2_table = &l2MissTable;
     MissTable::iterator l1_it, l2_it;
 
+    DPRINTF(missTry, "Address to look up is 0x%x", address);
+
     l1_it = l1_table->find(address);
     if (l1_it == l1_table->end()) {
+        missTables.printMiss(*l1_table);
         md.valid = false;
         return false;
     } else {
