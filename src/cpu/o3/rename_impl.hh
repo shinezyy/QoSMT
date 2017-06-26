@@ -1828,9 +1828,9 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         }
 
         float calculated_VROB = numVROB[tid] + toIEWNum[tid] + toROBNum[tid];
-        DPRINTF(missTry, "VROB[T%i] is %i\n", tid, calculated_VROB);
+        DPRINTF(missTry, "VROB[T%i] is %f\n", tid, calculated_VROB);
 
-        bool VROB_full = calculated_VROB > maxEntries[tid].robEntries;
+        bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
         slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
                 VROB_full ? VQState::VQFull : VQState::VQNotFull;
         DPRINTF(missTry, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
