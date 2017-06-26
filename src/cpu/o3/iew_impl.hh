@@ -63,6 +63,7 @@
 #include "debug/O3PipeView.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtSlot.hh"
+#include "debug/missTry2.hh"
 #include "debug/FmtSlot2.hh"
 #include "debug/DispatchBreakdown.hh"
 #include "debug/BMT.hh"
@@ -1010,6 +1011,7 @@ DefaultIEW<Impl>::sortInsts()
     }
 
     storeRate = fromRename->storeRate;
+    loadRate = fromRename->loadRate;
 }
 
 template <class Impl>
@@ -1235,10 +1237,12 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             }
 
             if (inst->isLoad()) {
+                DPRINTF(missTry2, "increase VLQ %f", loadRate);
                 ldstQueue.incVLQ(tid, loadRate);
 
             } else if (inst->isStore()) {
                 ldstQueue.incVSQ(tid, storeRate);
+                DPRINTF(missTry2, "increase VSQ %f", storeRate);
             }
             // Call function to start blocking.
             block(tid);
