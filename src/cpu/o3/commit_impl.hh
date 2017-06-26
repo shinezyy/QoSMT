@@ -936,7 +936,8 @@ DefaultCommit<Impl>::commit()
 
     while (threads != end) {
         ThreadID tid = *threads++;
-        if (fromRename->incVROB) {
+        if (fromRename->incVROB[tid]) {
+            changedROBNumEntries[tid] = true;
             rob->incVROB(tid, renameWidth);
         }
 
