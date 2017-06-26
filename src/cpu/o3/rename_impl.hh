@@ -1841,10 +1841,10 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         float calculated_VROB = numVROB[tid] + num_insts_in_flight;
         DPRINTF(missTry, "VROB[T%i] is %i\n", tid, calculated_VROB);
 
+        bool VROB_full = calculated_VROB > maxEntries[tid].robEntries;
         slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
-                calculated_VROB >
-                maxEntries[tid].robEntries ? VQState::VQFull : VQState::VQNotFull;
-        DPRINTF(missTry, "VROB[T%i] is %s full\n", tid, VROBFull[tid] ? "" : "not");
+                VROB_full ? VQState::VQFull : VQState::VQNotFull;
+        DPRINTF(missTry, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
     }
 
     toIEW->loadRate = fromDecode->loadRate;
