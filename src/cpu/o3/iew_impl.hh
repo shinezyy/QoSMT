@@ -1234,11 +1234,11 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
                 ++numSQFull[tid];
             }
 
-            if (inst->isLoad() && ldstQueue.numLoads(LPT)) {
+            if (inst->isLoad()) {
                 ldstQueue.incVLQ(tid, loadRate);
 
-            } else if (inst->isStore() && ldstQueue.numStores(LPT)) {
-                ldstQueue.incVSQ(tid, loadRate);
+            } else if (inst->isStore()) {
+                ldstQueue.incVSQ(tid, storeRate);
             }
             // Call function to start blocking.
             block(tid);
