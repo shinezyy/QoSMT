@@ -904,8 +904,8 @@ LSQUnit<Impl>::commitLoad()
 
     incrLdIdx(loadHead);
 
-    --loads;
     VLQ = std::max(VLQ - VLQ/loads, (float) 0.0);
+    --loads;
 }
 
 template <class Impl>
@@ -1207,8 +1207,8 @@ LSQUnit<Impl>::squash(const InstSeqNum &squashed_num)
         // Clear the smart pointer to make sure it is decremented.
         loadQueue[load_idx]->setSquashed();
         loadQueue[load_idx] = NULL;
-        --loads;
         VLQ = std::max(VLQ - VLQ/loads, (float) 0.0);
+        --loads;
 
         // Inefficient!
         loadTail = load_idx;
@@ -1263,8 +1263,8 @@ LSQUnit<Impl>::squash(const InstSeqNum &squashed_num)
         }
 
         storeQueue[store_idx].req = NULL;
-        --stores;
         VSQ = std::max(VSQ - VSQ/stores, (float) 0.0);
+        --stores;
 
         // Inefficient!
         storeTail = store_idx;
@@ -1363,8 +1363,8 @@ LSQUnit<Impl>::completeStore(int store_idx)
     if (store_idx == storeHead) {
         do {
             incrStIdx(storeHead);
-            --stores;
             VSQ = std::max(VSQ - VSQ/stores, (float) 0.0);
+            --stores;
 
             if (stores > 0 && storeQueue[storeHead].inst->comTick) {
                 // Here usefull codes might have be deleted?

@@ -1237,12 +1237,12 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
             }
 
             if (inst->isLoad()) {
-                DPRINTF(missTry2, "increase VLQ %f", loadRate);
+                DPRINTF(missTry2, "increase VLQ %f\n", loadRate);
                 ldstQueue.incVLQ(tid, loadRate);
 
             } else if (inst->isStore()) {
                 ldstQueue.incVSQ(tid, storeRate);
-                DPRINTF(missTry2, "increase VSQ %f", storeRate);
+                DPRINTF(missTry2, "increase VSQ %f\n", storeRate);
             }
             // Call function to start blocking.
             block(tid);
