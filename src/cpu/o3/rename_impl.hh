@@ -1828,6 +1828,17 @@ DefaultRename<Impl>::passLB(ThreadID tid)
                     HeadInstrState::Normal;
                 normalHeadNotMiss[tid] += 1;
                 DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
+
+#if 0
+                printf("DEBUG--ROB Head[T%i][sn:%llu] ----: %s\n",
+                         tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
+                printf("Dcache miss flags: %i, miss table results: %i, "
+                               "ROB Head addr is nulptr: %i",
+                       ROBHead[tid]->DCacheMiss,
+                       missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md),
+                       (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0)
+                );
+#endif
             } else {
                 // trick
                 if (md.valid && md.isCacheInterference) {

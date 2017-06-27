@@ -17,7 +17,7 @@ cleanSlots()
         std::fill(slotConsumption[tid].begin(),
                   slotConsumption[tid].end(), SlotsUse::NotUsed);
         std::fill(queueHeadState[tid].begin(),
-                  queueHeadState[tid].end(), NoState);
+                  queueHeadState[tid].end(), HeadInstrState::NoState);
         std::fill(vqState[tid].begin(), vqState[tid].end(), NoVQ);
     }
     std::fill(localSlotIndex.begin(), localSlotIndex.end(), 0);

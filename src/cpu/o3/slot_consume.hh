@@ -22,7 +22,7 @@ enum NoInstrReason {
 };
 
 enum HeadInstrState {
-    NoState,
+    NoState = 0,
     Normal, // L1 hitting
     L1DCacheMiss,
     L2DCacheMiss,
@@ -31,7 +31,7 @@ enum HeadInstrState {
 };
 
 enum VQState {
-    NoVQ,
+    NoVQ = 0,
     VQNotFull,
     VQFull
 };
@@ -42,7 +42,7 @@ class SlotConsumer
 {
   public:
     enum FullSource {
-        ROB,
+        ROB = 0,
         IQ,
         LQ,
         SQ,
