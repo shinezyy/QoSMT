@@ -264,6 +264,12 @@ DefaultRename<Impl>::regStats()
             .name(name() + ".normalHeadNotMiss")
             .desc("normalHeadNotMiss")
             ;
+
+   normalCount
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalCount")
+            .desc("normalCount")
+            ;
 }
 
 template <class Impl>
@@ -1867,6 +1873,11 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             DPRINTF(missTry3, "VROB[T%i] from commit is %f, %i in flight\n", tid,
                     numVROB[tid], in_flight);
             DPRINTF(missTry3, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
+        }
+
+        if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
+                == HeadInstrState::Normal) {
+            normalCount[tid]++;
         }
     }
 

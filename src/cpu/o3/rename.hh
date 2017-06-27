@@ -661,6 +661,7 @@ class DefaultRename : public SlotCounter<Impl>
 
     Stats::Vector normalNoROBHead;
     Stats::Vector normalHeadNotMiss;
+    Stats::Vector normalCount;
 };
 
 #endif // __CPU_O3_RENAME_HH__
