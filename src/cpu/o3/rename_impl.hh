@@ -1821,8 +1821,12 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             }
         }
 
-        float calculated_VROB = numVROB[tid] + toIEWNum[tid] + toROBNum[tid];
-        DPRINTF(missTry, "VROB[T%i] is %f\n", tid, calculated_VROB);
+        int in_flight = toIEWNum[tid] + toROBNum[tid];
+        float calculated_VROB = numVROB[tid] + in_flight;
+        DPRINTF(missTry, "ROB[T%i] from commit is %i, %i in flight\n", tid,
+                busyEntries[tid].robEntries, in_flight);
+        DPRINTF(missTry, "VROB[T%i] from commit is %f, %i in flight\n", tid,
+                numVROB[tid], in_flight);
 
         bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
         slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
