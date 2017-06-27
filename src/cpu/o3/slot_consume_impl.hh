@@ -230,7 +230,9 @@ cycleEnd(ThreadID tid,
     }
 }
 
-void SlotConsumer::regStats()
+template<class Impl>
+void SlotConsumer<Impl>::
+regStats()
 {
     using namespace Stats;
     ROBWait_HeadNotMiss
