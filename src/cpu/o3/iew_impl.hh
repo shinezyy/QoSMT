@@ -159,6 +159,7 @@ DefaultIEW<Impl>::regStats()
 {
     using namespace Stats;
     SlotCounter<Impl>::regStats();
+    slotConsumer.regStats();
 
     instQueue.regStats();
     ldstQueue.regStats();
