@@ -1804,13 +1804,18 @@ DefaultRename<Impl>::passLB(ThreadID tid)
                         ROBHead[tid]->physEffAddr, true, md);
                 ROBHead[tid]->readMiss = true;
             }
-            if (!ROBHead[tid]->DCacheMiss) {
+
+            bool is_miss = ROBHead[tid]->DCacheMiss ||
+                missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md) ||
+                (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0);
+
+            if (!is_miss) {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                     HeadInstrState::Normal;
                 DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
             } else {
                 // trick
-                if (md.isCacheInterference) {
+                if (md.valid && md.isCacheInterference) {
                     slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                         static_cast<HeadInstrState>(
                                 HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
