@@ -265,6 +265,12 @@ DefaultRename<Impl>::regStats()
             .desc("normalHeadNotMiss")
             ;
 
+   normalHeadIsMiss
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalHeadIsMiss")
+            .desc("normalHeadIsMiss")
+            ;
+
    normalCount
             .init((Stats::size_type) numThreads)
             .name(name() + ".normalCount")
@@ -1809,6 +1815,7 @@ void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
     MissDescriptor md;
+    md.valid = false;
 
     if (fullSource[tid] == SlotConsm::FullSource::ROB) {
         if (!ROBHead[tid]) {
@@ -1852,15 +1859,20 @@ DefaultRename<Impl>::passLB(ThreadID tid)
                             HeadInstrState::WaitingAddress;
                 } else if (md.isCacheInterference) {
                     slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                        static_cast<HeadInstrState>(
-                                HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
+                            static_cast<HeadInstrState>(
+                                    HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
                     DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
                 } else {
                     slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                        static_cast<HeadInstrState>(
-                                HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
+                            static_cast<HeadInstrState>(
+                                    HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
                     DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
                             tid);
+                }
+
+                if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
+                    == HeadInstrState::Normal) {
+                    normalHeadIsMiss[tid]++;
                 }
             }
         }

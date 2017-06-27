@@ -661,6 +661,7 @@ class DefaultRename : public SlotCounter<Impl>
 
     Stats::Vector normalNoROBHead;
     Stats::Vector normalHeadNotMiss;
+    Stats::Vector normalHeadIsMiss;
     Stats::Vector normalCount;
 };
 
