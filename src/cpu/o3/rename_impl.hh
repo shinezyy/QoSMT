@@ -252,6 +252,18 @@ DefaultRename<Impl>::regStats()
         .name(name() + ".SQWaits")
         .desc("SQWaits")
         ;
+
+    normalNoROBHead
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalNoROBHead")
+            .desc("normalNoROBHead")
+            ;
+
+   normalHeadNotMiss
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalHeadNotMiss")
+            .desc("normalHeadNotMiss")
+            ;
 }
 
 template <class Impl>
@@ -1796,6 +1808,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         if (!ROBHead[tid]) {
             slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                 HeadInstrState::Normal;
+            normalNoROBHead[tid] += 1;
             DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
         } else {
             DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
@@ -1813,6 +1826,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             if (!is_miss) {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                     HeadInstrState::Normal;
+                normalHeadNotMiss[tid] += 1;
                 DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
             } else {
                 // trick
