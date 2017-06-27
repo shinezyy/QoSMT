@@ -118,6 +118,7 @@ void
 DefaultRename<Impl>::regStats()
 {
     SlotCounter<Impl>::regStats();
+    slotConsumer.regStats();
     renameSquashCycles
         .init(numThreads)
         .name(name() + ".SquashCycles")

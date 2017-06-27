@@ -7,6 +7,7 @@
 
 #include "config/the_isa.hh"
 #include "base/types.hh"
+#include "base/statistics.hh"
 #include "cpu/o3/slot_counter.hh"
 
 struct DerivO3CPUParams;
@@ -99,6 +100,11 @@ class SlotConsumer
     );
 
     std::array<bool, Impl::MaxThreads> ROBHeadMissCache;
+
+    Stats::Vector ROBWait_HeadNotMiss;
+    Stats::Vector ROBWait_VQNotFull;
+
+    void regStats();
 };
 
 

@@ -170,6 +170,7 @@ cycleEnd(ThreadID tid,
         } else if (fullSource == FullSource::ROB) {
             if (queueHeadState[tid][ROB] == Normal) {
                 slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
+                ROBWait_HeadNotMiss[tid] += blockedSlots;
                 BLB_out = true;
 
             } else if (queueHeadState[tid][ROB] == HeadInstrState::L1DCacheWait) {
@@ -184,6 +185,7 @@ cycleEnd(ThreadID tid,
                 assert(queueHeadState[tid][ROB] != NoState);
                 if (vqState[tid][ROB] == VQNotFull) {
                     slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
+                    ROBWait_VQNotFull[tid] += blockedSlots;
                     BLB_out = true;
                 } else {
                     slotCounter->incLocalSlots(tid, ROBMiss, blockedSlots);
@@ -226,6 +228,22 @@ cycleEnd(ThreadID tid,
             }
         }
     }
+}
+
+void SlotConsumer::regStats()
+{
+    using namespace Stats;
+    ROBWait_HeadNotMiss
+            .init((size_type) numThreads)
+            .name(name() + ".ROBWait_HeadNotMiss")
+            .desc("ROBWait_HeadNotMiss")
+            ;
+
+    ROBWait_VQNotFull
+            .init((size_type) numThreads)
+            .name(name() + ".ROBWait_VQNotFull")
+            .desc("ROBWait_VQNotFull")
+            ;
 }
 
 
