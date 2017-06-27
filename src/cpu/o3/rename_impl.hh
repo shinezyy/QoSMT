@@ -1847,7 +1847,10 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 #endif
             } else {
                 // trick
-                if (md.valid && md.isCacheInterference) {
+                if (!md.valid) {
+                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                            HeadInstrState::WaitingAddress;
+                } else if (md.isCacheInterference) {
                     slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                         static_cast<HeadInstrState>(
                                 HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);

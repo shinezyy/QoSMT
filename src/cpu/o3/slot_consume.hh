@@ -28,6 +28,7 @@ enum HeadInstrState {
     L2DCacheMiss,
     L1DCacheWait,
     L2DCacheWait,
+    WaitingAddress,
 };
 
 enum VQState {
