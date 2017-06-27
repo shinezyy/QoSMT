@@ -1804,7 +1804,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
             if (!isMiss) {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                     HeadInstrState::Normal;
-                DPRINTF(missTry, "ROBHead[T%i] is not miss\n", tid);
+                DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
             } else {
                 // trick
                 if (md.isCacheInterference) {
