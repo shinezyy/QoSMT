@@ -1824,15 +1824,16 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 
         int in_flight = toIEWNum[tid] + toROBNum[tid];
         float calculated_VROB = numVROB[tid] + in_flight;
-        DPRINTF(missTry3, "ROB[T%i] from commit is %i, %i in flight\n", tid,
-                busyEntries[tid].robEntries, in_flight);
-        DPRINTF(missTry3, "VROB[T%i] from commit is %f, %i in flight\n", tid,
-                numVROB[tid], in_flight);
-
         bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
         slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
                 VROB_full ? VQState::VQFull : VQState::VQNotFull;
-        DPRINTF(missTry3, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
+        if (!VROB_full) {
+            DPRINTF(missTry3, "ROB[T%i] from commit is %i, %i in flight\n", tid,
+                    busyEntries[tid].robEntries, in_flight);
+            DPRINTF(missTry3, "VROB[T%i] from commit is %f, %i in flight\n", tid,
+                    numVROB[tid], in_flight);
+            DPRINTF(missTry3, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
+        }
     }
 
     toIEW->loadRate = fromDecode->loadRate;
