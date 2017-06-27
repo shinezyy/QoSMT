@@ -88,7 +88,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads((ThreadID) params->numThreads),
       maxPhysicalRegs((PhysRegIndex) (params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs)),
-      availableInstCount(0),
       BLBlocal(false),
       blockCycles(0),
       slotConsumer (params, params->renameWidth, name())
@@ -521,8 +520,6 @@ DefaultRename<Impl>::tick()
     }
     */
 
-    clearAvailableInstCount();
-
     if (status_change) {
         updateStatus();
     }
@@ -747,8 +744,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     DPRINTF(Rename, "[tid:%u]: %i available instructions to "
             "send iew.\n", tid, insts_available);
-
-    incAvailableInstCount(insts_available);
 
     ThreadStatus old_status = renameStatus[tid];
 
@@ -1360,16 +1355,15 @@ DefaultRename<Impl>::calcFreeROBEntries(ThreadID tid)
     if (commit_ptr->isROBPolicyDynamic() ||
             commit_ptr->isROBPolicyProgrammable()) {
         // Calc number of all instructions in flight.
-        int numInstsInFlight = availableInstCount;
+        int numInstsInFlight = 0;
         for (ThreadID t = 0; t < numThreads; t++) {
-            numInstsInFlight +=
-                (instsInProgress[t] - fromIEW->iewInfo[t].dispatched);
+            numInstsInFlight += toIEWNum[t] + toROBNum[t];
         }
         return freeEntries[tid].robEntries - numInstsInFlight;
 
     } else {
-        return freeEntries[tid].robEntries
-            - (instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched);
+        return freeEntries[tid].robEntries -
+               toIEWNum[tid] - toROBNum[tid];
     }
 }
 
@@ -1759,9 +1753,9 @@ template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnROBEntries(ThreadID tid)
 {
-    int numInstsInFlight = availableInstCount;
+    int numInstsInFlight = 0;
 
-    numInstsInFlight += instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched;
+    numInstsInFlight += toIEWNum[tid] + toROBNum[tid];
 
     return busyEntries[tid].robEntries + numInstsInFlight;
 }
