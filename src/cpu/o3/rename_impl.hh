@@ -64,6 +64,7 @@
 #include "debug/InstPass.hh"
 #include "debug/SI.hh"
 #include "debug/missTry.hh"
+#include "debug/missTry3.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 #include "base/misc.hh"
@@ -1823,15 +1824,15 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 
         int in_flight = toIEWNum[tid] + toROBNum[tid];
         float calculated_VROB = numVROB[tid] + in_flight;
-        DPRINTF(missTry, "ROB[T%i] from commit is %i, %i in flight\n", tid,
+        DPRINTF(missTry3, "ROB[T%i] from commit is %i, %i in flight\n", tid,
                 busyEntries[tid].robEntries, in_flight);
-        DPRINTF(missTry, "VROB[T%i] from commit is %f, %i in flight\n", tid,
+        DPRINTF(missTry3, "VROB[T%i] from commit is %f, %i in flight\n", tid,
                 numVROB[tid], in_flight);
 
         bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
         slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
                 VROB_full ? VQState::VQFull : VQState::VQNotFull;
-        DPRINTF(missTry, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
+        DPRINTF(missTry3, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
     }
 
     toIEW->loadRate = fromDecode->loadRate;

@@ -95,6 +95,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('SI')
     DebugFlag('missTry')
     DebugFlag('missTry2')
+    DebugFlag('missTry3')
     DebugFlag('QoSCtrl')
     DebugFlag('SlotConsume')
     DebugFlag('MissTable')
