@@ -392,6 +392,9 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     Tick comTick;
 
     int blockedCycles;
+
+    bool readMiss;
+    bool DCacheMiss;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

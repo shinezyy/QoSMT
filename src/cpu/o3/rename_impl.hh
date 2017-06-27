@@ -1799,9 +1799,12 @@ DefaultRename<Impl>::passLB(ThreadID tid)
         } else {
             DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
                     tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
-            bool isMiss = missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr,
-                    true, md);
-            if (!isMiss) {
+            if (!ROBHead[tid]->readMiss) {
+                ROBHead[tid]->DCacheMiss = missTables.isSpecifiedMiss(
+                        ROBHead[tid]->physEffAddr, true, md);
+                ROBHead[tid]->readMiss = true;
+            }
+            if (!ROBHead[tid]->DCacheMiss) {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                     HeadInstrState::Normal;
                 DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);

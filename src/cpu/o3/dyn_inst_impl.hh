@@ -165,6 +165,9 @@ BaseO3DynInst<Impl>::initVars()
     comTick = 0;
 
     blockedCycles = 0;
+
+    readMiss = false;
+    DCacheMiss = false;
 }
 
 template <class Impl>
