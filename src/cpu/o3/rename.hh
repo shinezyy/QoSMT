@@ -663,6 +663,9 @@ class DefaultRename : public SlotCounter<Impl>
     Stats::Vector normalHeadNotMiss;
     Stats::Vector normalHeadIsMiss;
     Stats::Vector normalCount;
+
+  private:
+    void getQHeadState(ThreadID tid);
 };
 
 #endif // __CPU_O3_RENAME_HH__

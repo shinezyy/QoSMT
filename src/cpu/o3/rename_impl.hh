@@ -1814,86 +1814,9 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
-    MissDescriptor md;
-    md.valid = false;
 
     if (fullSource[tid] == SlotConsm::FullSource::ROB) {
-        if (!ROBHead[tid]) {
-            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                HeadInstrState::Normal;
-            normalNoROBHead[tid] += 1;
-            DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
-        } else {
-            DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
-                    tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
-            if (!ROBHead[tid]->readMiss) {
-                ROBHead[tid]->DCacheMiss = missTables.isSpecifiedMiss(
-                        ROBHead[tid]->physEffAddr, true, md);
-                ROBHead[tid]->readMiss = true;
-            }
 
-            bool is_miss = ROBHead[tid]->DCacheMiss ||
-                missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md) ||
-                (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0);
-
-            if (!is_miss) {
-                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                    HeadInstrState::Normal;
-                normalHeadNotMiss[tid] += 1;
-                DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
-
-#if 0
-                printf("DEBUG--ROB Head[T%i][sn:%llu] ----: %s\n",
-                         tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
-                printf("Dcache miss flags: %i, miss table results: %i, "
-                               "ROB Head addr is nulptr: %i",
-                       ROBHead[tid]->DCacheMiss,
-                       missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md),
-                       (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0)
-                );
-#endif
-            } else {
-                // trick
-                if (!md.valid) {
-                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                            HeadInstrState::WaitingAddress;
-                } else if (md.isCacheInterference) {
-                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                            static_cast<HeadInstrState>(
-                                    HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
-                    DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
-                } else {
-                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                            static_cast<HeadInstrState>(
-                                    HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
-                    DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
-                            tid);
-                }
-
-                if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
-                    == HeadInstrState::Normal) {
-                    normalHeadIsMiss[tid]++;
-                }
-            }
-        }
-
-        int in_flight = toIEWNum[tid] + toROBNum[tid];
-        float calculated_VROB = numVROB[tid] + in_flight;
-        bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
-        slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
-                VROB_full ? VQState::VQFull : VQState::VQNotFull;
-        if (!VROB_full) {
-            DPRINTF(missTry3, "ROB[T%i] from commit is %i, %i in flight\n", tid,
-                    busyEntries[tid].robEntries, in_flight);
-            DPRINTF(missTry3, "VROB[T%i] from commit is %f, %i in flight\n", tid,
-                    numVROB[tid], in_flight);
-            DPRINTF(missTry3, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
-        }
-
-        if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
-                == HeadInstrState::Normal) {
-            normalCount[tid]++;
-        }
     }
 
     toIEW->loadRate = fromDecode->loadRate;
@@ -2076,6 +1999,83 @@ DefaultRename<Impl>::clearLocalSignals()
 
     std::fill(toIEWNum.begin(), toIEWNum.end(), 0);
     std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::getQHeadState(ThreadID tid)
+{
+    MissDescriptor md;
+    md.valid = false;
+
+    if (!ROBHead[tid]) {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                HeadInstrState::Normal;
+        normalNoROBHead[tid] += 1;
+        DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
+    } else {
+        DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
+                 tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
+        if (!ROBHead[tid]->readMiss) {
+            ROBHead[tid]->DCacheMiss = missTables.isSpecifiedMiss(
+                    ROBHead[tid]->physEffAddr, true, md);
+            ROBHead[tid]->readMiss = true;
+        }
+
+        bool is_miss = ROBHead[tid]->DCacheMiss ||
+                       missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md) ||
+                       (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0) ||
+                       (ROBHead[tid]->isStore() && ROBHead[tid]->physEffAddr == 0) ||
+                       ROBHead[tid]->isFloating();
+
+        if (!is_miss) {
+            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                    HeadInstrState::Normal;
+            normalHeadNotMiss[tid] += 1;
+            DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
+
+        } else {
+            // trick
+            if (!md.valid) {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        HeadInstrState::WaitingAddress;
+            } else if (md.isCacheInterference) {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        static_cast<HeadInstrState>(
+                                HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
+                DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
+            } else {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        static_cast<HeadInstrState>(
+                                HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
+                DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
+                        tid);
+            }
+
+            if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
+                == HeadInstrState::Normal) {
+                normalHeadIsMiss[tid]++;
+            }
+        }
+    }
+
+    int in_flight = toIEWNum[tid] + toROBNum[tid];
+    float calculated_VROB = numVROB[tid] + in_flight;
+    bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
+    slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
+            VROB_full ? VQState::VQFull : VQState::VQNotFull;
+    if (!VROB_full) {
+        DPRINTF(missTry3, "ROB[T%i] from commit is %i, %i in flight\n", tid,
+                busyEntries[tid].robEntries, in_flight);
+        DPRINTF(missTry3, "VROB[T%i] from commit is %f, %i in flight\n", tid,
+                numVROB[tid], in_flight);
+        DPRINTF(missTry3, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
+    }
+
+    if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
+        == HeadInstrState::Normal) {
+        normalCount[tid]++;
+    }
 }
 
 #undef dis

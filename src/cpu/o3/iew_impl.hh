@@ -2149,18 +2149,34 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
                                 typename SlotConsm::FullSource fs, ThreadID tid)
 {
     MissDescriptor md;
+    md.valid = false;
 
     if (!QHead[tid]) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
         return;
     }
 
-    bool isMiss = missTables.isSpecifiedMiss(QHead[tid]->physEffAddr, true, md);
-    if (!isMiss) {
+    DynInstPtr head = QHead[tid];
+
+    if (!head->readMiss) {
+        head->DCacheMiss = missTables.isSpecifiedMiss(head->physEffAddr, true, md);
+        head->readMiss = true;
+    }
+
+    bool is_miss = head->DCacheMiss ||
+                   missTables.isSpecifiedMiss(head->physEffAddr, true, md) ||
+                   (head->isLoad() && head->physEffAddr == 0) ||
+                   (head->isStore() && head->physEffAddr == 0) ||
+                   head->isFloating();
+
+    if (!is_miss) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
     } else {
         // trick
-        if (md.isCacheInterference) {
+        if (!md.valid) {
+            slotConsumer.queueHeadState[tid][fs] =
+                    HeadInstrState::WaitingAddress;
+        } else if (md.isCacheInterference) {
             slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
                     HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
         } else {
