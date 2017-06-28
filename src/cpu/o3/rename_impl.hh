@@ -1816,7 +1816,7 @@ DefaultRename<Impl>::passLB(ThreadID tid)
 {
 
     if (fullSource[tid] == SlotConsm::FullSource::ROB) {
-
+        getQHeadState(tid);
     }
 
     toIEW->loadRate = fromDecode->loadRate;
