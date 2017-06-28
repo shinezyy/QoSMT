@@ -237,6 +237,8 @@ for cpu in system.cpu:
 
     cpu.LQEntries = shared_config.LQEntries
     cpu.SQEntries = shared_config.SQEntries
+    cpu.numROBEntries = shared_config.numROBEntries
+    cpu.numIQEntries = shared_config.numIQEntries
 
     cpu.expectedQoS = 90 * 1024 / 100 # 0~1024
 
