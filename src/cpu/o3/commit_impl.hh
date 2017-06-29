@@ -1443,9 +1443,10 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
     // Finally clear the head ROB entry.
     rob->retireHead(tid);
     if (HPT == tid) {
+        uint64_t res;
+        head_inst->readResult(res);
         DPRINTFR(ZTrace, "PC: %s, Inst: %s, result: %llu\n",
-                 head_inst->pcState(), dis(head_inst),
-                 head_inst->instResult.back());
+                 head_inst->pcState(), dis(head_inst), res);
     }
 
 #if TRACING_ON
