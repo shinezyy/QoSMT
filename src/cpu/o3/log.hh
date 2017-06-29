@@ -1,6 +1,8 @@
 #ifndef __ZYY_LOG__
 #define __ZYY_LOG__
 
+#include <string>
+
 
 #define log2(format,...) \
     printf("%s,%s,%d: " format, \
@@ -24,8 +26,9 @@
     } while(0)
 
 template <class T>
-char* dis(T x) {
-    return x ? (x)->staticInst->disassemble((x)->instAddr()) : "Nothing";
+std::string dis(T x) {
+    std::string s = "N/A";
+    return x ? (x)->staticInst->disassemble((x)->instAddr()) : s;
 }
 
 #endif
