@@ -71,11 +71,9 @@
 #include "cpu/thread_context.hh"
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/scoreboard.hh"
+#include "cpu/o3/log.hh"
 
 using namespace std;
-
-#define dis(x) \
-    x ? (x)->staticInst->disassemble((x)->instAddr()) : "Nothing"
 
 template <class Impl>
 DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
@@ -2077,7 +2075,5 @@ DefaultRename<Impl>::getQHeadState(ThreadID tid)
         normalCount[tid]++;
     }
 }
-
-#undef dis
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

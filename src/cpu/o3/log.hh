@@ -23,4 +23,9 @@
         }\
     } while(0)
 
+template <class T>
+char* dis(T x) {
+    return x ? (x)->staticInst->disassemble((x)->instAddr()) : "Nothing";
+}
+
 #endif
