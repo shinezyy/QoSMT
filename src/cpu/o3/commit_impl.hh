@@ -1449,6 +1449,11 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
         }
         DPRINTFR(ZTrace, "PC: %s, Inst: %s, result: %llu\n",
                  head_inst->pcState(), dis(head_inst), res);
+#if 0
+        if (head_inst->opClass() == IntAluOp && res == 57324) {
+            panic("reach debug end\n");
+        }
+#endif
     }
 
 #if TRACING_ON
