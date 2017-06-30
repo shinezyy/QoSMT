@@ -230,8 +230,8 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    # cpu.max_insts_hpt_thread = 1000*(10**6)
-    cpu.max_insts_hpt_thread = 15*(10**6)
+    cpu.max_insts_hpt_thread = 1000*(10**6)
+    # cpu.max_insts_hpt_thread = 15*(10**6)
 
     cpu.dumpWindowSize = shared_config.dumpWindowSize
     cpu.policyWindowSize = shared_config.policyWindowSize
