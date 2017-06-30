@@ -864,6 +864,10 @@ class BaseDynInst : public ExecContext, public RefCounted
         }
         return ss.str();
     }
+
+    bool hasResult() const {
+        return !instResult.empty();
+    };
 };
 
 template<class Impl>

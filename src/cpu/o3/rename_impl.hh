@@ -64,17 +64,16 @@
 #include "debug/InstPass.hh"
 #include "debug/SI.hh"
 #include "debug/missTry.hh"
+#include "debug/missTry3.hh"
 #include "params/DerivO3CPU.hh"
 #include "enums/OpClass.hh"
 #include "base/misc.hh"
 #include "cpu/thread_context.hh"
 #include "cpu/o3/comm.hh"
 #include "cpu/o3/scoreboard.hh"
+#include "cpu/o3/log.hh"
 
 using namespace std;
-
-#define dis(x) \
-    x ? (x)->staticInst->disassemble((x)->instAddr()) : "Nothing"
 
 template <class Impl>
 DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
@@ -88,7 +87,6 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads((ThreadID) params->numThreads),
       maxPhysicalRegs((PhysRegIndex) (params->numPhysIntRegs + params->numPhysFloatRegs
                       + params->numPhysCCRegs)),
-      availableInstCount(0),
       BLBlocal(false),
       blockCycles(0),
       slotConsumer (params, params->renameWidth, name())
@@ -118,6 +116,7 @@ void
 DefaultRename<Impl>::regStats()
 {
     SlotCounter<Impl>::regStats();
+    slotConsumer.regStats();
     renameSquashCycles
         .init(numThreads)
         .name(name() + ".SquashCycles")
@@ -251,6 +250,30 @@ DefaultRename<Impl>::regStats()
         .name(name() + ".SQWaits")
         .desc("SQWaits")
         ;
+
+    normalNoROBHead
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalNoROBHead")
+            .desc("normalNoROBHead")
+            ;
+
+   normalHeadNotMiss
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalHeadNotMiss")
+            .desc("normalHeadNotMiss")
+            ;
+
+   normalHeadIsMiss
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalHeadIsMiss")
+            .desc("normalHeadIsMiss")
+            ;
+
+   normalCount
+            .init((Stats::size_type) numThreads)
+            .name(name() + ".normalCount")
+            .desc("normalCount")
+            ;
 }
 
 template <class Impl>
@@ -521,8 +544,6 @@ DefaultRename<Impl>::tick()
     }
     */
 
-    clearAvailableInstCount();
-
     if (status_change) {
         updateStatus();
     }
@@ -747,8 +768,6 @@ DefaultRename<Impl>::renameInsts(ThreadID tid)
 
     DPRINTF(Rename, "[tid:%u]: %i available instructions to "
             "send iew.\n", tid, insts_available);
-
-    incAvailableInstCount(insts_available);
 
     ThreadStatus old_status = renameStatus[tid];
 
@@ -1360,16 +1379,15 @@ DefaultRename<Impl>::calcFreeROBEntries(ThreadID tid)
     if (commit_ptr->isROBPolicyDynamic() ||
             commit_ptr->isROBPolicyProgrammable()) {
         // Calc number of all instructions in flight.
-        int numInstsInFlight = availableInstCount;
+        int numInstsInFlight = 0;
         for (ThreadID t = 0; t < numThreads; t++) {
-            numInstsInFlight +=
-                (instsInProgress[t] - fromIEW->iewInfo[t].dispatched);
+            numInstsInFlight += toIEWNum[t] + toROBNum[t];
         }
         return freeEntries[tid].robEntries - numInstsInFlight;
 
     } else {
-        return freeEntries[tid].robEntries
-            - (instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched);
+        return freeEntries[tid].robEntries -
+               toIEWNum[tid] - toROBNum[tid];
     }
 }
 
@@ -1759,9 +1777,9 @@ template <class Impl>
 inline int
 DefaultRename<Impl>::calcOwnROBEntries(ThreadID tid)
 {
-    int numInstsInFlight = availableInstCount;
+    int numInstsInFlight = 0;
 
-    numInstsInFlight += instsInProgress[tid] - fromIEW->iewInfo[tid].dispatched;
+    numInstsInFlight += toIEWNum[tid] + toROBNum[tid];
 
     return busyEntries[tid].robEntries + numInstsInFlight;
 }
@@ -1794,46 +1812,9 @@ template <class Impl>
 void
 DefaultRename<Impl>::passLB(ThreadID tid)
 {
-    MissDescriptor md;
 
     if (fullSource[tid] == SlotConsm::FullSource::ROB) {
-        if (!ROBHead[tid]) {
-            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                HeadInstrState::Normal;
-            DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
-        } else {
-            DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
-                    tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
-            bool isMiss = missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr,
-                    true, md);
-            if (!isMiss) {
-                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                    HeadInstrState::Normal;
-                DPRINTF(missTry, "ROBHead[T%i] is not miss\n", tid);
-            } else {
-                // trick
-                if (md.isCacheInterference) {
-                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                        static_cast<HeadInstrState>(
-                                HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
-                    DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
-                } else {
-                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                        static_cast<HeadInstrState>(
-                                HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
-                    DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
-                            tid);
-                }
-            }
-        }
-
-        float calculated_VROB = numVROB[tid] + toIEWNum[tid] + toROBNum[tid];
-        DPRINTF(missTry, "VROB[T%i] is %f\n", tid, calculated_VROB);
-
-        bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
-        slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
-                VROB_full ? VQState::VQFull : VQState::VQNotFull;
-        DPRINTF(missTry, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
+        getQHeadState(tid);
     }
 
     toIEW->loadRate = fromDecode->loadRate;
@@ -2018,6 +1999,81 @@ DefaultRename<Impl>::clearLocalSignals()
     std::fill(fullSource.begin(), fullSource.end(), SlotConsm::NONE);
 }
 
-#undef dis
+template<class Impl>
+void
+DefaultRename<Impl>::getQHeadState(ThreadID tid)
+{
+    MissDescriptor md;
+    md.valid = false;
+
+    if (!ROBHead[tid]) {
+        slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                HeadInstrState::Normal;
+        normalNoROBHead[tid] += 1;
+        DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
+    } else {
+        DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
+                 tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
+        if (!ROBHead[tid]->readMiss) {
+            ROBHead[tid]->DCacheMiss = missTables.isSpecifiedMiss(
+                    ROBHead[tid]->physEffAddr, true, md);
+            ROBHead[tid]->readMiss = true;
+        }
+
+        bool is_miss = ROBHead[tid]->DCacheMiss ||
+                       missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md) ||
+                       (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0) ||
+                       (ROBHead[tid]->isStore() && ROBHead[tid]->physEffAddr == 0) ||
+                       ROBHead[tid]->isFloating();
+
+        if (!is_miss) {
+            slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                    HeadInstrState::Normal;
+            normalHeadNotMiss[tid] += 1;
+            DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
+
+        } else {
+            // trick
+            if (!md.valid) {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        HeadInstrState::WaitingAddress;
+            } else if (md.isCacheInterference) {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        static_cast<HeadInstrState>(
+                                HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
+                DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
+            } else {
+                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                        static_cast<HeadInstrState>(
+                                HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
+                DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
+                        tid);
+            }
+
+            if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
+                == HeadInstrState::Normal) {
+                normalHeadIsMiss[tid]++;
+            }
+        }
+    }
+
+    int in_flight = toIEWNum[tid] + toROBNum[tid];
+    float calculated_VROB = numVROB[tid] + in_flight;
+    bool VROB_full = calculated_VROB > maxEntries[tid].robEntries - 0.1;
+    slotConsumer.vqState[tid][SlotConsm::FullSource::ROB] =
+            VROB_full ? VQState::VQFull : VQState::VQNotFull;
+    if (!VROB_full) {
+        DPRINTF(missTry3, "ROB[T%i] from commit is %i, %i in flight\n", tid,
+                busyEntries[tid].robEntries, in_flight);
+        DPRINTF(missTry3, "VROB[T%i] from commit is %f, %i in flight\n", tid,
+                numVROB[tid], in_flight);
+        DPRINTF(missTry3, "VROB[T%i] is%s full\n", tid, VROB_full ? "" : " not");
+    }
+
+    if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
+        == HeadInstrState::Normal) {
+        normalCount[tid]++;
+    }
+}
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

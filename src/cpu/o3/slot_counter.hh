@@ -17,7 +17,7 @@ extern ThreadID HPT, LPT;
 extern const char* slotUseStr[];
 
 enum SlotsUse {
-    NotInitiated,
+    NotInitiated = 0,
     NotUsed,
     /** Doesn't have enough insts because of
      * front end miss (iTLB miss, icache miss, miss prediction)

@@ -17,7 +17,7 @@ cleanSlots()
         std::fill(slotConsumption[tid].begin(),
                   slotConsumption[tid].end(), SlotsUse::NotUsed);
         std::fill(queueHeadState[tid].begin(),
-                  queueHeadState[tid].end(), NoState);
+                  queueHeadState[tid].end(), HeadInstrState::NoState);
         std::fill(vqState[tid].begin(), vqState[tid].end(), NoVQ);
     }
     std::fill(localSlotIndex.begin(), localSlotIndex.end(), 0);
@@ -170,6 +170,7 @@ cycleEnd(ThreadID tid,
         } else if (fullSource == FullSource::ROB) {
             if (queueHeadState[tid][ROB] == Normal) {
                 slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
+                ROBWait_HeadNotMiss[tid] += blockedSlots;
                 BLB_out = true;
 
             } else if (queueHeadState[tid][ROB] == HeadInstrState::L1DCacheWait) {
@@ -184,6 +185,7 @@ cycleEnd(ThreadID tid,
                 assert(queueHeadState[tid][ROB] != NoState);
                 if (vqState[tid][ROB] == VQNotFull) {
                     slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
+                    ROBWait_VQNotFull[tid] += blockedSlots;
                     BLB_out = true;
                 } else {
                     slotCounter->incLocalSlots(tid, ROBMiss, blockedSlots);
@@ -226,6 +228,24 @@ cycleEnd(ThreadID tid,
             }
         }
     }
+}
+
+template<class Impl>
+void SlotConsumer<Impl>::
+regStats()
+{
+    using namespace Stats;
+    ROBWait_HeadNotMiss
+            .init((size_type) numThreads)
+            .name(name() + ".ROBWait_HeadNotMiss")
+            .desc("ROBWait_HeadNotMiss")
+            ;
+
+    ROBWait_VQNotFull
+            .init((size_type) numThreads)
+            .name(name() + ".ROBWait_VQNotFull")
+            .desc("ROBWait_VQNotFull")
+            ;
 }
 
 

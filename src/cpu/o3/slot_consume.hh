@@ -7,6 +7,7 @@
 
 #include "config/the_isa.hh"
 #include "base/types.hh"
+#include "base/statistics.hh"
 #include "cpu/o3/slot_counter.hh"
 
 struct DerivO3CPUParams;
@@ -21,16 +22,17 @@ enum NoInstrReason {
 };
 
 enum HeadInstrState {
-    NoState,
+    NoState = 0,
     Normal, // L1 hitting
     L1DCacheMiss,
     L2DCacheMiss,
     L1DCacheWait,
     L2DCacheWait,
+    WaitingAddress,
 };
 
 enum VQState {
-    NoVQ,
+    NoVQ = 0,
     VQNotFull,
     VQFull
 };
@@ -41,7 +43,7 @@ class SlotConsumer
 {
   public:
     enum FullSource {
-        ROB,
+        ROB = 0,
         IQ,
         LQ,
         SQ,
@@ -99,6 +101,11 @@ class SlotConsumer
     );
 
     std::array<bool, Impl::MaxThreads> ROBHeadMissCache;
+
+    Stats::Vector ROBWait_HeadNotMiss;
+    Stats::Vector ROBWait_VQNotFull;
+
+    void regStats();
 };
 
 

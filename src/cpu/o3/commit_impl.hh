@@ -67,6 +67,7 @@
 #include "debug/BMT.hh"
 #include "debug/ExecFaulting.hh"
 #include "debug/O3PipeView.hh"
+#include "debug/ZTrace.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/faults.hh"
 #include "sim/full_system.hh"
@@ -1441,6 +1442,19 @@ DefaultCommit<Impl>::commitHead(DynInstPtr &head_inst, unsigned inst_num)
 
     // Finally clear the head ROB entry.
     rob->retireHead(tid);
+    if (HPT == tid) {
+        uint64_t res  = 0;
+        if (head_inst->hasResult()) {
+            head_inst->readResult(res);
+        }
+        DPRINTFR(ZTrace, "PC: %s, Inst: %s, result: %llu\n",
+                 head_inst->pcState(), dis(head_inst), res);
+#if 0
+        if (head_inst->opClass() == IntAluOp && res == 57324) {
+            panic("reach debug end\n");
+        }
+#endif
+    }
 
 #if TRACING_ON
     if (DTRACE(O3PipeView)) {

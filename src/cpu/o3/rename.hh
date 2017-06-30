@@ -547,16 +547,6 @@ class DefaultRename : public SlotCounter<Impl>
 
     Stats::Scalar floatRegUtilization;
 
-  private:
-    /** Record the total number of instructions that can be sent to IEW,
-     * which can be extracted by ROB. It helps with numROBFreeEntries to
-     * ensure that the instructions extracted won't excced capacity limit. */
-    int availableInstCount;
-
-    void clearAvailableInstCount() { availableInstCount = 0; }
-
-    void incAvailableInstCount(int incValue) { availableInstCount += incValue; }
-
   public:
     /** The number of available free physical regs for each thread
      * and its initial value indicates the maximum number. */
@@ -666,6 +656,16 @@ class DefaultRename : public SlotCounter<Impl>
     std::array<float, Impl::MaxThreads> numVROB;
 
     std::array<unsigned, Impl::MaxThreads> toROBNum;
+
+  public:
+
+    Stats::Vector normalNoROBHead;
+    Stats::Vector normalHeadNotMiss;
+    Stats::Vector normalHeadIsMiss;
+    Stats::Vector normalCount;
+
+  private:
+    void getQHeadState(ThreadID tid);
 };
 
 #endif // __CPU_O3_RENAME_HH__

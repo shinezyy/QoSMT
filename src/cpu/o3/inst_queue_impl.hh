@@ -1468,6 +1468,12 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
             ++freeEntries;
         }
 
+        if (squashed_inst->isIssued()) {
+            squashed_inst->setSquashedInIQ();
+            DPRINTF(IQ, "[tid:%i]: Instruction [sn:%lli] PC %s set squashed by zyy.\n",
+                    tid, squashed_inst->seqNum, squashed_inst->pcState());
+        }
+
         instList[tid].erase(squash_it--);
         ++iqSquashedInstsExamined;
     }
