@@ -1843,7 +1843,7 @@ InstructionQueue<Impl>::dumpUsedEntries()
 template <class Impl>
 void
 InstructionQueue<Impl>::incVIQ(ThreadID tid, int num) {
-    int inc = std::min(numEntries - VIQ[tid], num);
+    int inc = std::min(numEntries - VIQ[tid], (float) num);
     if (PTAVQ) {
         localWaitSlots[tid] += inc;
         VIQ[tid] += localWaitSlots[tid];
