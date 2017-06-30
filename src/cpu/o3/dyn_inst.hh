@@ -395,6 +395,8 @@ class BaseO3DynInst : public BaseDynInst<Impl>
 
     bool readMiss;
     bool DCacheMiss;
+
+    int waitSlots;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__
