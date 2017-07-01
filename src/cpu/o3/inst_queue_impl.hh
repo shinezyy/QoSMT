@@ -1843,7 +1843,7 @@ InstructionQueue<Impl>::dumpUsedEntries()
 template <class Impl>
 void
 InstructionQueue<Impl>::incVIQ(ThreadID tid, int num) {
-    int inc = std::min(numEntries - VIQ[tid], (float) num);
+    int inc = std::min((int)numEntries - (int) VIQ[tid], num);
     if (PTAVQ) {
         localWaitSlots[tid] += inc;
         VIQ[tid] += localWaitSlots[tid];
@@ -1854,7 +1854,7 @@ template <class Impl>
 void
 InstructionQueue<Impl>::commitInstCount(DynInstPtr inst, ThreadID tid) {
     freeEntries++;
-    count[tid]++;
+    count[tid]--;
     float dec;
     if (PTAVQ) {
         dec = 1 + inst->waitSlots;
@@ -1868,7 +1868,7 @@ template <class Impl>
 void
 InstructionQueue<Impl>::insertInstCount(DynInstPtr inst, ThreadID tid) {
     freeEntries--;
-    count[tid]--;
+    count[tid]++;
     VIQ[tid] = std::min(1 + VIQ[tid], (float) numEntries);
 
     if (PTAVQ && localWaitSlots[tid]) {
