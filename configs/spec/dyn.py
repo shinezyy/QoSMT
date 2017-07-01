@@ -60,7 +60,7 @@ import Ruby
 import Simulation
 import CacheConfig
 import MemConfig
-import shared_config
+from shared_config import common_config
 
 # Check if KVM support has been enabled, we might need to do VM
 # configuration if that's the case.
@@ -228,15 +228,7 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    cpu.max_insts_hpt_thread = shared_config.max_insts_hpt_thread
-
-    cpu.dumpWindowSize = shared_config.dumpWindowSize
-    cpu.policyWindowSize = shared_config.policyWindowSize
-
-    cpu.LQEntries = shared_config.LQEntries
-    cpu.SQEntries = shared_config.SQEntries
-    cpu.numROBEntries = shared_config.numROBEntries
-    cpu.numIQEntries = shared_config.numIQEntries
+    common_config(cpu)
 
     cpu.expectedQoS = 0 * 1024 / 100
 
