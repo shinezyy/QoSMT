@@ -168,6 +168,8 @@ BaseO3DynInst<Impl>::initVars()
 
     readMiss = false;
     DCacheMiss = false;
+
+    waitSlots = 0;
 }
 
 template <class Impl>

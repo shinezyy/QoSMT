@@ -642,6 +642,16 @@ class InstructionQueue
     int getHPTPortion() {
         return portion[HPT];
     }
+
+  private:
+
+    const bool PTAVQ;
+
+    void commitInstCount(DynInstPtr inst, ThreadID tid);
+
+    void insertInstCount(DynInstPtr inst, ThreadID tid);
+
+    std::array<int, Impl::MaxThreads> localWaitSlots;
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__

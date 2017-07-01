@@ -99,7 +99,8 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
       sampleCycle(0),
       sampleTime(0),
       sampleRate((unsigned int) params->dumpWindowSize),
-      hptInitPriv(unsigned(float(numEntries) * params->hptIQPrivProp))
+      hptInitPriv(unsigned(float(numEntries) * params->hptIQPrivProp)),
+      PTAVQ(params->PTAVQ)
 {
     assert(fuPool);
 
@@ -207,6 +208,7 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
     iqUtil = 0;
 
     std::fill(VIQ.begin(), VIQ.end(), 0.0);
+    std::fill(localWaitSlots.begin(), localWaitSlots.end(), 0.0);
 }
 
 template <class Impl>
@@ -752,7 +754,7 @@ InstructionQueue<Impl>::insert(DynInstPtr &new_inst)
 
     instList[new_inst->threadNumber].push_back(new_inst);
 
-    --freeEntries;
+    insertInstCount(new_inst, new_inst->threadNumber);
 
     new_inst->setInIQ();
 
@@ -772,9 +774,6 @@ InstructionQueue<Impl>::insert(DynInstPtr &new_inst)
 
     ++iqInstsAdded;
     ++iqInstsAddedPerThread[new_inst->threadNumber];
-
-    count[new_inst->threadNumber]++;
-    VIQ[new_inst->threadNumber] = std::min(VIQ[new_inst->threadNumber] + 1, (float) numEntries);
 
     assert(freeEntries == (numEntries - countInsts()));
 }
@@ -799,7 +798,7 @@ InstructionQueue<Impl>::insertNonSpec(DynInstPtr &new_inst)
 
     instList[new_inst->threadNumber].push_back(new_inst);
 
-    --freeEntries;
+    insertInstCount(new_inst, new_inst->threadNumber);
 
     new_inst->setInIQ();
 
@@ -814,9 +813,6 @@ InstructionQueue<Impl>::insertNonSpec(DynInstPtr &new_inst)
     }
 
     ++iqNonSpecInstsAdded;
-
-    count[new_inst->threadNumber]++;
-    VIQ[new_inst->threadNumber] = std::min(VIQ[new_inst->threadNumber] + 1, (float) numEntries);
 
     assert(freeEntries == (numEntries - countInsts()));
 }
@@ -1051,9 +1047,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
             if (!issuing_inst->isMemRef()) {
                 // Memory instructions can not be freed from the IQ until they
                 // complete.
-                ++freeEntries;
-                VIQ[tid] = std::max(VIQ[tid] - VIQ[tid]/count[tid], (float) 0.0);
-                count[tid]--;
+                commitInstCount(issuing_inst, tid);
                 issuing_inst->clearInIQ();
             } else {
                 memDepUnit[tid].issue(issuing_inst);
@@ -1264,13 +1258,11 @@ InstructionQueue<Impl>::completeMemInst(DynInstPtr &completed_inst)
     DPRINTF(IQ, "Completing mem instruction PC: %s [sn:%lli]\n",
             completed_inst->pcState(), completed_inst->seqNum);
 
-    ++freeEntries;
 
     completed_inst->memOpDone(true);
 
     memDepUnit[tid].completed(completed_inst);
-    VIQ[tid] = std::max(VIQ[tid] - VIQ[tid]/count[tid], (float) 0.0);
-    count[tid]--;
+    commitInstCount(completed_inst, tid);
 }
 
 template <class Impl>
@@ -1462,10 +1454,7 @@ InstructionQueue<Impl>::doSquash(ThreadID tid)
 
             //Update Thread IQ Count
             assert(squashed_inst->threadNumber == tid);
-            VIQ[tid] = std::max(VIQ[tid] - VIQ[tid]/count[tid], (float) 0.0);
-            count[squashed_inst->threadNumber]--;
-
-            ++freeEntries;
+            commitInstCount(squashed_inst, tid);
         }
 
         if (squashed_inst->isIssued()) {
@@ -1854,7 +1843,40 @@ InstructionQueue<Impl>::dumpUsedEntries()
 template <class Impl>
 void
 InstructionQueue<Impl>::incVIQ(ThreadID tid, int num) {
-    VIQ[tid] = std::min(num + VIQ[tid], (float) numEntries);
+    int inc = std::min((int)numEntries - (int) VIQ[tid], num);
+    if (PTAVQ) {
+        localWaitSlots[tid] += inc;
+        VIQ[tid] += localWaitSlots[tid];
+    } else {
+        VIQ[tid] += inc;
+    }
+}
+
+template <class Impl>
+void
+InstructionQueue<Impl>::commitInstCount(DynInstPtr inst, ThreadID tid) {
+    freeEntries++;
+    float dec;
+    if (PTAVQ) {
+        dec = 1 + inst->waitSlots;
+    } else {
+        dec = VIQ[tid]/count[tid];
+    }
+    count[tid]--;
+    VIQ[tid] = std::max(VIQ[tid] - dec, (float) 0.0);
+}
+
+template <class Impl>
+void
+InstructionQueue<Impl>::insertInstCount(DynInstPtr inst, ThreadID tid) {
+    freeEntries--;
+    count[tid]++;
+    VIQ[tid] = std::min(1 + VIQ[tid], (float) numEntries);
+
+    if (PTAVQ && localWaitSlots[tid]) {
+        inst->waitSlots = localWaitSlots[tid];
+        localWaitSlots[tid] = 0;
+    }
 }
 
 #endif//__CPU_O3_INST_QUEUE_IMPL_HH__

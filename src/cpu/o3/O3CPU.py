@@ -186,6 +186,7 @@ class DerivO3CPU(BaseCPU):
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")
 
     sampleLen = Param.Int(32, 'store Sample len')
+    PTAVQ = Param.Bool(True, "VQ strategy use PTA's or ours")
 
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:

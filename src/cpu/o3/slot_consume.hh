@@ -106,6 +106,10 @@ class SlotConsumer
     Stats::Vector ROBWait_VQNotFull;
 
     void regStats();
+
+  private:
+
+    std::array<int, Impl::MaxThreads> blockCounter;
 };
 
 

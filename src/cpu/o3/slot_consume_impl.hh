@@ -58,6 +58,7 @@ SlotConsumer <Impl>::SlotConsumer(DerivO3CPUParams *params, unsigned width,
         numThreads((ThreadID) params->numThreads)
 {
     consumerName = father_name;
+    std::fill(blockCounter.begin(), blockCounter.end(), 0);
 }
 
 template<class Impl>
@@ -228,6 +229,9 @@ cycleEnd(ThreadID tid,
             }
         }
     }
+
+    BLB_out = BLB_out && blockedSlots + blockCounter[tid] >= stageWidth;
+    blockCounter[tid] = blockedSlots + blockCounter[tid] % stageWidth;
 }
 
 template<class Impl>
