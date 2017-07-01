@@ -1847,6 +1847,8 @@ InstructionQueue<Impl>::incVIQ(ThreadID tid, int num) {
     if (PTAVQ) {
         localWaitSlots[tid] += inc;
         VIQ[tid] += localWaitSlots[tid];
+    } else {
+        VIQ[tid] += inc;
     }
 }
 
