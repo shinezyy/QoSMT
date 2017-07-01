@@ -1856,13 +1856,13 @@ template <class Impl>
 void
 InstructionQueue<Impl>::commitInstCount(DynInstPtr inst, ThreadID tid) {
     freeEntries++;
-    count[tid]--;
     float dec;
     if (PTAVQ) {
         dec = 1 + inst->waitSlots;
     } else {
         dec = VIQ[tid]/count[tid];
     }
+    count[tid]--;
     VIQ[tid] = std::max(VIQ[tid] - dec, (float) 0.0);
 }
 
