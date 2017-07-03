@@ -110,6 +110,8 @@ class SlotConsumer
   private:
 
     std::array<int, Impl::MaxThreads> blockCounter;
+
+    const bool considerHeadStatus;
 };
 
 
