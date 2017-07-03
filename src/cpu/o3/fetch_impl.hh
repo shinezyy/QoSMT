@@ -1845,55 +1845,49 @@ DefaultFetch<Impl>::passLB(ThreadID tid)
         // 这种情况比较少，所以算作miss，其中实际上可能有wait，暂时不管了
         this->incLocalSlots(tid, InstSupMiss, fetchWidth - toDecodeAll);
     } else {
-        if (stalls[tid].decode){
+        bool intrinsic_miss =
+                fetchStatus[tid] == Squashing ||
+                fetchStatus[tid] == TrapPending ||
+                fetchStatus[tid] == QuiescePending ||
+                fetchStatus[tid] == ItlbWait ||
+                fetchStatus[tid] == NoGoodAddr;
+        bool cache_miss =
+                fetchStatus[tid] == IcacheWaitResponse ||
+                fetchStatus[tid] == IcacheWaitRetry;
+
+        if (intrinsic_miss) {
+            if (fetchStatus[tid] == Squashing) {
+                this->incLocalSlots(tid, SquashMiss, fetchWidth);
+            } else {
+                this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+            }
+        } else if (cache_miss) {
+            MissDescriptor md;
+            if (!memReq[tid]) {
+                // Maybe waitign translation
+                this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+            } else {
+                Addr address = memReq[tid]->getPaddr();
+                if (!missTables.isSpecifiedMiss(address, false, md)) {
+                    this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                } else {
+                    if (md.isCacheInterference) {
+                        this->incLocalSlots(tid,
+                                            static_cast<SlotsUse> (
+                                                    L1ICacheInterference + md.missCacheLevel - 1),
+                                            fetchWidth);
+                    } else {
+                        this->incLocalSlots(tid, InstSupMiss, fetchWidth);
+                    }
+                }
+            }
+        } else if (!stalls[tid].decode && !(fetchThread == tid)) {
+            this->incLocalSlots(tid, FetchSliceWait, fetchWidth);
+        } else {
             if (fromDecode->decodeInfo[tid].BLB) {
                 this->incLocalSlots(tid, LaterWait, fetchWidth);
             } else {
                 this->incLocalSlots(tid, LaterMiss, fetchWidth);
-            }
-        } else {
-            if (fetchThread == tid) {
-                this->incLocalSlots(tid, InstSupMiss, fetchWidth);
-            } else {
-                bool intrinsic_miss =
-                        fetchStatus[tid] == Squashing ||
-                        fetchStatus[tid] == TrapPending ||
-                        fetchStatus[tid] == QuiescePending ||
-                        fetchStatus[tid] == ItlbWait ||
-                        fetchStatus[tid] == NoGoodAddr;
-                bool cache_miss =
-                        fetchStatus[tid] == IcacheWaitResponse ||
-                        fetchStatus[tid] == IcacheWaitRetry;
-
-                if (intrinsic_miss) {
-                    if (fetchStatus[tid] == Squashing) {
-                        this->incLocalSlots(tid, SquashMiss, fetchWidth);
-                    } else {
-                        this->incLocalSlots(tid, InstSupMiss, fetchWidth);
-                    }
-                } else if (cache_miss) {
-                    MissDescriptor md;
-                    if (!memReq[tid]) {
-                        // Maybe waitign translation
-                        this->incLocalSlots(tid, InstSupMiss, fetchWidth);
-                    } else {
-                        Addr address = memReq[tid]->getPaddr();
-                        if (!missTables.isSpecifiedMiss(address, false, md)) {
-                            this->incLocalSlots(tid, InstSupMiss, fetchWidth);
-                        } else {
-                            if (md.isCacheInterference) {
-                                this->incLocalSlots(tid,
-                                        static_cast<SlotsUse> (
-                                        L1ICacheInterference + md.missCacheLevel - 1),
-                                        fetchWidth);
-                            } else {
-                                this->incLocalSlots(tid, InstSupMiss, fetchWidth);
-                            }
-                        }
-                    }
-                } else {
-                    this->incLocalSlots(tid, FetchSliceWait, fetchWidth);
-                }
             }
         }
     }
