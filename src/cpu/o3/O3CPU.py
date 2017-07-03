@@ -187,6 +187,7 @@ class DerivO3CPU(BaseCPU):
 
     sampleLen = Param.Int(32, 'store Sample len')
     PTAVQ = Param.Bool(True, "VQ strategy use PTA's or ours")
+    considerHeadStatus = Param.Bool(False, "Consider status of head inst when judge miss/wait")
 
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:

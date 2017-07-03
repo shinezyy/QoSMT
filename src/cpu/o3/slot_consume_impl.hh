@@ -55,7 +55,8 @@ template<class Impl>
 SlotConsumer <Impl>::SlotConsumer(DerivO3CPUParams *params, unsigned width,
                                  std::string father_name)
         : stageWidth(width),
-        numThreads((ThreadID) params->numThreads)
+        numThreads((ThreadID) params->numThreads),
+        considerHeadStatus(params->considerHeadStatus)
 {
     consumerName = father_name;
     std::fill(blockCounter.begin(), blockCounter.end(), 0);
@@ -158,7 +159,7 @@ cycleEnd(ThreadID tid,
         blockedSlots = stageWidth;
     }
 
-    if (isRename) {
+    if (isRename) { // rename stage
         if (fullSource == FullSource::IEWStage) {
             if (BLB_in) {
                 slotCounter->incLocalSlots(tid, LaterWait, blockedSlots);
@@ -169,7 +170,7 @@ cycleEnd(ThreadID tid,
         } else if (fullSource == FullSource::Register) {
             slotCounter->incLocalSlots(tid, EntryMiss, blockedSlots);
         } else if (fullSource == FullSource::ROB) {
-            if (queueHeadState[tid][ROB] == Normal) {
+            if (considerHeadStatus && queueHeadState[tid][ROB] == Normal) {
                 slotCounter->incLocalSlots(tid, ROBWait, blockedSlots);
                 ROBWait_HeadNotMiss[tid] += blockedSlots;
                 BLB_out = true;
