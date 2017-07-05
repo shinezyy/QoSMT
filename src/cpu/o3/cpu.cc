@@ -1878,8 +1878,8 @@ FullO3CPU<Impl>::adjustFetch(bool incHPT)
 
 #define portionRangeCheck \
 do { \
-    vec[HPT] = std::min(vec[HPT], 1024 - delta); \
-    vec[HPT] = std::max(vec[HPT], delta); \
+    vec[HPT] = std::min(vec[HPT], 1024 - 64); \
+    vec[HPT] = std::max(vec[HPT], 64); \
     vec[LPT] = 1024 - vec[HPT]; \
 } while(0)
 

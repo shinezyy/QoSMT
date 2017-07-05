@@ -771,6 +771,11 @@ LSQ<Impl>::updateMaxEntries()
     LQLimit[1] = LQEntries - LQLimit[0];
     SQLimit[1] = SQEntries - SQLimit[0];
 
+    DPRINTF(LSQ, "LQPortion[0]: %i, LQPortion[1]: %i\n",
+            LQPortion[0], LQPortion[1]);
+    DPRINTF(LSQ, "LQLimit[0]: %i, LQlimit[1]: %i\n",
+            LQLimit[0], LQLimit[1]);
+
     if (LQLimit[0] > maxLQEntries[0])
         increaseThread0LQ = true;
     if (SQLimit[0] > maxSQEntries[0])
