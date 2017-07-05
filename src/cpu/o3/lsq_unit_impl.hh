@@ -521,6 +521,11 @@ template <class Impl>
 void
 LSQUnit<Impl>::insertLoad(DynInstPtr &load_inst)
 {
+    if ((loadTail + 1) % LQEntries != loadHead) {
+        DPRINTF(LSQUnit, "loads: %i, loadTail: %i, loadHead: %i, "
+                "LQEntries: %i\n", loads, loadTail, loadHead, LQEntries);
+        panic("(loadTail + 1) % LQEntries != loadHead");
+    }
     assert((loadTail + 1) % LQEntries != loadHead);
     assert(loads < LQEntries);
 
@@ -1545,7 +1550,7 @@ LSQUnit<Impl>::setLQLimit(unsigned lqLimit)
     // return -x to indicate need more free entries
     if (loads + 1 > lqLimit + 1) {
         DPRINTF(FmtSlot, "Set lqValid to %d\n", loads + 1);
-        lqValid = loads + 1;
+        lqValid = (unsigned int) (loads + 1);
     }
     else {
         DPRINTF(FmtSlot, "Set lqValid to %d\n", lqLimit);
