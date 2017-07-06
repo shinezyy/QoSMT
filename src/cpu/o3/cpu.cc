@@ -224,7 +224,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       localCycles(0),
       abnormal(false),
       numContCtrl(0),
-      numResourceToAdjust(4)
+      numResourceToReserve(4),
+      numResourceToRelease(8)
 {
     if (!params->switched_out) {
         _status = Running;
@@ -1862,7 +1863,7 @@ void
 FullO3CPU<Impl>::adjustFetch(bool incHPT)
 {
     int vec[2];
-    int delta = incHPT ? 32 : -32;
+    int delta = incHPT ? 64 : -64;
 
     vec[HPT] = fetch.getHPTPortion() + delta;
     vec[HPT] = std::min(vec[HPT], 1024);
@@ -1909,7 +1910,7 @@ FullO3CPU<Impl>::adjustIQ(bool incHPT)
     portionRangeCheck;
 
     if (vec[HPT] != iew.instQueue.getHPTPortion()) {
-        DPRINTF(QoSCtrl, "%s [ROB], vec[0]: %d, vec[1]: %d\n",
+        DPRINTF(QoSCtrl, "%s [IQ], vec[0]: %d, vec[1]: %d\n",
                 incHPT ? "Reserving":"Releasing", vec[0], vec[1]);
         iew.instQueue.reassignPortion(vec, 2, 1024);
     }
@@ -2021,13 +2022,13 @@ FullO3CPU<Impl>::resourceAdjust()
 
     if (!satisfiedQoS()) {
         for (auto it = rankedContentions.rbegin();
-             it != rankedContentions.rend() && numAdjusted < numResourceToAdjust;
+             it != rankedContentions.rend() && numAdjusted < numResourceToReserve;
              ++it) {
             numAdjusted += adjustRoute(*it, true);
         }
     } else {
         for (auto it = rankedContentions.begin();
-             it != rankedContentions.end() && numAdjusted < numResourceToAdjust;
+             it != rankedContentions.end() && numAdjusted < numResourceToRelease;
              ++it) {
             numAdjusted += adjustRoute(*it, false);
         }

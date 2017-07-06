@@ -835,7 +835,9 @@ class FullO3CPU : public BaseO3CPU
 
     void sortContention();
 
-    const int numResourceToAdjust;
+    const int numResourceToReserve;
+
+    const int numResourceToRelease;
 
     int adjustRoute(Contention contention, bool incHPT);
 };
