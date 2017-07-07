@@ -67,6 +67,7 @@
 #include "debug/FmtSlot2.hh"
 #include "debug/DispatchBreakdown.hh"
 #include "debug/BMT.hh"
+#include "debug/EntrySanity.hh"
 #include "params/DerivO3CPU.hh"
 
 using namespace std;
@@ -2198,7 +2199,15 @@ DefaultIEW<Impl>::checkEntrySanity()
 {
     assert(instQueue.numBusyEntries(HPT) + instQueue.numBusyEntries(LPT) <= maxIQ);
     assert(ldstQueue.numLoads(HPT) + ldstQueue.numLoads(LPT) <= maxLQ);
-    assert(ldstQueue.numStores(HPT) + ldstQueue.numStores(LPT) <= maxSQ);
+
+    if (ldstQueue.numStores(HPT) + ldstQueue.numStores(LPT) > maxSQ) {
+        DPRINTF(EntrySanity, "HPT stores: %i, LPT stores: %i, maxSQ: %i",
+                ldstQueue.numStores(HPT),
+                ldstQueue.numStores(LPT),
+                maxSQ
+        );
+        panic("SQ not sanity!");
+    }
 }
 
 
