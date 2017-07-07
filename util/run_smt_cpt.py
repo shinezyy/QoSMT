@@ -172,7 +172,13 @@ if __name__ == '__main__':
                        )
 
     parser.add_argument('-c', '--command', action='store', required=True,
-                        choices=['dyn.py', 'cc.py', 'fc.py', 'sim_st.py'],
+                        choices=[
+                            'dyn.py',
+                            'cc.py',
+                            'fc.py',
+                            'sim_st.py',
+                            'static_part.py',
+                        ],
                         help='gem5 script to use'
                        )
 
