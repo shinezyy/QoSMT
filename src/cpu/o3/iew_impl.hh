@@ -67,6 +67,7 @@
 #include "debug/FmtSlot2.hh"
 #include "debug/DispatchBreakdown.hh"
 #include "debug/BMT.hh"
+#include "debug/EntrySanity.hh"
 #include "params/DerivO3CPU.hh"
 
 using namespace std;
@@ -93,7 +94,10 @@ DefaultIEW<Impl>::DefaultIEW(O3CPU *_cpu, DerivO3CPUParams *params)
       l1Lat(params->l1Lat),
       blockCycles(0),
       slotConsumer (params, params->renameWidth, name()),
-      smallEnough(0.001)
+      smallEnough(0.001),
+      maxIQ(params->numIQEntries),
+      maxLQ(params->LQEntries),
+      maxSQ(params->SQEntries)
 {
     if (dispatchWidth > Impl::MaxWidth)
         fatal("dispatchWidth (%d) is larger than compiled limit (%d),\n"
@@ -1746,6 +1750,8 @@ DefaultIEW<Impl>::tick()
 
     cycleDispatchEnd(HPT);
 
+    checkEntrySanity();
+
     if (this->checkSlots(HPT)) {
         //only inst miss should be counted
         this->sumLocalSlots(HPT);
@@ -2183,6 +2189,24 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
             slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
                     HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
         }
+    }
+}
+
+
+template<class Impl>
+void
+DefaultIEW<Impl>::checkEntrySanity()
+{
+    assert(instQueue.numBusyEntries(HPT) + instQueue.numBusyEntries(LPT) <= maxIQ);
+    assert(ldstQueue.numLoads(HPT) + ldstQueue.numLoads(LPT) <= maxLQ);
+
+    if (ldstQueue.numStores(HPT) + ldstQueue.numStores(LPT) > maxSQ) {
+        DPRINTF(EntrySanity, "HPT stores: %i, LPT stores: %i, maxSQ: %i",
+                ldstQueue.numStores(HPT),
+                ldstQueue.numStores(LPT),
+                maxSQ
+        );
+        panic("SQ not sanity!");
     }
 }
 

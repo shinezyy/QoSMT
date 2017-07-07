@@ -101,6 +101,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('MissTable')
     DebugFlag('MissJudge')
     DebugFlag('ZTrace')
+    DebugFlag('EntrySanity')
 
     CompoundFlag('PardAll', ['FmtCtrl', 'Pard', 'FMT', 'VOC', 'BMT'])
 
