@@ -666,6 +666,10 @@ class DefaultRename : public SlotCounter<Impl>
 
   private:
     void getQHeadState(ThreadID tid);
+
+    const unsigned maxROB;
+
+    void checkEntrySanity();
 };
 
 #endif // __CPU_O3_RENAME_HH__
