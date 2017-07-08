@@ -19,6 +19,7 @@ command = None
 ST = False
 debug = False
 debug_flags = ''
+debug_start = None
 gdb = False
 
 
@@ -113,6 +114,9 @@ def smt_run(pair):
 
     if debug_flags:
         options = ['--debug-flags=' + debug_flags] + options
+    if debug_start:
+        options = ['--debug-start=' + debug_start] + options
+
 
     print options
 
@@ -142,7 +146,7 @@ def smt_run(pair):
         sh.chmod('+x', 'debug.sh')
         return
 
-    sh.touch(pjoin(outdir, 'done'))
+    # sh.touch(pjoin(outdir, 'done'))
 
 
 def set_conf(opt):
@@ -151,12 +155,14 @@ def set_conf(opt):
     global ST
     global debug
     global debug_flags
+    global debug_start
     global gdb
     script = opt.command
     output_dir = opt.output_dir
     ST = opt.single_thread
     debug = opt.debug
     debug_flags = opt.debug_flags
+    debug_start = opt.debug_start
     gdb = opt.gdb
     if debug_flags:
         assert debug
@@ -200,6 +206,10 @@ if __name__ == '__main__':
 
     parser.add_argument('--debug-flags', action='store',
                         help='debug flags'
+                       )
+
+    parser.add_argument('--debug-start', action='store',
+                        help='debug start tick'
                        )
 
     parser.add_argument('--gdb', action='store_true',
