@@ -1259,6 +1259,15 @@ DefaultIEW<Impl>::dispatchInsts(ThreadID tid)
 
             ++iewLSQFullEvents;
             break;
+        } else {
+            if (inst->isStore() && curTick() > 332807397200000) {
+                DPRINTF(EntrySanity, "SQ full -- T[0]: %i; T[1]: %i\n",
+                        ldstQueue.sqFull(HPT), ldstQueue.sqFull(LPT));
+                DPRINTF(EntrySanity, "SQ entries -- T[0]: %i; T[1]: %i\n",
+                        ldstQueue.numStores(HPT), ldstQueue.numStores(LPT));
+                DPRINTF(EntrySanity, "max SQ entries -- T[0]: %i; T[1]: %i\n",
+                        ldstQueue.maxSQEntries[HPT], ldstQueue.maxSQEntries[LPT]);
+            }
         }
 
         // Otherwise issue the instruction just fine.
@@ -2201,12 +2210,12 @@ DefaultIEW<Impl>::checkEntrySanity()
     assert(ldstQueue.numLoads(HPT) + ldstQueue.numLoads(LPT) <= maxLQ);
 
     if (ldstQueue.numStores(HPT) + ldstQueue.numStores(LPT) > maxSQ) {
-        DPRINTF(EntrySanity, "HPT stores: %i, LPT stores: %i, maxSQ: %i",
+        DPRINTF(EntrySanity, "HPT stores: %i, LPT stores: %i, maxSQ: %i\n",
                 ldstQueue.numStores(HPT),
                 ldstQueue.numStores(LPT),
                 maxSQ
         );
-        panic("SQ not sanity!");
+        panic("SQ not sanity!\n");
     }
 }
 

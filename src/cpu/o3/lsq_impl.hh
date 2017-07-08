@@ -642,10 +642,10 @@ template<class Impl>
 bool
 LSQ<Impl>::lqFull(ThreadID tid)
 {
-    if ((lsqPolicy == Dynamic && tid == 0) || lsqPolicy == Dynamic) {
+    if ((lsqPolicy == Programmable && tid == 0) || lsqPolicy == Dynamic) {
         return lqFull();
     } else {
-        return thread[tid].lqFull();
+        return thread[tid].lqFull() || lqFull();
     }
 }
 
@@ -660,10 +660,10 @@ template<class Impl>
 bool
 LSQ<Impl>::sqFull(ThreadID tid)
 {
-    if ((lsqPolicy == Dynamic && tid == 0) || lsqPolicy == Dynamic) {
+    if ((lsqPolicy == Programmable && tid == 0) || lsqPolicy == Dynamic) {
         return sqFull();
     } else {
-        return thread[tid].sqFull();
+        return thread[tid].sqFull() || sqFull();
     }
 }
 
