@@ -358,7 +358,7 @@ class BaseCache : public MemObject
     Stats::Formula demandMisses;
     /** Number of misses for all accesses. */
     Stats::Formula overallMisses;
-
+    Stats::Scalar shadowhit;
     /**
      * Total number of cycles per thread/command spent waiting for a miss.
      * Used to calculate the average miss latency.
@@ -601,7 +601,10 @@ class BaseCache : public MemObject
     {
         assert(pkt->req->threadId() < numThreads);
         misses[pkt->cmdToIndex()][pkt->req->threadId()]++;
-        pkt->req->incAccessDepth();
+        if (isInterference){
+		shadowhit++;
+	}
+	pkt->req->incAccessDepth();
         if (missCount) {
             --missCount;
             if (missCount == 0)

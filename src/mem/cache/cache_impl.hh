@@ -364,7 +364,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // need to do a replacement
             tags->setThread(pkt->req->threadId());
             blk = allocateBlock(pkt->getAddr(), pkt->isSecure(), writebacks);
-            tags->clearThread();
+            //tags->clearThread();
             if (blk == NULL) {
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt, is_interference);
@@ -1501,7 +1501,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks)
         // need to do a replacement
         tags->setThread(pkt->req->threadId());
         blk = allocateBlock(addr, is_secure, writebacks);
-        tags->clearThread();
+        //tags->clearThread();
         if (blk == NULL) {
             // No replaceable block... just use temporary storage to
             // complete the current request and then get rid of it
