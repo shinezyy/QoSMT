@@ -93,6 +93,16 @@ if '--ruby' in sys.argv:
 
 (options, args) = parser.parse_args()
 
+options.caches = True
+options.cacheline_size = 64
+options.l1i_size = '64kB'
+options.l1d_size = '64kB'
+options.l1i_assoc = 16
+options.l1d_assoc = 16
+options.l2cache = True
+options.l2_size = '4MB'
+options.l2_assoc = 16
+
 if args:
     print "Error: script doesn't take any positional arguments"
     sys.exit(1)
