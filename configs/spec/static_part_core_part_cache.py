@@ -93,6 +93,16 @@ if '--ruby' in sys.argv:
 
 (options, args) = parser.parse_args()
 
+options.caches = True
+options.cacheline_size = 64
+options.l1i_size = '32kB'
+options.l1d_size = '32kB'
+options.l1i_assoc = 8
+options.l1d_assoc = 8
+options.l2cache = True
+options.l2_size = '2MB'
+options.l2_assoc = 8
+
 if args:
     print "Error: script doesn't take any positional arguments"
     sys.exit(1)
@@ -245,15 +255,14 @@ for cpu in system.cpu:
     cpu.smtIQPolicy = 'Partitioned'
     cpu.smtLSQPolicy = 'Partitioned'
 
-
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
-    cpu.icache.tags.thread_0_assoc = 8
+    cpu.icache.tags.thread_0_assoc = 4
     cpu.dcache.tags = LRUPartition()
-    cpu.dcache.tags.thread_0_assoc = 8
+    cpu.dcache.tags.thread_0_assoc = 4
 
 system.l2.tags = LRUPartition() # L2 partition
-system.l2.tags.thread_0_assoc = 8
+system.l2.tags.thread_0_assoc = 4
 
 
 # options.take_checkpoints=100000
