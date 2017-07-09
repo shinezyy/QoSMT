@@ -101,15 +101,15 @@ def smt_run(pair):
         '--benchmark_stdout=' + outdir,
         '--benchmark_stderr=' + outdir,
         '--cpu-type=detailed',
-        '--caches',
-        '--cacheline_size=64',
-        '--l1i_size=64kB',
-        '--l1d_size=64kB',
-        '--l1i_assoc=16',
-        '--l1d_assoc=16',
-        '--l2cache',
-        '--l2_size=4MB',
-        '--l2_assoc=16'
+        # '--caches',
+        # '--cacheline_size=64',
+        # '--l1i_size=64kB',
+        # '--l1d_size=64kB',
+        # '--l1i_assoc=16',
+        # '--l1d_assoc=16',
+        # '--l2cache',
+        # '--l2_size=4MB',
+        # '--l2_assoc=16'
     ]
 
     if debug_flags:
@@ -157,7 +157,10 @@ def set_conf(opt):
     global debug_flags
     global debug_start
     global gdb
+
     script = opt.command
+    assert(os.path.isfile(pjoin(gem5_dir, 'configs/spec/' + script)))
+
     output_dir = opt.output_dir
     ST = opt.single_thread
     debug = opt.debug
@@ -178,13 +181,6 @@ if __name__ == '__main__':
                        )
 
     parser.add_argument('-c', '--command', action='store', required=True,
-                        choices=[
-                            'dyn.py',
-                            'cc.py',
-                            'fc.py',
-                            'sim_st.py',
-                            'static_part.py',
-                        ],
                         help='gem5 script to use'
                        )
 
