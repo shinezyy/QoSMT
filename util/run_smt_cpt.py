@@ -146,7 +146,7 @@ def smt_run(pair):
         sh.chmod('+x', 'debug.sh')
         return
 
-    # sh.touch(pjoin(outdir, 'done'))
+    sh.touch(pjoin(outdir, 'done'))
 
 
 def set_conf(opt):
@@ -159,6 +159,7 @@ def set_conf(opt):
     global gdb
 
     script = opt.command
+    gem5_dir = os.environ['gem5_root']
     assert(os.path.isfile(pjoin(gem5_dir, 'configs/spec/' + script)))
 
     output_dir = opt.output_dir
