@@ -147,6 +147,7 @@ LRUDynPartition::findVictim(Addr addr)
             threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
         }
         wayRationConfig->updatedByCore = false;
+
     }
 
     assert(curThreadID >= 0);
@@ -167,25 +168,49 @@ LRUDynPartition::findVictim(Addr addr)
         // Consume ration in invalid cases.
         // This has pityfalls when performing cache coherence.
         // But we don't care that now.
-        wayCount[set][curThreadID]++;
+	if(blk->threadID == -1){
+		wayCount[set][curThreadID]++;
+	}
+	else if(blk->threadID != curThreadID){
+		wayCount[set][1-curThreadID]--;
+		wayCount[set][curThreadID]++;
+	}
+	assert((wayCount[set][curThreadID]+wayCount[set][1-curThreadID])<=assoc);
         assert(blk);
         blk->threadID = (ThreadID) curThreadID;
-        if (threadWayRation[set][curThreadID] == wayCount[set][curThreadID]) {
-            noInvalid[set][curThreadID] = true;
-        }
+	if (threadWayRation[set][curThreadID] == wayCount[set][curThreadID]) {
+		noInvalid[set][curThreadID] = true;
+		DPRINTF(DynCache, "First,way ration[0]: %i, way ration[1]: %i\n",
+				wayCount[set][curThreadID],
+				wayCount[set][1-curThreadID]);
+				}
        // if (curThreadID == 0) {
        //     blk->shadowtag = tag;
        // }
-    } else if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
+    } else if ((threadWayRation[set][curThreadID] >= wayCount[set][curThreadID])
              && (noInvalid[set][curThreadID])) { // find victim after new allocation
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
             if (blk->threadID != curThreadID) break;
         }
+
+	if(blk->threadID == -1){
+		wayCount[set][curThreadID]++;
+	}
+	else if(blk->threadID != curThreadID){
+		wayCount[set][curThreadID]++;
+		wayCount[set][1 - curThreadID]--;
+	} 
+
+
         assert(blk);
         blk->threadID = (ThreadID) curThreadID;
-        wayCount[set][curThreadID]++;
-        wayCount[set][1-curThreadID]--;
+        DPRINTF(DynCache, "Second,way ration[0]: %i, way ration[1]: %i\n",
+                                wayCount[set][curThreadID],
+                                wayCount[set][1-curThreadID]);
+
+	//wayCount[set][curThreadID]++;
+        //wayCount[set][1-curThreadID]--;
         assert(wayCount[set][curThreadID] <= assoc);
         assert(wayCount[set][curThreadID] >= 0);
         assert(wayCount[set][1 - curThreadID] <= assoc);
