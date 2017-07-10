@@ -89,7 +89,8 @@ DefaultRename<Impl>::DefaultRename(O3CPU *_cpu, DerivO3CPUParams *params)
                       + params->numPhysCCRegs)),
       BLBlocal(false),
       blockCycles(0),
-      slotConsumer (params, params->renameWidth, name())
+      slotConsumer (params, params->renameWidth, name()),
+      maxROB(params->numROBEntries)
 {
     if (renameWidth > Impl::MaxWidth)
         fatal("renameWidth (%d) is larger than compiled limit (%d),\n"
@@ -2074,6 +2075,13 @@ DefaultRename<Impl>::getQHeadState(ThreadID tid)
         == HeadInstrState::Normal) {
         normalCount[tid]++;
     }
+}
+
+template<class Impl>
+void
+DefaultRename<Impl>::checkEntrySanity()
+{
+    assert(calcOwnROBEntries(HPT) + calcOwnROBEntries(LPT) <= maxROB);
 }
 
 #endif//__CPU_O3_RENAME_IMPL_HH__

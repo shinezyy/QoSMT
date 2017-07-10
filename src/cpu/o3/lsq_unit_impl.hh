@@ -521,6 +521,11 @@ template <class Impl>
 void
 LSQUnit<Impl>::insertLoad(DynInstPtr &load_inst)
 {
+    if ((loadTail + 1) % LQEntries == loadHead) {
+        DPRINTF(LSQUnit, "loads: %i, loadTail: %i, loadHead: %i, "
+                "LQEntries: %i\n", loads, loadTail, loadHead, LQEntries);
+        panic("(loadTail + 1) %% LQEntries != loadHead");
+    }
     assert((loadTail + 1) % LQEntries != loadHead);
     assert(loads < LQEntries);
 
@@ -580,6 +585,7 @@ template <class Impl>
 unsigned
 LSQUnit<Impl>::numFreeLoadEntries()
 {
+    DPRINTF(LSQUnit, "Is dynamic: %i\n", isDynamic);
     if (isDynamic) {
         DPRINTF(LSQUnit, "LQ size: %d, #loads occupied: %d\n",
                 LQEntries, loads);
@@ -1544,11 +1550,10 @@ LSQUnit<Impl>::setLQLimit(unsigned lqLimit)
     // lqLimit should take dummy entry into accound
     // return -x to indicate need more free entries
     if (loads + 1 > lqLimit + 1) {
-        DPRINTF(FmtSlot, "Set lqValid to %d\n", loads + 1);
-        lqValid = loads + 1;
-    }
-    else {
-        DPRINTF(FmtSlot, "Set lqValid to %d\n", lqLimit);
+        DPRINTF(LSQUnit, "loads = %i, Set lqValid to %d\n", loads, loads + 1);
+        lqValid = (unsigned int) (loads + 1);
+    } else {
+        DPRINTF(LSQUnit, "lqLimit = %i, Set lqValid to %d\n", lqLimit, lqLimit + 1);
         lqValid = lqLimit + 1;
     }
     return lqLimit - loads;

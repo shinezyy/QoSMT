@@ -677,8 +677,8 @@ InstructionQueue<Impl>::updateMaxEntries()
 
     maxEntriesUpToDate = sat;
 
-    assert(maxEntries[0] < 65);
-    assert(maxEntries[1] < 65);
+    assert(maxEntries[0] <= numEntries);
+    assert(maxEntries[1] <= numEntries);
 }
 
 template <class Impl>

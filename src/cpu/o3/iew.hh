@@ -615,6 +615,10 @@ class DefaultIEW : public SlotCounter<Impl>
     void getQHeadState(DynInstPtr QHead[], typename SlotConsm::FullSource fs,
                        ThreadID tid);
 
+    void checkEntrySanity();
+
+    const unsigned maxIQ, maxLQ, maxSQ;
+
   public:
 
     void dumpStats() {

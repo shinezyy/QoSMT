@@ -19,6 +19,7 @@ command = None
 ST = False
 debug = False
 debug_flags = ''
+debug_start = None
 gdb = False
 
 
@@ -100,19 +101,22 @@ def smt_run(pair):
         '--benchmark_stdout=' + outdir,
         '--benchmark_stderr=' + outdir,
         '--cpu-type=detailed',
-        '--caches',
-        '--cacheline_size=64',
-        '--l1i_size=64kB',
-        '--l1d_size=64kB',
-        '--l1i_assoc=16',
-        '--l1d_assoc=16',
-        '--l2cache',
-        '--l2_size=4MB',
-        '--l2_assoc=16'
+        # '--caches',
+        # '--cacheline_size=64',
+        # '--l1i_size=64kB',
+        # '--l1d_size=64kB',
+        # '--l1i_assoc=16',
+        # '--l1d_assoc=16',
+        # '--l2cache',
+        # '--l2_size=4MB',
+        # '--l2_assoc=16'
     ]
 
     if debug_flags:
         options = ['--debug-flags=' + debug_flags] + options
+    if debug_start:
+        options = ['--debug-start=' + debug_start] + options
+
 
     print options
 
@@ -151,12 +155,18 @@ def set_conf(opt):
     global ST
     global debug
     global debug_flags
+    global debug_start
     global gdb
+
     script = opt.command
+    gem5_dir = os.environ['gem5_root']
+    assert(os.path.isfile(pjoin(gem5_dir, 'configs/spec/' + script)))
+
     output_dir = opt.output_dir
     ST = opt.single_thread
     debug = opt.debug
     debug_flags = opt.debug_flags
+    debug_start = opt.debug_start
     gdb = opt.gdb
     if debug_flags:
         assert debug
@@ -172,7 +182,6 @@ if __name__ == '__main__':
                        )
 
     parser.add_argument('-c', '--command', action='store', required=True,
-                        choices=['dyn.py', 'cc.py', 'fc.py', 'sim_st.py'],
                         help='gem5 script to use'
                        )
 
@@ -194,6 +203,10 @@ if __name__ == '__main__':
 
     parser.add_argument('--debug-flags', action='store',
                         help='debug flags'
+                       )
+
+    parser.add_argument('--debug-start', action='store',
+                        help='debug start tick'
                        )
 
     parser.add_argument('--gdb', action='store_true',

@@ -642,10 +642,10 @@ template<class Impl>
 bool
 LSQ<Impl>::lqFull(ThreadID tid)
 {
-    if ((lsqPolicy == Dynamic && tid == 0) || lsqPolicy == Dynamic) {
+    if ((lsqPolicy == Programmable && tid == 0) || lsqPolicy == Dynamic) {
         return lqFull();
     } else {
-        return thread[tid].lqFull();
+        return thread[tid].lqFull() || lqFull();
     }
 }
 
@@ -660,10 +660,10 @@ template<class Impl>
 bool
 LSQ<Impl>::sqFull(ThreadID tid)
 {
-    if ((lsqPolicy == Dynamic && tid == 0) || lsqPolicy == Dynamic) {
+    if ((lsqPolicy == Programmable && tid == 0) || lsqPolicy == Dynamic) {
         return sqFull();
     } else {
-        return thread[tid].sqFull();
+        return thread[tid].sqFull() || sqFull();
     }
 }
 
@@ -770,6 +770,11 @@ LSQ<Impl>::updateMaxEntries()
 
     LQLimit[1] = LQEntries - LQLimit[0];
     SQLimit[1] = SQEntries - SQLimit[0];
+
+    DPRINTF(LSQ, "LQPortion[0]: %i, LQPortion[1]: %i\n",
+            LQPortion[0], LQPortion[1]);
+    DPRINTF(LSQ, "LQLimit[0]: %i, LQlimit[1]: %i\n",
+            LQLimit[0], LQLimit[1]);
 
     if (LQLimit[0] > maxLQEntries[0])
         increaseThread0LQ = true;
