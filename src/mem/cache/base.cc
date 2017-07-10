@@ -382,6 +382,11 @@ BaseCache::regStats()
         .name(name() + ".fast_writes")
         .desc("number of fast writes performed")
         ;
+    shadowhit
+        .name(name() + ".shadow_hits")
+        .desc("number of shadow hits of shadowtag")
+        .flags(total | nozero | nonan)
+        ;
 
     cacheCopies
         .name(name() + ".cache_copies")
