@@ -84,7 +84,13 @@ CacheBlk*
 LRUDynPartition::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 {
     CacheBlk *blk = BaseSetAssoc::accessBlock(addr, is_secure, lat, master_id);
+    //int set = extractSet(addr);
+    //Addr tag = extractTag(addr);
 
+   // for (int nWay = 0; nWay < assoc; nWay++) {
+   //     auto blk = sets[set].blks[nWay];
+   //     DPRINTF(CacheRepl, "The   tag list is  %x\n", blk->tag);
+  //  }
     if (blk != NULL) {
         // move this block to head of the MRU list
         sets[blk->set].moveToHead(blk);
@@ -112,12 +118,13 @@ LRUDynPartition::accessShadowTag(Addr addr)
 {
     int set = extractSet(addr);
     Addr tag = extractTag(addr);
-
+    DPRINTF(CacheRepl, "The  shadow tag should be  %x\n", tag);
     for (int nWay = 0; nWay < assoc; nWay++) {
         auto blk = sets[set].blks[nWay];
-        if (blk && blk->shadowtag == tag) {
-            return blk;
-        }
+    DPRINTF(CacheRepl, "The  shadow tag list is  %x\n", blk->shadowtag);
+    if (blk && blk->shadowtag == tag) {
+       return blk;
+       }
     }
     return NULL;
 }
@@ -138,7 +145,7 @@ LRUDynPartition::findVictim(Addr addr)
 
     assert(curThreadID >= 0);
     int set = extractSet(addr);
-    Addr tag = extractTag(addr); // prepare to store the shadow tag
+    //Addr tag = extractTag(addr); // prepare to store the shadow tag
     // grab a replacement candidate
     BlkType *blk = NULL;
 
@@ -160,9 +167,9 @@ LRUDynPartition::findVictim(Addr addr)
         if (threadWayRation[set][curThreadID] == wayCount[set][curThreadID]) {
             noInvalid[set][curThreadID] = true;
         }
-        if (curThreadID == 0) {
-            blk->shadowtag = tag;
-        }
+       // if (curThreadID == 0) {
+       //     blk->shadowtag = tag;
+       // }
     } else if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
              && (noInvalid[set][curThreadID])) { // find victim after new allocation
         for (int i = assoc - 1; i >= 0; i--) {
@@ -177,20 +184,20 @@ LRUDynPartition::findVictim(Addr addr)
         assert(wayCount[set][curThreadID] >= 0);
         assert(wayCount[set][1 - curThreadID] <= assoc);
         assert(wayCount[set][1 - curThreadID] >= 0);
-        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-            blk->shadowtag = tag;
-        }
+        //if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
+       //     blk->shadowtag = tag;
+       // }
     } else {  // find last used line inside its own ways.
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
             if (blk->threadID == curThreadID) break;
         }
         assert(blk->threadID == curThreadID);
-        DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
-                set, regenerateBlkAddr(blk->tag, set));
-        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-            blk->shadowtag = tag;
-        }
+  //      DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
+ //               set, regenerateBlkAddr(blk->tag, set));
+//        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
+//            blk->shadowtag = tag;
+//        }
     }
     assert(threadWayRation[set][curThreadID] >= 0);
     return blk;
@@ -203,7 +210,11 @@ LRUDynPartition::insertBlock(PacketPtr pkt, BlkType *blk)
     // so we can determine that this block belongs to thread
     // <curThreadID>
     BaseSetAssoc::insertBlock(pkt, blk);
-
+    assert(pkt->getAddr());
+    uint64_t tag = extractTag(pkt->getAddr());
+    if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
+	    blk->shadowtag = tag ;
+    }
     assert(blk->threadID >= 0);
     int set = extractSet(pkt->getAddr());
     sets[set].moveToHead(blk);
