@@ -256,12 +256,12 @@ for cpu in system.cpu:
     cpu.smtLSQPolicy = 'Programmable'
 
 for cpu in system.cpu:
-    cpu.icache.tags = LRUPartition()
+    cpu.icache.tags = LRUDynPartition()
     cpu.icache.tags.thread_0_assoc = 4
     cpu.dcache.tags = LRUPartition()
     cpu.dcache.tags.thread_0_assoc = 4
 
-system.l2.tags = LRUPartition() # L2 partition
+system.l2.tags = LRUDynPartition() # L2 partition
 system.l2.tags.thread_0_assoc = 4
 
 

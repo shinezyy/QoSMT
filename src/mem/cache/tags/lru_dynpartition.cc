@@ -46,6 +46,7 @@
  */
 
 #include "debug/CacheRepl.hh"
+#include "debug/DynCache.hh"
 #include "mem/cache/tags/lru_dynpartition.hh"
 #include "mem/cache/base.hh"
 
@@ -78,6 +79,7 @@ LRUDynPartition::LRUDynPartition(const Params *p)
             wayRationConfig = &controlPanel.l1ICacheWayConfig;
         }
     }
+    wayRationConfig->assoc = assoc;
 }
 
 CacheBlk*
@@ -133,14 +135,18 @@ CacheBlk*
 LRUDynPartition::findVictim(Addr addr)
 {
     if (wayRationConfig->updatedByCore) {
-        assert(wayRationConfig->threadWayRations[0] +
-               wayRationConfig->threadWayRations[1] == assoc);
+        if (wayRationConfig->threadWayRations[0] +
+               wayRationConfig->threadWayRations[1] != assoc) {
+            DPRINTF(DynCache, "way ration[0]: %i, way ration[1]: %i\n",
+                    wayRationConfig->threadWayRations[0],
+                    wayRationConfig->threadWayRations[1]);
+            panic("Associativity exceeds\n");
+        }
         for (int i = 0; i < numSets; i++) {
             threadWayRation[i][0] = wayRationConfig->threadWayRations[0];
             threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
         }
         wayRationConfig->updatedByCore = false;
-        wayRationConfig->assoc = assoc;
     }
 
     assert(curThreadID >= 0);
@@ -190,9 +196,19 @@ LRUDynPartition::findVictim(Addr addr)
     } else {  // find last used line inside its own ways.
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
-            if (blk->threadID == curThreadID) break;
+            if (blk->threadID == curThreadID) {
+                break;
+            } else {
+                DPRINTF(DynCache, "block %i belongs to T[%i]\n", i, blk->threadID);
+            }
         }
-        assert(blk->threadID == curThreadID);
+        if (blk->threadID != curThreadID) {
+            DPRINTF(DynCache, "No block found for T[%i]\n, T[0] assoc: %i, "
+                    "T[1] assoc: %i]\n", curThreadID,
+                    wayRationConfig->threadWayRations[0],
+                    wayRationConfig->threadWayRations[1]
+            );
+        }
   //      DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
  //               set, regenerateBlkAddr(blk->tag, set));
 //        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
