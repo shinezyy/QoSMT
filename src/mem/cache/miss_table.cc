@@ -12,7 +12,7 @@ bool MissTables::isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md
 
     l1_it = l1_table->find(address);
     if (l1_it == l1_table->end()) {
-        missTables.printMiss(*l1_table);
+        // missTables.printMiss(*l1_table);
         md.valid = false;
         return false;
     } else {

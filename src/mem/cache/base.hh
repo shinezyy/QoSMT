@@ -602,9 +602,9 @@ class BaseCache : public MemObject
         assert(pkt->req->threadId() < numThreads);
         misses[pkt->cmdToIndex()][pkt->req->threadId()]++;
         if (isInterference){
-		shadowhit++;
-	}
-	pkt->req->incAccessDepth();
+            shadowhit++;
+        }
+        pkt->req->incAccessDepth();
         if (missCount) {
             --missCount;
             if (missCount == 0)
@@ -628,39 +628,44 @@ class BaseCache : public MemObject
                     pkt->req->threadId(), cacheLevel, pkt->req->seqNum);
 
             ThreadID tid = pkt->req->threadId();
-            missTable->emplace(blockAlign(pkt->getAddr()),
-                               MissEntry{
-                                       tid,
-                                       cacheLevel,
-                                       isInterference,
-                                       mat,
-                                       curTick(),
-                                       pkt->req->seqNum,
-                                       blockAlign(pkt->getAddr())
-                               });
+            auto ent = missTable->find(blockAlign(pkt->getAddr()));
+            if (ent == missTable->end()) {
+                missTable->emplace(blockAlign(pkt->getAddr()),
+                                   MissEntry{
+                                           tid,
+                                           cacheLevel,
+                                           isInterference,
+                                           mat,
+                                           curTick(),
+                                           pkt->req->seqNum,
+                                           blockAlign(pkt->getAddr())
+                                   });
 
-            MissStat &ms = missTables.missStat;
-            if (cacheLevel == 1) {
-                if (isDCache) {
-                    if (mat == MemAccessType::MemLoad) {
-                        ms.numL1LoadMiss[tid]++;
+                MissStat &ms = missTables.missStat;
+                if (cacheLevel == 1) {
+                    if (isDCache) {
+                        if (mat == MemAccessType::MemLoad) {
+                            ms.numL1LoadMiss[tid]++;
+                        } else {
+                            ms.numL1StoreMiss[tid]++;
+                        }
                     } else {
-                        ms.numL1StoreMiss[tid]++;
+                        ms.numL1InstMiss[tid]++;
                     }
-                } else {
-                    ms.numL1InstMiss[tid]++;
+                } else if (cacheLevel == 2) {
+                    bool is_data;
+                    if (!missTables.isL1Miss(pkt->getAddr(), is_data)) {
+                        missTables.printAllMiss();
+                        panic("L2 miss has no miss in L1!\n");
+                    }
+                    if (is_data) {
+                        ms.numL2DataMiss[tid]++;
+                    } else {
+                        ms.numL2InstMiss[tid]++;
+                    }
                 }
-            } else if (cacheLevel == 2) {
-                bool is_data;
-                if (!missTables.isL1Miss(pkt->getAddr(), is_data)) {
-                    missTables.printAllMiss();
-                    panic("L2 miss has no miss in L1!\n");
-                }
-                if (is_data) {
-                    ms.numL2DataMiss[tid]++;
-                } else {
-                    ms.numL2InstMiss[tid]++;
-                }
+            } else {
+                ent->second.MSHRHits++;
             }
         }
     }

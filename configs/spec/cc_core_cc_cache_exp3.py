@@ -258,7 +258,7 @@ for cpu in system.cpu:
 for cpu in system.cpu:
     cpu.icache.tags = LRUDynPartition()
     cpu.icache.tags.thread_0_assoc = 4
-    cpu.dcache.tags = LRUPartition()
+    cpu.dcache.tags = LRUDynPartition()
     cpu.dcache.tags.thread_0_assoc = 4
 
 system.l2.tags = LRUDynPartition() # L2 partition

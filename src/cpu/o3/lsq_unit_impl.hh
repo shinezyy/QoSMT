@@ -132,8 +132,8 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         panic("Miss table size is too large, find bug!\n");
     }
 
-    MissTable::const_iterator &&it1 = l1_table.find(phyAddress);
-    if (it1 != l1_table.end()) {
+    MissTable::iterator it1 = l1_table.find(phyAddress);
+    if (it1 != l1_table.end() && it1->second.MSHRHits == 0) {
         DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L1 miss table.\n",
                 tid, it1->second.cacheLevel, phyAddress);
 
@@ -143,14 +143,18 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
             ms.numL1StoreMiss[tid]--;
         }
         l1_table.erase(it1);
+    } else if (it1 != l1_table.end()){
+        it1->second.MSHRHits--;
     }
 
-    MissTable::const_iterator &&it2 = l2_table.find(phyAddress);
-    if (it2 != l2_table.end()) {
+    MissTable::iterator it2 = l2_table.find(phyAddress);
+    if (it2 != l2_table.end() && it2->second.MSHRHits == 0) {
         DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L2 miss table.\n",
                 tid, it2->second.cacheLevel, phyAddress);
         ms.numL2DataMiss[tid]--;
         l2_table.erase(it2);;
+    } else if (it2 != l2_table.end()){
+        it2->second.MSHRHits--;
     }
 
 #if 0
