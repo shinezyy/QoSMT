@@ -17,12 +17,13 @@ struct MissEntry {
     MemAccessType mat;
     Tick startTick;
     uint64_t seqNum;
+    int MSHRHits;
 
     MissEntry(ThreadID _tid, int32_t level, bool interf,
             MemAccessType _mat, Tick st, uint64_t sn, Addr address)
         : tid(_tid), cacheLevel((int16_t) level),
         isInterference(interf), mat(_mat), startTick(st),
-        seqNum(sn)
+        seqNum(sn), MSHRHits(0)
     {
         address = address;
         DPRINTF(MissTable, "Insert L%i cache miss @ addr [0x%x]\n", level, address);
