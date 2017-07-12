@@ -62,6 +62,7 @@
 #include "debug/Pard.hh"
 #include "debug/QoSCtrl.hh"
 #include "debug/FMT.hh"
+#include "debug/ILPPred.hh"
 #include "enums/MemoryMode.hh"
 #include "sim/core.hh"
 #include "sim/full_system.hh"
@@ -446,12 +447,15 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     iew.ldstQueue.init(params);
     rob.init(params);
 
+    leastPortion = 64;
     // check control policy
-
     if (params->controlPolicy == "Combined") {
         controlPolicy = Combined;
     } else if (params->controlPolicy == "FrontEnd") {
         controlPolicy = FrontEnd;
+    } else if (params->controlPolicy == "ILPOriented") {
+        controlPolicy = ILPOriented;
+        leastPortion = 256;
     } else if (params->controlPolicy == "None") {
         controlPolicy = None;
     } else {
@@ -1879,8 +1883,8 @@ FullO3CPU<Impl>::adjustFetch(bool incHPT)
 
 #define portionRangeCheck \
 do { \
-    vec[HPT] = std::min(vec[HPT], 1024 - 64); \
-    vec[HPT] = std::max(vec[HPT], 64); \
+    vec[HPT] = std::min(vec[HPT], 1024 - leastPortion); \
+    vec[HPT] = std::max(vec[HPT], leastPortion); \
     vec[LPT] = 1024 - vec[HPT]; \
 } while(0)
 
@@ -2013,26 +2017,42 @@ FullO3CPU<Impl>::sortContention() {
 
 template <class Impl>
 void
-FullO3CPU<Impl>::resourceAdjust()
-{
+FullO3CPU<Impl>::resourceAdjust() {
     if (controlPolicy == ControlPolicy::None)
         return;
-    sortContention();
-    int numAdjusted = 0;
 
-    if (!satisfiedQoS()) {
-        for (auto it = rankedContentions.rbegin();
-             it != rankedContentions.rend() && numAdjusted < numResourceToReserve;
-             ++it) {
-            numAdjusted += adjustRoute(*it, true);
-        }
-    } else {
-        for (auto it = rankedContentions.begin();
-             it != rankedContentions.end() && numAdjusted < numResourceToRelease;
-             ++it) {
-            numAdjusted += adjustRoute(*it, false);
+    if (controlPolicy == ControlPolicy::Combined ||
+        controlPolicy == ControlPolicy::FrontEnd) {
+        sortContention();
+        int numAdjusted = 0;
+
+        if (!satisfiedQoS()) {
+            for (auto it = rankedContentions.rbegin();
+                 it != rankedContentions.rend() && numAdjusted < numResourceToReserve;
+                 ++it) {
+                numAdjusted += adjustRoute(*it, true);
+            }
+        } else {
+            for (auto it = rankedContentions.begin();
+                 it != rankedContentions.end() && numAdjusted < numResourceToRelease;
+                 ++it) {
+                numAdjusted += adjustRoute(*it, false);
+            }
         }
     }
+
+    if (controlPolicy == ControlPolicy::ILPOriented) {
+        double ILP0 = ILP_predictor[HPT].getILP();
+        double ILP1 = ILP_predictor[LPT].getILP();
+        DPRINTF(ILPPred, "T[0] ILP: %f; T[1] ILP: %f\n", ILP0, ILP1);
+
+        adjustROB(ILP0 >= ILP1);
+        adjustIQ(ILP0 >= ILP1);
+        adjustLQ(ILP0 >= ILP1);
+        adjustSQ(ILP0 >= ILP1);
+    }
+
+    panic("Unkown Control Policy\n");
 }
 
 template <class Impl>

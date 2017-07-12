@@ -5,7 +5,7 @@
 
 #include <array>
 
-const int ILPHistoryLength = 256;
+const int ILPHistoryLength = 64;
 
 class ILPPredictor {
 

@@ -799,6 +799,7 @@ class FullO3CPU : public BaseO3CPU
     enum ControlPolicy {
         FrontEnd,
         Combined, // Front-end + Back-end
+        ILPOriented,
         None
     };
 
@@ -841,6 +842,8 @@ class FullO3CPU : public BaseO3CPU
     const int numResourceToRelease;
 
     int adjustRoute(Contention contention, bool incHPT);
+
+    int leastPortion;
 };
 
 #endif // __CPU_O3_CPU_HH__
