@@ -53,6 +53,7 @@
 #include "base/statistics.hh"
 #include "base/types.hh"
 #include "cpu/o3/dep_graph.hh"
+#include "cpu/o3/ilp_pred.hh"
 #include "cpu/inst_seq.hh"
 #include "cpu/op_class.hh"
 #include "cpu/timebuf.hh"

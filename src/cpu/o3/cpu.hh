@@ -68,6 +68,7 @@
 #include "cpu/timebuf.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/process.hh"
+#include "cpu/o3/ilp_pred.hh"
 //#include "cpu/o3/thread_context.hh"
 
 template <class>

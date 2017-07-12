@@ -4,7 +4,6 @@ project(src)
 set(CMAKE_CXX_STANDARD 11)
 
 set(SOURCE_FILES
-        cpu/o3/probe/SConscript
         cpu/o3/probe/simple_trace.cc
         cpu/o3/probe/simple_trace.hh
         cpu/o3/probe/SimpleTrace.py
@@ -72,8 +71,6 @@ set(SOURCE_FILES
         cpu/o3/rob.cc
         cpu/o3/rob.hh
         cpu/o3/rob_impl.hh
-        cpu/o3/SConscript
-        cpu/o3/SConsopts
         cpu/o3/scoreboard.cc
         cpu/o3/scoreboard.hh
         cpu/o3/slot_counter.cc
@@ -90,7 +87,6 @@ set(SOURCE_FILES
         mem/cache/prefetch/Prefetcher.py
         mem/cache/prefetch/queued.cc
         mem/cache/prefetch/queued.hh
-        mem/cache/prefetch/SConscript
         mem/cache/prefetch/stride.cc
         mem/cache/prefetch/stride.hh
         mem/cache/prefetch/tagged.cc
@@ -110,7 +106,6 @@ set(SOURCE_FILES
         mem/cache/tags/random_repl.hh
         mem/cache/tags/lru_dynpartition.cc
         mem/cache/tags/lru_dynpartition.hh
-        mem/cache/tags/SConscript
         mem/cache/tags/Tags.py
         mem/cache/base.cc
         mem/cache/base.hh
@@ -126,13 +121,14 @@ set(SOURCE_FILES
         mem/cache/mshr.hh
         mem/cache/mshr_queue.cc
         mem/cache/mshr_queue.hh
-        mem/cache/SConscript
         cpu/o3/slot_consume.cc
         cpu/o3/slot_consume_impl.hh
         cpu/o3/slot_consume.hh
         mem/cache/tags/control_panel.cc
         mem/cache/tags/control_panel.hh
-        mem/cache/miss_descpriptor.hh)
+        mem/cache/miss_descpriptor.hh
+        cpu/o3/ilp_pred.hh
+        cpu/o3/ilp_pred.cc)
 
 include_directories(.)
 

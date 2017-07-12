@@ -1049,6 +1049,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
                 issuing_inst->clearInIQ();
             } else {
                 memDepUnit[tid].issue(issuing_inst);
+                ILP_predictor[tid].incIssued();
             }
 
             listOrder.erase(order_it++);
@@ -1114,6 +1115,7 @@ InstructionQueue<Impl>::commit(const InstSeqNum &inst, ThreadID tid)
     while (iq_it != instList[tid].end() &&
            (*iq_it)->seqNum <= inst) {
         ++iq_it;
+        ILP_predictor[tid].removeHead((*iq_it)->seqNum);
         instList[tid].pop_front();
     }
 

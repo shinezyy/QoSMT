@@ -55,6 +55,7 @@
 #include "cpu/checker/cpu.hh"
 #include "cpu/o3/fu_pool.hh"
 #include "cpu/o3/iew.hh"
+#include "cpu/o3/ilp_pred.hh"
 #include "cpu/timebuf.hh"
 #include "mem/cache/miss_table.hh"
 #include "debug/Activity.hh"
@@ -1759,6 +1760,8 @@ DefaultIEW<Impl>::tick()
 
     cycleDispatchEnd(HPT);
 
+    updateILP();
+
     checkEntrySanity();
 
     if (this->checkSlots(HPT)) {
@@ -2070,11 +2073,11 @@ template<class Impl>
 void
 DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
 {
-    IQHead[tid] = instQueue.getHeadInst(tid);
+    head[tid] = instQueue.getHeadInst(tid);
     LQHead[tid] = ldstQueue.getLoadHeadInst(tid);
     SQHead[tid] = ldstQueue.getStoreHeadInst(tid);
 
-    getQHeadState(IQHead, SlotConsm::FullSource::IQ, tid);
+    getQHeadState(head, SlotConsm::FullSource::IQ, tid);
     getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
     getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
 
@@ -2086,10 +2089,10 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
                 "VIQ[T%i]:%f\n",
                 HPT, instQueue.numBusyEntries(HPT),
                 LPT, instQueue.numBusyEntries(LPT),
-                IQHead[tid] ? 1 : 0, tid, instQueue.VIQ[tid]);
-        if (IQHead[tid]) {
+                head[tid] ? 1 : 0, tid, instQueue.VIQ[tid]);
+        if (head[tid]) {
             DPRINTF(DispatchBreakdown, "IQ head is Miss: %i\n",
-                    missTables.isL1Miss(IQHead[tid]->physEffAddr, no_use));
+                    missTables.isL1Miss(head[tid]->physEffAddr, no_use));
         }
         DPRINTF(DispatchBreakdown, "VIQFull: %i\n", instQueue.VIQFull(tid));
     }
@@ -2216,6 +2219,22 @@ DefaultIEW<Impl>::checkEntrySanity()
                 maxSQ
         );
         panic("SQ not sanity!\n");
+    }
+}
+
+template<class Impl>
+void
+DefaultIEW<Impl>::updateILP() {
+    bool no_use = true;
+    no_use = !no_use;
+    DynInstPtr head[Impl::MaxThreads];
+
+    for (ThreadID tid = 0; tid < numThreads; tid++) {
+        head[tid] = instQueue.getHeadInst(tid);
+        if (head[tid] && head[tid]->isLoad() &&
+                missTables.isL1Miss(head[tid]->physEffAddr, no_use)) {
+            ILP_predictor[tid].setNewMissHead(head[tid]->seqNum);
+        }
     }
 }
 
