@@ -1,3 +1,5 @@
+from m5.objects import *
+
 def common_config(cpu, little_core):
     cpu.dumpWindowSize = 4*(10**6)
     cpu.policyWindowSize = (10**3)*20
@@ -38,3 +40,34 @@ def common_config(cpu, little_core):
         cpu.SQEntries = 56
         cpu.numPhysIntRegs = 216
         cpu.numPhysFloatRegs = 200
+
+
+def cache_config_1(options):
+    options.caches = True
+    options.cacheline_size = 64
+    options.l2cache = True
+
+    dup = 1
+    if options.dup_cache:
+        dup = 2
+
+    options.l1i_size = '{}kB'.format(32 * dup)
+    options.l1i_assoc = 4 * dup
+    options.l1d_size = '{}kB'.format(32 * dup)
+    options.l1d_assoc = 4 * dup
+    options.l2_size = '{}MB'.format(2 * dup)
+    options.l2_assoc = 8 * dup
+
+def cache_config_2(system, options):
+    dup = 1
+    if options.dup_cache:
+        dup = 2
+
+    for cpu in system.cpu:
+        cpu.icache.tags = LRUPartition()
+        cpu.icache.tags.thread_0_assoc = 2 * dup
+        cpu.dcache.tags = LRUPartition()
+        cpu.dcache.tags.thread_0_assoc = 2 * dup
+
+    system.l2.tags = LRUPartition()
+    system.l2.tags.thread_0_assoc = 4 * dup
