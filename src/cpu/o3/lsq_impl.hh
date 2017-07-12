@@ -183,17 +183,9 @@ LSQ<Impl>::init(DerivO3CPUParams *params)
         if (lsqPolicy == Threshold) {
             thread[tid].init(cpu, iewStage, params, this,
                     maxLQEntries[tid], maxSQEntries[tid], tid, false);
-        } else if (lsqPolicy == Dynamic){
+        } else if (lsqPolicy == Dynamic || lsqPolicy == Programmable){
             thread[tid].init(cpu, iewStage , params, this,
                     LQEntries, SQEntries, tid, true);
-        } else if (lsqPolicy == Programmable) {
-            if (tid == 0) {
-                thread[tid].init(cpu, iewStage , params, this,
-                        LQEntries, SQEntries, tid, true);
-            } else {
-                thread[tid].init(cpu, iewStage , params, this,
-                        LQEntries, SQEntries, tid, false);
-            }
         } else {
             thread[tid].init(cpu, iewStage, params, this,
                     maxLQEntries[tid], maxSQEntries[tid], tid, false);
@@ -538,16 +530,7 @@ LSQ<Impl>::numFreeLoadEntries(ThreadID tid)
 {
     if (lsqPolicy == Dynamic) {
         return numFreeLoadEntries();
-    }
-    else if (lsqPolicy == Programmable) {
-        assert(numThreads == 2);
-        if (tid == 0) {
-            return numFreeLoadEntries();
-        } else {
-            return thread[1].numFreeLoadEntries();
-        }
-    }
-    else {
+    } else {
         return thread[tid].numFreeLoadEntries();
     }
 }
@@ -558,16 +541,7 @@ LSQ<Impl>::numFreeStoreEntries(ThreadID tid)
 {
     if (lsqPolicy == Dynamic) {
         return numFreeStoreEntries();
-    }
-    else if (lsqPolicy == Programmable) {
-        assert(numThreads == 2);
-        if (tid == 0) {
-            return numFreeStoreEntries();
-        } else {
-            return thread[1].numFreeStoreEntries();
-        }
-    }
-    else {
+    } else {
         return thread[tid].numFreeStoreEntries();
     }
 }
@@ -583,7 +557,7 @@ template<class Impl>
 bool
 LSQ<Impl>::isFull(ThreadID tid)
 {
-    if ((lsqPolicy == Programmable && tid == 0) || lsqPolicy == Dynamic) {
+    if (lsqPolicy == Dynamic) {
         return isFull();
     } else {
         return thread[tid].lqFull() || thread[tid].sqFull();
@@ -642,7 +616,7 @@ template<class Impl>
 bool
 LSQ<Impl>::lqFull(ThreadID tid)
 {
-    if ((lsqPolicy == Programmable && tid == 0) || lsqPolicy == Dynamic) {
+    if (lsqPolicy == Dynamic) {
         return lqFull();
     } else {
         return thread[tid].lqFull() || lqFull();
@@ -660,7 +634,7 @@ template<class Impl>
 bool
 LSQ<Impl>::sqFull(ThreadID tid)
 {
-    if ((lsqPolicy == Programmable && tid == 0) || lsqPolicy == Dynamic) {
+    if (lsqPolicy == Dynamic) {
         return sqFull();
     } else {
         return thread[tid].sqFull() || sqFull();

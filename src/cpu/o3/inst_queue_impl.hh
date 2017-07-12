@@ -692,7 +692,7 @@ template <class Impl>
 unsigned
 InstructionQueue<Impl>::numFreeEntries(ThreadID tid)
 {
-    if ((iqPolicy == Programmable && tid == 0) || iqPolicy == Dynamic) {
+    if (iqPolicy == Dynamic) {
         return numFreeEntries();
     } else {
         return std::min(maxEntries[tid] - count[tid], numFreeEntries());

@@ -589,7 +589,6 @@ template <class Impl>
 unsigned
 LSQUnit<Impl>::numFreeLoadEntries()
 {
-    DPRINTF(LSQUnit, "Is dynamic: %i\n", isDynamic);
     if (isDynamic) {
         DPRINTF(LSQUnit, "LQ size: %d, #loads occupied: %d\n",
                 LQEntries, loads);
