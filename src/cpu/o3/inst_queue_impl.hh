@@ -1114,8 +1114,8 @@ InstructionQueue<Impl>::commit(const InstSeqNum &inst, ThreadID tid)
 
     while (iq_it != instList[tid].end() &&
            (*iq_it)->seqNum <= inst) {
-        ++iq_it;
         ILP_predictor[tid].removeHead((*iq_it)->seqNum);
+        ++iq_it;
         instList[tid].pop_front();
     }
 

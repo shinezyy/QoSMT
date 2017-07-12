@@ -32,6 +32,8 @@ public:
     void removeHead(InstSeqNum seqNum);
 
     double getILP();
+
+    void clear();
 };
 
 extern ILPPredictor ILP_predictor[];

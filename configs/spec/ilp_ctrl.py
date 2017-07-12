@@ -235,7 +235,6 @@ for cpu in system.cpu:
 
     cpu.expectedQoS = 0 * 1024 / 100
 
-    # configs for dynamic
     cpu.controlPolicy = 'ILPOriented'
 
     cpu.smtFetchPolicy = 'RoundRobin'

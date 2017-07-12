@@ -459,7 +459,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     } else if (params->controlPolicy == "None") {
         controlPolicy = None;
     } else {
-        panic("Unknown Control Policy !\n");
+        panic("Unknown Control Policy %s!\n", params->controlPolicy);
     }
 }
 
@@ -2039,17 +2039,22 @@ FullO3CPU<Impl>::resourceAdjust() {
                 numAdjusted += adjustRoute(*it, false);
             }
         }
+        return;
     }
 
     if (controlPolicy == ControlPolicy::ILPOriented) {
         double ILP0 = ILP_predictor[HPT].getILP();
         double ILP1 = ILP_predictor[LPT].getILP();
+        ILP_predictor[HPT].clear();
+        ILP_predictor[LPT].clear();
         DPRINTF(ILPPred, "T[0] ILP: %f; T[1] ILP: %f\n", ILP0, ILP1);
 
         adjustROB(ILP0 >= ILP1);
         adjustIQ(ILP0 >= ILP1);
         adjustLQ(ILP0 >= ILP1);
         adjustSQ(ILP0 >= ILP1);
+
+        return;
     }
 
     panic("Unkown Control Policy\n");

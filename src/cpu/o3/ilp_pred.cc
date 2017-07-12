@@ -18,8 +18,10 @@ void ILPPredictor::setNewMissHead(InstSeqNum seqNum)
 
 void ILPPredictor::incIssued()
 {
-    if (isUnderMiss)
+    if (isUnderMiss) {
         issuedInsts[index]++;
+        historyIssuedInsts++;
+    }
 }
 
 void ILPPredictor::removeHead(InstSeqNum seqNum)
@@ -31,10 +33,15 @@ void ILPPredictor::removeHead(InstSeqNum seqNum)
 
 double ILPPredictor::getILP()
 {
-    return double(historyIssuedInsts / ILPHistoryLength);
+    return double(historyIssuedInsts) / double(ILPHistoryLength);
 }
 
 ILPPredictor::ILPPredictor()
+{
+    clear();
+}
+
+void ILPPredictor::clear()
 {
     index = ILPHistoryLength - 1;
     historyIssuedInsts = 0;
