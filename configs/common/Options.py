@@ -64,6 +64,11 @@ def addCommonOptions(parser):
     parser.add_option("--cpu-type", type="choice", default="atomic",
                       choices=CpuConfig.cpu_names(),
                       help = "type of cpu to run with")
+
+    parser.add_option("--o3cpu-little-core",
+                      action="store_true",
+                      help="Use little O3 core")
+
     parser.add_option("--checker", action="store_true");
     parser.add_option("-n", "--num-cpus", type="int", default=1)
     parser.add_option("--sys-voltage", action="store", type="string",

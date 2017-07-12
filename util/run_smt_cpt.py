@@ -21,6 +21,7 @@ debug = False
 debug_flags = ''
 debug_start = None
 gdb = False
+opt = None
 
 
 def get_pairs(inf):
@@ -78,6 +79,7 @@ def smt_run(pair):
     else:
         pair_dir = pair[0]
 
+    global opt
     global output_dir
     global script
     global debug
@@ -116,6 +118,8 @@ def smt_run(pair):
         options = ['--debug-flags=' + debug_flags] + options
     if debug_start:
         options = ['--debug-start=' + debug_start] + options
+    if opt.little:
+        options = options + ['--o3cpu-little-core']
 
 
     print options
@@ -211,6 +215,10 @@ if __name__ == '__main__':
 
     parser.add_argument('--gdb', action='store_true',
                         help='use gdb to debug'
+                       )
+
+    parser.add_argument('-l', '--little', action='store_true',
+                        help='little core'
                        )
 
     opt = parser.parse_args()

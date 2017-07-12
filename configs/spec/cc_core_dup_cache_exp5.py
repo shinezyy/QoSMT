@@ -50,7 +50,6 @@ import m5
 from m5.defines import buildEnv
 from m5.objects import *
 from m5.util import addToPath, fatal
-
 from get_spec_proc import Spec06
 
 addToPath('../common')
@@ -102,8 +101,7 @@ options.l1i_assoc = 8
 options.l1d_assoc = 8
 options.l2cache = True
 options.l2_size = '4MB'
-options.l2_assoc = 16
-# TODO check Thread 0 assoc!!!
+options.l2_assoc = 8
 
 if args:
     print "Error: script doesn't take any positional arguments"
@@ -114,6 +112,7 @@ numThreads = 1
 if options.smt:
     numThreads = 2
 
+
 def get_benchmark_process(spec_obj, benchmark_name):
     process = spec_obj.gen_proc(benchmark_name)
     if process:
@@ -122,13 +121,11 @@ def get_benchmark_process(spec_obj, benchmark_name):
         print "No SPEC2006 benchmark named {}! Exiting.".format(benchmark_name)
         sys.exit(1)
 
-
 multiprocess = []
 benchmarks = options.benchmark.split(';')
 assert(len(benchmarks) < 2 or options.smt)
 if options.smt:
     assert(len(benchmarks) == 2)
-
 spec06 = Spec06()
 for bm in benchmarks:
     multiprocess.append(get_benchmark_process(spec06, bm))
@@ -241,22 +238,22 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    common_config(cpu, options.o3cpu_little_core)
-    cpu.max_insts_hpt_thread = 1000*(10**6)
-    # cpu.max_insts_hpt_thread = 15*(10**6)
+    common_config(cpu)
 
-    cpu.expectedQoS = 0 * 1024 / 100 # 0~1024
+    cpu.expectedQoS = 90 * 1024 / 100 # 0~1024
 
-    # configs for simulate st
-    cpu.controlPolicy = 'None'
+    # configs for control
+    cpu.controlPolicy = 'Combined'
 
     cpu.smtFetchPolicy = 'Programmable'
-    cpu.hptFetchProp = 1.0
+    cpu.hptFetchProp = 0.5
 
-    cpu.iewProgrammable = False
-    cpu.smtROBPolicy = 'Dynamic'
-    cpu.smtIQPolicy = 'Dynamic'
-    cpu.smtLSQPolicy = 'Dynamic'
+    cpu.iewProgrammable = True
+    cpu.hptDispatchProp = 0.5
+
+    cpu.smtROBPolicy = 'Programmable'
+    cpu.smtIQPolicy = 'Programmable'
+    cpu.smtLSQPolicy = 'Programmable'
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()
@@ -265,7 +262,7 @@ for cpu in system.cpu:
     cpu.dcache.tags.thread_0_assoc = 4
 
 system.l2.tags = LRUPartition() # L2 partition
-system.l2.tags.thread_0_assoc = 8
+system.l2.tags.thread_0_assoc = 4
 
 
 # options.take_checkpoints=100000
