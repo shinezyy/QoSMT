@@ -95,7 +95,7 @@ if '--ruby' in sys.argv:
 (options, args) = parser.parse_args()
 
 cache_config_1(options)
-# TODO: go cache_config_2
+# TODO: go to cache_config_2
 
 if args:
     print "Error: script doesn't take any positional arguments"

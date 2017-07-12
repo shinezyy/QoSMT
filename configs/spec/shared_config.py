@@ -7,7 +7,6 @@ def common_config(cpu, little_core):
     cpu.PTAVQ = False
 
     if little_core:
-
         cpu.fetchWidth = 6
         cpu.decodeWidth = 6
         cpu.renameWidth = 6
@@ -40,6 +39,12 @@ def common_config(cpu, little_core):
         cpu.SQEntries = 56
         cpu.numPhysIntRegs = 216
         cpu.numPhysFloatRegs = 200
+
+    # when threshold policy is used, they are meaningful
+    cpu.smtROBThreshold = int(cpu.numROBEntries * 2 / 3)
+    cpu.smtIQThreshold = int(cpu.numIQEntries * 2 / 3)
+    cpu.smtLQThreshold = int(cpu.LQEntries * 2 / 3)
+    cpu.smtSQThreshold = int(cpu.SQEntries * 2 / 3)
 
 
 def cache_config_1(options):

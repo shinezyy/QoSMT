@@ -63,14 +63,14 @@ def time_stamp_filter(pairs):
 
 
 def smt_run(pair):
+    global opt
+
     gem5_dir = os.environ['gem5_root']
 
     if not opt.single_thread:
         pair_dir = pair[0] + '_' + pair[1]
     else:
         pair_dir = pair[0]
-
-    global opt
 
     merged_cpt_dir_ = pjoin(merged_cpt_dir(), pair[0] + '_' + pair[1])
     outdir = pjoin(uexp(opt.output_dir), pair_dir)

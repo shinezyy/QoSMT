@@ -629,7 +629,7 @@ template <typename Impl>
 bool
 ROB<Impl>::isDynamicPolicy() const
 {
-    return robPolicy == Dynamic;
+    return robPolicy == Dynamic || robPolicy == Threshold;
 }
 
 template <typename Impl>
