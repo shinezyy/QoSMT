@@ -212,11 +212,7 @@ class ROB
     /** Returns if a specific thread's partition is full. */
     bool isFull(ThreadID tid)
     {
-        if (robPolicy == Programmable && tid == 0) {
-            return isFull();
-        } else {
-            return (threadEntries[tid] == maxEntries[tid]) || isFull();
-        }
+        return (threadEntries[tid] == maxEntries[tid]) || isFull();
     }
 
     /** Returns if the ROB is empty. */

@@ -172,17 +172,15 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
     } else if (policy == "threshold") {
         iqPolicy = Threshold;
 
-        double threshold =  (double)params->smtIQThreshold / 100;
-
-        int thresholdIQ = (int)((double)threshold * numEntries);
+        int threshold =  params->smtIQThreshold;
 
         //Divide up by threshold amount
         for (ThreadID tid = 0; tid < numThreads; tid++) {
-            maxEntries[tid] = thresholdIQ;
+            maxEntries[tid] = threshold;
         }
 
         DPRINTF(IQ, "IQ sharing policy set to Threshold:"
-                "%i entries per thread.\n",thresholdIQ);
+                "%i entries per thread.\n",threshold);
     } else if (policy == "programmable") {
         iqPolicy = Programmable;
 

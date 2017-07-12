@@ -137,18 +137,13 @@ LSQ<Impl>::init(DerivO3CPUParams *params)
     } else if (policy == "threshold") {
         lsqPolicy = Threshold;
 
-        // The following lien may be wrong ?
-        // SB Assertion
-        // assert(params->smtLSQThreshold > LQEntries);
-        // assert(params->smtLSQThreshold > SQEntries);
-
         //Divide up by threshold amount
         //@todo: Should threads check the max and the total
         //amount of the LSQ
         //NO
         for (ThreadID tid = 0; tid < numThreads; ++tid) {
-            maxLQEntries[tid] = params->smtLSQThreshold;
-            maxSQEntries[tid] = params->smtLSQThreshold;
+            maxLQEntries[tid] = params->smtLQThreshold;
+            maxSQEntries[tid] = params->smtSQThreshold;
         }
 
         DPRINTF(LSQ, "LSQ sharing policy set to Threshold: "
