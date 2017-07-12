@@ -1866,8 +1866,8 @@ FullO3CPU<Impl>::adjustFetch(bool incHPT)
     int delta = incHPT ? 64 : -64;
 
     vec[HPT] = fetch.getHPTPortion() + delta;
-    vec[HPT] = std::min(vec[HPT], 1024);
-    vec[HPT] = std::max(vec[HPT], 256);
+    vec[HPT] = std::min(vec[HPT], 1024 - 64);
+    vec[HPT] = std::max(vec[HPT], 64);
     vec[LPT] = 1024 - vec[HPT];
 
     if (vec[HPT] != fetch.getHPTPortion()) {
