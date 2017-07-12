@@ -50,7 +50,7 @@ class L1Cache(BaseCache):
     assoc = 2
     hit_latency = 2
     response_latency = 2
-    mshrs = 32
+    mshrs = 4
     tgts_per_mshr = 20
     is_top_level = True
     cache_level = 1
@@ -60,7 +60,7 @@ class L2Cache(BaseCache):
     assoc = 8
     hit_latency = 20
     response_latency = 20
-    mshrs = 64
+    mshrs = 20
     tgts_per_mshr = 12
     write_buffers = 8
     cache_level = 2
@@ -70,7 +70,7 @@ class IOCache(BaseCache):
     assoc = 8
     hit_latency = 50
     response_latency = 50
-    mshrs = 32
+    mshrs = 20
     size = '1kB'
     tgts_per_mshr = 12
     forward_snoops = False
@@ -81,7 +81,7 @@ class PageTableWalkerCache(BaseCache):
     assoc = 2
     hit_latency = 2
     response_latency = 2
-    mshrs = 32
+    mshrs = 10
     size = '1kB'
     tgts_per_mshr = 12
     forward_snoops = False
