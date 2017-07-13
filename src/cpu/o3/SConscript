@@ -62,6 +62,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     Source('bmt.cc')
     Source('slot_counter.cc')
     Source('slot_consume.cc')
+    Source('ilp_pred.cc')
 
     DebugFlag('CommitRate')
     DebugFlag('IEW')
@@ -102,6 +103,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('MissJudge')
     DebugFlag('ZTrace')
     DebugFlag('EntrySanity')
+    DebugFlag('ILPPred')
 
     CompoundFlag('PardAll', ['FmtCtrl', 'Pard', 'FMT', 'VOC', 'BMT'])
 

@@ -99,8 +99,6 @@ class DerivO3CPU(BaseCPU):
     backComSize = Param.Unsigned(5, "Time buffer size for backwards communication")
     forwardComSize = Param.Unsigned(5, "Time buffer size for forward communication")
 
-    LQEntries = Param.Unsigned(32, "Number of load queue entries")
-    SQEntries = Param.Unsigned(32, "Number of store queue entries")
     LSQDepCheckShift = Param.Unsigned(4, "Number of places to shift addr before check")
     LSQCheckLoads = Param.Bool(True,
         "Should dependency violations be checked for loads & stores or just stores")
@@ -126,32 +124,35 @@ class DerivO3CPU(BaseCPU):
         _defaultNumPhysCCRegs = Self.numPhysIntRegs * 5
     numPhysCCRegs = Param.Unsigned(_defaultNumPhysCCRegs,
                                    "Number of physical cc registers")
-    numIQEntries = Param.Unsigned(64, "Number of instruction queue entries")
-    numROBEntries = Param.Unsigned(192, "Number of reorder buffer entries")
 
     smtNumFetchingThreads = Param.Unsigned(1, "SMT Number of Fetching Threads")
 
     smtFetchPolicy = Param.String('Programmable', "SMT Fetch policy")
     #smtFetchPolicy = Param.String('RoundRobin', "SMT Fetch policy")
 
+    LQEntries = Param.Unsigned(32, "Number of load queue entries")
+    SQEntries = Param.Unsigned(32, "Number of store queue entries")
     smtLSQPolicy    = Param.String('Programmable', "SMT LSQ Sharing Policy")
-    #smtLSQPolicy    = Param.String('Dynamic', "SMT LSQ Sharing Policy")
-
-    smtLSQThreshold = Param.Int(10, "SMT LSQ Threshold Sharing Parameter")
-    # LSQ threshold is treated as bull shit
-
-    #smtIQPolicy    = Param.String('Programmable', "SMT IQ Sharing Policy")
-    smtIQPolicy    = Param.String('Dynamic', "SMT IQ Sharing Policy")
+    smtLQThreshold = Param.Int(0, "SMT LSQ Threshold Sharing Parameter")
+    smtSQThreshold = Param.Int(0, "SMT LSQ Threshold Sharing Parameter")
 
     smtIssuePolicy  = Param.String('Nodiscrimination', "SMT Issue Policy")
-    smtIQThreshold = Param.Int(50, "SMT IQ Threshold Sharing Parameter")
-    # IQ threshold is counted with precentage!!
 
-    #smtROBPolicy   = Param.String('Dynamic', "SMT ROB Sharing Policy")
+    numIQEntries = Param.Unsigned(64, "Number of instruction queue entries")
+    smtIQPolicy    = Param.String('Dynamic', "SMT IQ Sharing Policy")
+    smtIQThreshold = Param.Int(0, "SMT IQ Threshold Sharing Parameter")
+
+    numROBEntries = Param.Unsigned(192, "Number of reorder buffer entries")
     smtROBPolicy   = Param.String('Programmable', "SMT ROB Sharing Policy")
+    smtROBThreshold = Param.Int(0, "SMT ROB Threshold Sharing Parameter")
 
-    smtROBThreshold = Param.Int(58, "SMT ROB Threshold Sharing Parameter")
-    # ROB threshold is counted with absolute number
+    hptFetchProp = Param.Float(0, "Initial fetch time slice of HPT")
+    hptDispatchProp = Param.Float(0, "Initial dispatch time slice of HPT") #
+
+    hptROBPrivProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptIQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptLQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
+    hptSQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
 
     smtCommitPolicy = Param.String('RoundRobin', "SMT Commit Policy")
 
@@ -173,14 +174,6 @@ class DerivO3CPU(BaseCPU):
     expectedQoS = Param.Int(0, "Expected max slowdown 1024 as deno")
 
     iewProgrammable = Param.Bool(True, "Enable programmable dispatch")
-
-    hptFetchProp = Param.Float(0, "Initial fetch time slice of HPT")
-    hptDispatchProp = Param.Float(0, "Initial dispatch time slice of HPT") #
-
-    hptROBPrivProp = Param.Float(0, "Initial dispatch width of HPT")
-    hptIQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
-    hptLQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
-    hptSQPrivProp = Param.Float(0, "Initial dispatch width of HPT")
 
     l1Lat = Param.Int(2 + 2, "L1 cache hit + response latency")
     l2Lat = Param.Int(20 + 20, "L2 cache hit + response latency")

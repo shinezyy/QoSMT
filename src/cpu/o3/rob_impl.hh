@@ -357,7 +357,7 @@ template <class Impl>
 unsigned
 ROB<Impl>::numFreeEntries(ThreadID tid)
 {
-    if ((robPolicy == Programmable && tid == 0) || robPolicy == Dynamic) {
+    if (robPolicy == Dynamic) {
         return numFreeEntries();
     } else {
         /*
@@ -629,7 +629,7 @@ template <typename Impl>
 bool
 ROB<Impl>::isDynamicPolicy() const
 {
-    return robPolicy == Dynamic;
+    return robPolicy == Dynamic || robPolicy == Threshold;
 }
 
 template <typename Impl>

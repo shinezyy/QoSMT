@@ -604,7 +604,7 @@ class DefaultIEW : public SlotCounter<Impl>
 
     std::array<typename SlotConsm::FullSource, Impl::MaxThreads> fullSource;
 
-    DynInstPtr IQHead[Impl::MaxThreads];
+    DynInstPtr head[Impl::MaxThreads];
     DynInstPtr LQHead[Impl::MaxThreads];
     DynInstPtr SQHead[Impl::MaxThreads];
 
@@ -618,6 +618,10 @@ class DefaultIEW : public SlotCounter<Impl>
     void checkEntrySanity();
 
     const unsigned maxIQ, maxLQ, maxSQ;
+
+    void updateILP();
+
+    bool registedHeadILP[Impl::MaxThreads];
 
   public:
 

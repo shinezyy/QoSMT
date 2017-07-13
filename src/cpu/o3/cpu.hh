@@ -68,6 +68,7 @@
 #include "cpu/timebuf.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/process.hh"
+#include "cpu/o3/ilp_pred.hh"
 //#include "cpu/o3/thread_context.hh"
 
 template <class>
@@ -798,6 +799,7 @@ class FullO3CPU : public BaseO3CPU
     enum ControlPolicy {
         FrontEnd,
         Combined, // Front-end + Back-end
+        ILPOriented,
         None
     };
 
@@ -840,6 +842,8 @@ class FullO3CPU : public BaseO3CPU
     const int numResourceToRelease;
 
     int adjustRoute(Contention contention, bool incHPT);
+
+    int leastPortion;
 };
 
 #endif // __CPU_O3_CPU_HH__

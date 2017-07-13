@@ -50,7 +50,6 @@ import m5
 from m5.defines import buildEnv
 from m5.objects import *
 from m5.util import addToPath, fatal
-
 from get_spec_proc import Spec06
 
 addToPath('../common')
@@ -106,6 +105,7 @@ numThreads = 1
 if options.smt:
     numThreads = 2
 
+
 def get_benchmark_process(spec_obj, benchmark_name):
     process = spec_obj.gen_proc(benchmark_name)
     if process:
@@ -114,13 +114,11 @@ def get_benchmark_process(spec_obj, benchmark_name):
         print "No SPEC2006 benchmark named {}! Exiting.".format(benchmark_name)
         sys.exit(1)
 
-
 multiprocess = []
 benchmarks = options.benchmark.split(';')
 assert(len(benchmarks) < 2 or options.smt)
 if options.smt:
     assert(len(benchmarks) == 2)
-
 spec06 = Spec06()
 for bm in benchmarks:
     multiprocess.append(get_benchmark_process(spec06, bm))
@@ -234,25 +232,24 @@ else:
 
 for cpu in system.cpu:
     common_config(cpu, options.o3cpu_little_core)
-    cpu.max_insts_hpt_thread = 1000*(10**6)
-    # cpu.max_insts_hpt_thread = 15*(10**6)
 
-    cpu.expectedQoS = 0 * 1024 / 100 # 0~1024
+    cpu.expectedQoS = 0 * 1024 / 100
 
-    # configs for simulate st
+    # configs for dynamic
     cpu.controlPolicy = 'None'
 
-    cpu.smtFetchPolicy = 'Programmable'
-    cpu.hptFetchProp = 1.0
+    cpu.smtFetchPolicy = 'RoundRobin'
+    cpu.hptFetchProp = 0.5
 
     cpu.iewProgrammable = False
-    cpu.smtROBPolicy = 'Dynamic'
-    cpu.smtIQPolicy = 'Dynamic'
-    cpu.smtLSQPolicy = 'Dynamic'
+    cpu.hptDispatchProp = 0.5
+
+    cpu.smtROBPolicy = 'Partitioned'
+    cpu.smtIQPolicy = 'Partitioned'
+    cpu.smtLSQPolicy = 'Partitioned'
 
 # NOTE that static partition is used!
 cache_config_2(system, options)
-
 
 # options.take_checkpoints=100000
 # options.at_instruction=True

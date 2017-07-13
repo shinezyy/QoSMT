@@ -95,12 +95,12 @@ if '--ruby' in sys.argv:
 
 options.caches = True
 options.cacheline_size = 64
-options.l1i_size = '32kB'
-options.l1d_size = '32kB'
+options.l1i_size = '64kB'
+options.l1d_size = '64kB'
 options.l1i_assoc = 8
 options.l1d_assoc = 8
 options.l2cache = True
-options.l2_size = '2MB'
+options.l2_size = '4MB'
 options.l2_assoc = 8
 
 if args:
@@ -240,20 +240,20 @@ else:
 for cpu in system.cpu:
     common_config(cpu)
 
-    cpu.expectedQoS = 0 * 1024 / 100
+    cpu.expectedQoS = 90 * 1024 / 100 # 0~1024
 
-    # configs for dynamic
-    cpu.controlPolicy = 'None'
+    # configs for control
+    cpu.controlPolicy = 'Combined'
 
-    cpu.smtFetchPolicy = 'RoundRobin'
+    cpu.smtFetchPolicy = 'Programmable'
     cpu.hptFetchProp = 0.5
 
-    cpu.iewProgrammable = False
+    cpu.iewProgrammable = True
     cpu.hptDispatchProp = 0.5
 
-    cpu.smtROBPolicy = 'Partitioned'
-    cpu.smtIQPolicy = 'Partitioned'
-    cpu.smtLSQPolicy = 'Partitioned'
+    cpu.smtROBPolicy = 'Programmable'
+    cpu.smtIQPolicy = 'Programmable'
+    cpu.smtLSQPolicy = 'Programmable'
 
 for cpu in system.cpu:
     cpu.icache.tags = LRUPartition()

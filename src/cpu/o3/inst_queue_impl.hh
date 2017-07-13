@@ -172,17 +172,15 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
     } else if (policy == "threshold") {
         iqPolicy = Threshold;
 
-        double threshold =  (double)params->smtIQThreshold / 100;
-
-        int thresholdIQ = (int)((double)threshold * numEntries);
+        int threshold =  params->smtIQThreshold;
 
         //Divide up by threshold amount
         for (ThreadID tid = 0; tid < numThreads; tid++) {
-            maxEntries[tid] = thresholdIQ;
+            maxEntries[tid] = threshold;
         }
 
         DPRINTF(IQ, "IQ sharing policy set to Threshold:"
-                "%i entries per thread.\n",thresholdIQ);
+                "%i entries per thread.\n",threshold);
     } else if (policy == "programmable") {
         iqPolicy = Programmable;
 
@@ -692,7 +690,7 @@ template <class Impl>
 unsigned
 InstructionQueue<Impl>::numFreeEntries(ThreadID tid)
 {
-    if ((iqPolicy == Programmable && tid == 0) || iqPolicy == Dynamic) {
+    if (iqPolicy == Dynamic) {
         return numFreeEntries();
     } else {
         return std::min(maxEntries[tid] - count[tid], numFreeEntries());
@@ -1051,6 +1049,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
                 issuing_inst->clearInIQ();
             } else {
                 memDepUnit[tid].issue(issuing_inst);
+                ILP_predictor[tid].incIssued();
             }
 
             listOrder.erase(order_it++);
@@ -1115,6 +1114,7 @@ InstructionQueue<Impl>::commit(const InstSeqNum &inst, ThreadID tid)
 
     while (iq_it != instList[tid].end() &&
            (*iq_it)->seqNum <= inst) {
+        ILP_predictor[tid].removeHead((*iq_it)->seqNum);
         ++iq_it;
         instList[tid].pop_front();
     }
