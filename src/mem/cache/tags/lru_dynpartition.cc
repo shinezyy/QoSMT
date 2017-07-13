@@ -119,10 +119,9 @@ LRUDynPartition::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_
 bool
 LRUDynPartition::accessShadowTag(Addr addr)
 {
-    if (Debug::CacheRepl) {
-        Addr tag = extractTag(addr);
-        DPRINTF(CacheRepl, "The  shadow tag should be  %x\n", tag);
-    }
+    Addr tag = extractTag(addr);
+    tag = tag;
+    DPRINTF(CacheRepl, "The  shadow tag should be  %x\n", tag);
 
     if (shadowLRUTag.findBlock(addr)) {
         shadowLRUTag.touch(addr);
