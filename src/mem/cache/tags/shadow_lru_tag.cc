@@ -1,4 +1,5 @@
 #include "mem/cache/tags/shadow_lru_tag.hh"
+#include "debug/DynCache.hh"
 
 #include <algorithm>
 
@@ -8,6 +9,7 @@ ShadowLRUTag::ShadowLRUTag(unsigned _numSet, unsigned _shadowAssoc,
      baseSetAssoc(_baseSetAssoc),
      shadowTags(numSet, std::list<ShadowTag>(shadowAssoc, ShadowTag(false, 0)))
 {
+    DPRINTF(DynCache, "shadow tag num set: %i, assoc: %i\n", numSet, shadowAssoc);
 }
 
 bool ShadowLRUTag::findBlock(Addr address) const {
