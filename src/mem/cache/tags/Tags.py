@@ -54,7 +54,7 @@ class BaseTags(ClockedObject):
                                "The hit latency for this cache")
 
     # The ration for thread 0 when applying LRUPartition
-    thread_0_assoc = Param.Int(4, "ways for thread 0")
+    thread_0_assoc = Param.Int(0, "ways for thread 0")
 
 class BaseSetAssoc(BaseTags):
     type = 'BaseSetAssoc'

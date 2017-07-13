@@ -71,8 +71,11 @@ def cache_config_2(system, options):
     for cpu in system.cpu:
         cpu.icache.tags = LRUPartition()
         cpu.icache.tags.thread_0_assoc = 2 * dup
+        cpu.icache.shadow_tag_assoc = 4
         cpu.dcache.tags = LRUPartition()
         cpu.dcache.tags.thread_0_assoc = 2 * dup
+        cpu.dcache.shadow_tag_assoc = 4
 
     system.l2.tags = LRUPartition()
     system.l2.tags.thread_0_assoc = 4 * dup
+    system.l2.shadow_tag_assoc = 8
