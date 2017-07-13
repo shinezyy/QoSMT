@@ -51,6 +51,7 @@
 #define __MEM_CACHE_TAGS_LRUDynPartition_HH__
 
 #include "mem/cache/tags/base_set_assoc.hh"
+#include "mem/cache/tags/shadow_lru_tag.hh"
 #include "mem/cache/tags/control_panel.hh"
 #include "params/LRUDynPartition.hh"
 
@@ -73,7 +74,7 @@ class LRUDynPartition : public BaseSetAssoc
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
                          int context_src);
 
-    CacheBlk* accessShadowTag(Addr addr);
+    bool accessShadowTag(Addr addr);
 
     CacheBlk* findVictim(Addr addr);
 
@@ -108,6 +109,8 @@ class LRUDynPartition : public BaseSetAssoc
     const bool isDCache;
 
     WayRationConfig *wayRationConfig;
+
+    ShadowLRUTag shadowLRUTag;
 };
 
 #endif // __MEM_CACHE_TAGS_LRUDynPartition_HH__

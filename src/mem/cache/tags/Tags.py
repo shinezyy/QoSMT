@@ -80,6 +80,7 @@ class LRUDynPartition(BaseSetAssoc):
     cxx_header = "mem/cache/tags/lru_dynpartition.hh"
     cache_level = Param.Int(Parent.cache_level, "cache level")
     is_dcache = Param.Bool(Parent.is_dcache, "is d-cache")
+    shadow_tag_assoc = Param.Int(Parent.shadow_tag_assoc, "assoc of shadow tag")
 
 class RandomRepl(BaseSetAssoc):
     type = 'RandomRepl'

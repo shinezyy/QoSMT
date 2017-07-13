@@ -313,7 +313,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // sanity check
     assert(pkt->isRequest());
 
-    CacheBlk *shadowblk ; // 
+    bool shadowBlockHit ; //
     DPRINTF(Cache, "%s for %s addr %#llx size %d\n", __func__,
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
     if (pkt->req->isUncacheable()) {
@@ -343,12 +343,12 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Here lat is the value passed as parameter to accessBlock() function
     // that can modify its value.
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), lat, id);
-    shadowblk = tags->accessShadowTag(pkt->getAddr()); // access the shadow tag
+    shadowBlockHit = tags->accessShadowTag(pkt->getAddr()); // access the shadow tag
     bool is_interference = false;
-    if ((blk == NULL) & (shadowblk != NULL)) {
+    if ((blk == NULL) & shadowBlockHit) {
         is_interference = true;
         DPRINTF(Cache,"A wait event happened!");
-    } else if ((blk == NULL) & (shadowblk == NULL)) {
+    } else if ((blk == NULL) & shadowBlockHit) {
         DPRINTF(Cache,"A miss event happened!");
     } 
     DPRINTF(Cache, "%s%s addr %#llx size %d (%s) %s\n", pkt->cmdString(),
