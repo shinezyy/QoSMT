@@ -226,7 +226,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       abnormal(false),
       numContCtrl(0),
       numResourceToReserve(4),
-      numResourceToRelease(8)
+      numResourceToRelease(8),
+      dynCache(params->dynCache)
 {
     if (!params->switched_out) {
         _status = Running;
@@ -1958,6 +1959,9 @@ template <class Impl>
 void
 FullO3CPU<Impl>::adjustCache(int cacheLevel, bool DCache, bool incHPT)
 {
+    if (!dynCache) {
+        return;
+    }
     WayRationConfig *wayRationConfig = nullptr;
     if (cacheLevel == 2) {
         wayRationConfig = &controlPanel.l2CacheWayConfig;

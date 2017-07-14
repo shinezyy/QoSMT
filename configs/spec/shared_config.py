@@ -75,7 +75,10 @@ def cache_config_2(system, options):
         cpu.dcache.tags = LRUDynPartition()
         cpu.dcache.tags.thread_0_assoc = 2 * dup
         cpu.dcache.shadow_tag_assoc = 4
+        if options.dyn_cache:
+            cpu.dynCache = True
 
     system.l2.tags = LRUDynPartition()
     system.l2.tags.thread_0_assoc = 4 * dup
     system.l2.shadow_tag_assoc = 8
+

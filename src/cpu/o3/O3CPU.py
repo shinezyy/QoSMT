@@ -182,6 +182,8 @@ class DerivO3CPU(BaseCPU):
     PTAVQ = Param.Bool(True, "VQ strategy use PTA's or ours")
     considerHeadStatus = Param.Bool(False, "Consider status of head inst when judge miss/wait")
 
+    dynCache = Param.Bool(False, "Whether control cache for QoS")
+
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:
             from ArmTLB import ArmTLB

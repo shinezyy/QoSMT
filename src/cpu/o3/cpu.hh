@@ -844,6 +844,8 @@ class FullO3CPU : public BaseO3CPU
     int adjustRoute(Contention contention, bool incHPT);
 
     int leastPortion;
+
+    const bool dynCache;
 };
 
 #endif // __CPU_O3_CPU_HH__
