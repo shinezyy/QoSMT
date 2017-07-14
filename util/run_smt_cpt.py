@@ -111,6 +111,13 @@ def smt_run(pair):
     if opt.dup_cache:
         options = options + ['--dup-cache']
 
+    if opt.gem5_args:
+        arg_list = str(opt.gem5_args).split('&')
+        options = arg_list + options
+
+    if opt.cmd_args:
+        arg_list = str(opt.cmd_args).split('&')
+        options = options + arg_list
 
     print options
 
@@ -201,6 +208,13 @@ if __name__ == '__main__':
 
     parser.add_argument('--dup-cache', action='store_true',
                         help='use duplicated cache per thread'
+                       )
+
+    parser.add_argument('--gem5-args', action='store',
+                        help='options to gem5 directly'
+                       )
+    parser.add_argument('--cmd-args', action='store',
+                        help='options to command script'
                        )
 
     opt = parser.parse_args()
