@@ -348,7 +348,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     if ((blk == NULL) & shadowBlockHit) {
         is_interference = true;
         DPRINTF(Cache,"A wait event happened!");
-    } else if ((blk == NULL) & shadowBlockHit) {
+    } else if ((blk == NULL) & !shadowBlockHit) {
         DPRINTF(Cache,"A miss event happened!");
     } 
     DPRINTF(Cache, "%s%s addr %#llx size %d (%s) %s\n", pkt->cmdString(),
