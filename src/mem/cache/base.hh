@@ -656,7 +656,8 @@ class BaseCache : public MemObject
                     bool is_data;
                     if (!missTables.isL1Miss(pkt->getAddr(), is_data)) {
                         missTables.printAllMiss();
-                        panic("L2 miss has no miss in L1!\n");
+                        warn("L2 miss has no miss in L1!\n");
+                        is_data = true;
                     }
                     if (is_data) {
                         ms.numL2DataMiss[tid]++;
