@@ -51,6 +51,10 @@ public:
     MissTable l1DMissTable;
     MissTable l2MissTable;
 
+    int numL1I_MSHR;
+    int numL1D_MSHR;
+    int numL2_MSHR;
+
     MissStat missStat;
 
     bool isSpecifiedMiss(Addr address, bool isDCache, MissDescriptor &md);
@@ -66,6 +70,10 @@ public:
     Addr blockAlign(Addr addr) {
         return (addr & ~(Addr(cacheBlockSize - 1)));
     }
+
+    bool isMSHRFull(int cacheLevel, bool isDCache);
+
+    bool causingMSHRFull(int cacheLevel, bool isDCache, ThreadID tid);
 };
 
 extern MissTables missTables;

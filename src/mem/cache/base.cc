@@ -91,8 +91,20 @@ BaseCache::BaseCache(const Params *p)
 
 {
     missTables.cacheBlockSize = blkSize;
-    missTable = cacheLevel==2 ? &missTables.l2MissTable :
-                isDCache ? &missTables.l1DMissTable : &missTables.l1IMissTable;
+    if (cacheLevel == 2) {
+        missTable = &missTables.l2MissTable;
+        missTables.numL2_MSHR = p->mshrs;
+    } else if (cacheLevel == 1){
+        if (isDCache) {
+            missTable = &missTables.l1DMissTable;
+            missTables.numL1D_MSHR = p->mshrs;
+        } else {
+            missTable = &missTables.l1IMissTable;
+            missTables.numL1I_MSHR = p->mshrs;
+        }
+    } else {
+        panic("Unknown cache level %i\n", cacheLevel);
+    }
 }
 
 void
