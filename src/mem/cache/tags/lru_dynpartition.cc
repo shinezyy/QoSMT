@@ -252,8 +252,13 @@ LRUDynPartition::insertBlock(PacketPtr pkt, BlkType *blk)
     // <curThreadID>
     BaseSetAssoc::insertBlock(pkt, blk);
     assert(pkt->getAddr());
-    if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-        shadowLRUTag.insert(pkt->getAddr());
+    if (curThreadID == 0) {
+        if (!shadowLRUTag.findBlock(pkt->getAddr())) {
+            // update shadowtag when HP thread evict one way
+            shadowLRUTag.insert(pkt->getAddr());
+        } else {
+            shadowLRUTag.touch(pkt->getAddr());
+        }
     }
     assert(blk->threadID >= 0);
     int set = extractSet(pkt->getAddr());
