@@ -50,7 +50,7 @@ class L1Cache(BaseCache):
     assoc = 2
     hit_latency = 2
     response_latency = 2
-    mshrs = 4
+    mshrs = 8
     tgts_per_mshr = 20
     is_top_level = True
     cache_level = 1
