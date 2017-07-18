@@ -1905,13 +1905,13 @@ InstructionQueue<Impl>::getMshrRejectedMemInstToExecute() {
         assert((*it)->isMemRef());
         ThreadID tid = (*it)->threadNumber;
 
-        if ((*it)->isLoad() && missTables.perThreadMSHRFull(1, true, tid, true)){
+        if ((*it)->isLoad() && !missTables.perThreadMSHRFull(1, true, tid, true)){
             DynInstPtr inst = *it;
             mshrRejectedMemInsts.erase(it);
             return inst;
         }
 
-        if ((*it)->isStore() && missTables.perThreadMSHRFull(1, true, tid, false)){
+        if ((*it)->isStore() && !missTables.perThreadMSHRFull(1, true, tid, false)){
             DynInstPtr inst = *it;
             mshrRejectedMemInsts.erase(it);
             return inst;
