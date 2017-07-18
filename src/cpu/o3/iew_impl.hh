@@ -1509,6 +1509,7 @@ DefaultIEW<Impl>::executeInsts()
         // Note that if the instruction faults, it will be handled
         // at the commit stage.
         if (inst->isMemRef()) {
+            missTables.printAllMiss();
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 
@@ -1517,6 +1518,12 @@ DefaultIEW<Impl>::executeInsts()
                 // Loads will mark themselves as executed, and their writeback
                 // event adds the instruction to the queue to commit
                 fault = ldstQueue.executeLoad(inst);
+
+                if (inst->memRefRejected && fault == NoFault) {
+                    DPRINTF(IEW, "Execute: Memory ref rejected by cache because of MSHR full.\n");
+                    instQueue.mshrRejectMemInst(inst);
+                    continue;
+                }
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
@@ -1533,6 +1540,12 @@ DefaultIEW<Impl>::executeInsts()
                 }
             } else if (inst->isStore()) {
                 fault = ldstQueue.executeStore(inst);
+
+                if (inst->memRefRejected && fault == NoFault) {
+                    DPRINTF(IEW, "Execute: Memory ref rejected by cache because of MSHR full.\n");
+                    instQueue.mshrRejectMemInst(inst);
+                    continue;
+                }
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {

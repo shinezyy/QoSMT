@@ -797,7 +797,7 @@ LSQUnit<Impl>::executeLoad(DynInstPtr &inst)
     if (missTables.perThreadMSHRFull(1, true, lsqID, true)) {
         inst->memRefRejected = true;
         DPRINTF(MSHR, "Return because MSHR full.\n");
-        // return NoFault;
+        return NoFault;
     }
     inst->memRefRejected = false;
 
@@ -855,7 +855,7 @@ LSQUnit<Impl>::executeStore(DynInstPtr &store_inst)
     if (missTables.perThreadMSHRFull(1, true, lsqID, false)) {
         DPRINTF(MSHR, "Return because MSHR full.\n");
         store_inst->memRefRejected = true;
-        // return NoFault;
+        return NoFault;
     }
     store_inst->memRefRejected = false;
     // Check the recently completed loads to see if any match this store's
