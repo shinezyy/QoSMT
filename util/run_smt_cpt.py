@@ -147,7 +147,7 @@ def smt_run(pair):
         sh.chmod('+x', 'debug.sh')
         return
 
-    sh.touch(pjoin(outdir, 'done'))
+    # sh.touch(pjoin(outdir, 'done'))
 
 
 def set_conf(opt):

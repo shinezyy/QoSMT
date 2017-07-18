@@ -63,6 +63,7 @@
 #include "debug/CachePort.hh"
 #include "debug/LLM.hh"
 #include "debug/missTry.hh"
+#include "debug/MSHR.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/mem_object.hh"
 #include "mem/cache/miss_table.hh"

@@ -115,8 +115,8 @@ class MSHRQueue : public Drainable
      * @param demand_reserve The minimum number of entries needed to satisfy
      * demand accesses.
      */
-    MSHRQueue(const std::string &_label, int num_entries, int reserve,
-              int demand_reserve, int index);
+    MSHRQueue(const std::string &_label, int num_entries, int reserve, int demand_reserve, int index,
+              int _cacheLevel);
 
     /**
      * Find the first MSHR that matches the provided address.
@@ -259,6 +259,12 @@ class MSHRQueue : public Drainable
     }
 
     unsigned int drain(DrainManager *dm);
+
+#define MaxThreads 4
+    std::array<int, MaxThreads> numMissPerThread;
+#undef MaxThreads
+
+    const int cacheLevel;
 };
 
 #endif //__MEM_CACHE_MSHR_QUEUE_HH__

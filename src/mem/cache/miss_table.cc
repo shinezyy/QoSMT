@@ -66,7 +66,7 @@ void MissTables::printAllMiss() {
 bool MissTables::isMSHRFull(int cacheLevel, bool isDCache) {
     if (cacheLevel == 1) {
         if (isDCache) {
-            return l1DMissTable.size() >= numL1D_MSHR;
+            return l1DMissTable.size() >= numL1DR_MSHR;
         } else {
             return l1IMissTable.size() >= numL1I_MSHR;
         }
@@ -77,17 +77,20 @@ bool MissTables::isMSHRFull(int cacheLevel, bool isDCache) {
     }
 }
 
-bool MissTables::causingMSHRFull(int cacheLevel, bool isDCache, ThreadID tid) {
+bool MissTables::perThreadMSHRFull(int cacheLevel, bool isDCache,
+                                   ThreadID tid, bool isLoad) {
     if (cacheLevel == 1) {
         if (isDCache) {
-            return missStat.numL1LoadMiss[tid] +
-                    missStat.numL1StoreMiss[tid] >= numL1D_MSHR / 2;
+            if (isLoad) {
+                return missStat.numL1LoadMiss[tid] >= numL1DR_MSHR / 2;
+            } else {
+                return missStat.numL1StoreMiss[tid] >= numL1DW_MSHR / 2;
+            }
         } else {
             return missStat.numL1InstMiss[tid] >= numL1I_MSHR / 2;
         }
     } else if (cacheLevel == 2) {
-        return missStat.numL2InstMiss[tid] +
-                missStat.numL2DataMiss[tid] >= numL2_MSHR / 2;
+        panic("Not implemented L%i\n", cacheLevel);
     } else {
         panic("Unknown cache level %i\n", cacheLevel);
     }

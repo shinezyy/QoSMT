@@ -794,6 +794,13 @@ LSQUnit<Impl>::executeLoad(DynInstPtr &inst)
 
     assert(!inst->isSquashed());
 
+    if (missTables.perThreadMSHRFull(1, true, lsqID, true)) {
+        inst->memRefRejected = true;
+        DPRINTF(MSHR, "Return because MSHR full.\n");
+        // return NoFault;
+    }
+    inst->memRefRejected = false;
+
     load_fault = inst->initiateAcc();
 
     if (inst->isTranslationDelayed() &&
@@ -845,6 +852,12 @@ LSQUnit<Impl>::executeStore(DynInstPtr &store_inst)
 
     assert(!store_inst->isSquashed());
 
+    if (missTables.perThreadMSHRFull(1, true, lsqID, false)) {
+        DPRINTF(MSHR, "Return because MSHR full.\n");
+        store_inst->memRefRejected = true;
+        // return NoFault;
+    }
+    store_inst->memRefRejected = false;
     // Check the recently completed loads to see if any match this store's
     // address.  If so, then we have a memory ordering violation.
     int load_idx = store_inst->lqIdx;
@@ -1432,6 +1445,7 @@ LSQUnit<Impl>::sendStore(PacketPtr data_pkt)
     data_pkt->req->seqNum = inst->seqNum;
 
     if (!dcachePort->sendTimingReq(data_pkt)) {
+        DPRINTF(MSHR, "Packet %llu rejected by dcache\n", inst->seqNum);
         // Need to handle becoming blocked on a store.
         isStoreBlocked = true;
         ++lsqCacheBlocked;

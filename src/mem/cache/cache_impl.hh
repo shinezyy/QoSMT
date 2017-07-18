@@ -2141,14 +2141,22 @@ Cache::CpuSidePort::recvTimingReq(PacketPtr pkt)
     } else if (blocked || mustSendRetry) {
         // either already committed to send a retry, or blocked
         success = false;
+        DPRINTF(MSHR, "Packet %llu rejected by MSHR full\n", pkt->req->seqNum);
+
     } else {
         // pass it on to the cache, and let the cache decide if we
         // have to retry or not
         success = cache->recvTimingReq(pkt);
+        if (!success) {
+            DPRINTF(MSHR, "Packet %llu rejected by cache\n", pkt->req->seqNum);
+        }
     }
 
     // remember if we have to retry
     mustSendRetry = !success;
+    if (mustSendRetry) {
+        DPRINTF(MSHR, "Set mustSendRetry in %s\n", __func__);
+    }
     return success;
 }
 

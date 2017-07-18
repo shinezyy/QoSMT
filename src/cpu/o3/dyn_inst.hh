@@ -397,6 +397,8 @@ class BaseO3DynInst : public BaseDynInst<Impl>
     bool DCacheMiss;
 
     int waitSlots;
+
+    bool memRefRejected;
 };
 
 #endif // __CPU_O3_ALPHA_DYN_INST_HH__

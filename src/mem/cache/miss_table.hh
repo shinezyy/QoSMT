@@ -52,7 +52,8 @@ public:
     MissTable l2MissTable;
 
     int numL1I_MSHR;
-    int numL1D_MSHR;
+    int numL1DR_MSHR;
+    int numL1DW_MSHR;
     int numL2_MSHR;
 
     MissStat missStat;
@@ -73,7 +74,7 @@ public:
 
     bool isMSHRFull(int cacheLevel, bool isDCache);
 
-    bool causingMSHRFull(int cacheLevel, bool isDCache, ThreadID tid);
+    bool perThreadMSHRFull(int cacheLevel, bool isDCache, ThreadID tid, bool isLoad);
 };
 
 extern MissTables missTables;
