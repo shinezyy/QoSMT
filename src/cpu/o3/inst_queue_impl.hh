@@ -1911,6 +1911,7 @@ InstructionQueue<Impl>::getMshrRejectedMemInstToExecute() {
                 mshrRejectedMemInsts.erase(it);
                 return inst;
             } else {
+                missTables.printAllMiss();
                 DPRINTF(MSHR, "T[%i] still blocked by load mshr full\n", tid);
             }
         }
@@ -1921,6 +1922,10 @@ InstructionQueue<Impl>::getMshrRejectedMemInstToExecute() {
                 mshrRejectedMemInsts.erase(it);
                 return inst;
             } else {
+                missTables.printAllMiss();
+                DPRINTF(MSHR, "T[%i] load / store miss in miss stat: %i / %i\n", tid,
+                        missTables.missStat.numL1LoadMiss[tid],
+                        missTables.missStat.numL1StoreMiss[tid]);
                 DPRINTF(MSHR, "T[%i] still blocked by store mshr full\n", tid);
             }
         }

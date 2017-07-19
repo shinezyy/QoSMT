@@ -1509,7 +1509,6 @@ DefaultIEW<Impl>::executeInsts()
         // Note that if the instruction faults, it will be handled
         // at the commit stage.
         if (inst->isMemRef()) {
-            missTables.printAllMiss();
             DPRINTF(IEW, "Execute: Calculating address for memory "
                     "reference.\n");
 

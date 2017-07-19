@@ -617,10 +617,15 @@ class BaseCache : public MemObject
             if (cacheLevel == 1) {
                 //仅L1 cache的访存类型对我们有意义
                 if (pkt->cmdToIndex() == MemCmd::ReadReq ||
-                    pkt->cmdToIndex() == MemCmd::ReadExReq) {
+                    pkt->cmdToIndex() == MemCmd::LoadLockedReq ||
+                    pkt->cmdToIndex() == MemCmd::SoftPFReq) {
                     mat = MemAccessType::MemLoad;
-                } else {
+                } else if (pkt->cmdToIndex() == MemCmd::StoreCondReq ||
+                        pkt->cmdToIndex() == MemCmd::WriteReq ||
+                        pkt->cmdToIndex() == MemCmd::SwapReq) {
                     mat = MemAccessType::MemStore;
+                } else {
+                    panic("Unexpected memory access type!\n");
                 }
             }
 

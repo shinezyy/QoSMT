@@ -128,7 +128,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     ThreadID tid = inst->threadNumber;
 
 
-    if (l1_table.size() > 100 || l2_table.size() > 100) {
+    if (l1_table.size() > 15 || l2_table.size() > 40) {
         panic("Miss table size is too large, find bug!\n");
     }
 
@@ -137,13 +137,22 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L1 miss table.\n",
                 tid, it1->second.cacheLevel, phyAddress);
 
+        ms.numL1LoadMiss[tid] = 0;
+        ms.numL1StoreMiss[tid] = 0;
+        // Do calibration
+        for (auto& it : l1_table) {
+            if (it.second.tid == tid) {
+                ms.numL1LoadMiss[tid] += it.second.mat == MemAccessType::MemLoad;
+                ms.numL1StoreMiss[tid] += it.second.mat == MemAccessType::MemStore;
+            }
+        }
         if (inst->isLoad()) {
             ms.numL1LoadMiss[tid]--;
         } else {
             ms.numL1StoreMiss[tid]--;
         }
         l1_table.erase(it1);
-    } else if (it1 != l1_table.end()){
+    } else if (it1 != l1_table.end()) {
         it1->second.MSHRHits--;
     }
 

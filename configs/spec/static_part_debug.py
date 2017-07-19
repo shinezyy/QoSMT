@@ -233,7 +233,7 @@ else:
 for cpu in system.cpu:
     common_config(cpu, options.o3cpu_little_core)
 
-    cpu.max_insts_hpt_thread = 10000
+    cpu.max_insts_hpt_thread = 801674
 
     cpu.expectedQoS = 0 * 1024 / 100
 
