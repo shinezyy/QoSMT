@@ -258,23 +258,31 @@ DefaultRename<Impl>::regStats()
             .desc("normalNoROBHead")
             ;
 
-   normalHeadNotMiss
+    normalHeadNotMiss
             .init((Stats::size_type) numThreads)
             .name(name() + ".normalHeadNotMiss")
             .desc("normalHeadNotMiss")
             ;
 
-   normalHeadIsMiss
+    normalHeadIsMiss
             .init((Stats::size_type) numThreads)
             .name(name() + ".normalHeadIsMiss")
             .desc("normalHeadIsMiss")
             ;
 
-   normalCount
+    normalCount
             .init((Stats::size_type) numThreads)
             .name(name() + ".normalCount")
             .desc("normalCount")
             ;
+
+
+    scalarSimpleRegister(ROBHeadNull);
+    scalarSimpleRegister(ROBHeadFloat);
+    scalarSimpleRegister(ROBHeadZeroAddr);
+    scalarSimpleRegister(ROBHeadCacheInterf);
+    scalarSimpleRegister(ROBHeadCacheMiss);
+
 }
 
 template <class Impl>
@@ -2012,6 +2020,7 @@ DefaultRename<Impl>::getQHeadState(ThreadID tid)
                 HeadInstrState::Normal;
         normalNoROBHead[tid] += 1;
         DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
+        ROBHeadNull++;
     } else {
         DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
                  tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
@@ -2021,11 +2030,16 @@ DefaultRename<Impl>::getQHeadState(ThreadID tid)
             ROBHead[tid]->readMiss = true;
         }
 
+
         bool is_miss = ROBHead[tid]->DCacheMiss ||
                        missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md) ||
                        (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0) ||
                        (ROBHead[tid]->isStore() && ROBHead[tid]->physEffAddr == 0) ||
                        ROBHead[tid]->isFloating();
+
+        if (ROBHead[tid]->isFloating()) {
+            ROBHeadFloat++;
+        }
 
         if (!is_miss) {
             slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
@@ -2038,17 +2052,20 @@ DefaultRename<Impl>::getQHeadState(ThreadID tid)
             if (!md.valid) {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                         HeadInstrState::WaitingAddress;
+                ROBHeadZeroAddr++;
             } else if (md.isCacheInterference) {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                         static_cast<HeadInstrState>(
                                 HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
                 DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
+                ROBHeadCacheMiss++;
             } else {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                         static_cast<HeadInstrState>(
                                 HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
                 DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
                         tid);
+                ROBHeadCacheInterf++;
             }
 
             if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]

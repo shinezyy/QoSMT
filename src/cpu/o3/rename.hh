@@ -670,6 +670,15 @@ class DefaultRename : public SlotCounter<Impl>
     const unsigned maxROB;
 
     void checkEntrySanity();
+
+  public:
+
+    Stats::Scalar ROBHeadNull;
+    Stats::Scalar ROBHeadFloat;
+    Stats::Scalar ROBHeadZeroAddr;
+    Stats::Scalar ROBHeadCacheMiss;
+    Stats::Scalar ROBHeadCacheInterf;
+
 };
 
 #endif // __CPU_O3_RENAME_HH__

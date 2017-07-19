@@ -380,6 +380,14 @@ DefaultIEW<Impl>::regStats()
         ;
 
     avgWaitWBCycle = overallWaitWBCycle / numConcerned;
+
+    scalarSimpleRegister(IQHeadNull);
+    scalarSimpleRegister(IQHeadFloat);
+    scalarSimpleRegister(IQHeadZeroAddr);
+    scalarSimpleRegister(IQHeadWaitingResp);
+    scalarSimpleRegister(IQHeadCacheMiss);
+    scalarSimpleRegister(IQHeadCacheInterf);
+    scalarSimpleRegister(IQHeadUnknown);
 }
 
 template<class Impl>
@@ -2089,9 +2097,16 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     LQHead[tid] = ldstQueue.getLoadHeadInst(tid);
     SQHead[tid] = ldstQueue.getStoreHeadInst(tid);
 
-    getQHeadState(head, SlotConsm::FullSource::IQ, tid);
-    getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
-    getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
+    if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+        getQHeadState(head, SlotConsm::FullSource::IQ, tid);
+    }
+
+    if (fullSource[tid] == SlotConsm::FullSource::LQ) {
+        getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
+    }
+    if (fullSource[tid] == SlotConsm::FullSource::SQ) {
+        getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
+    }
 
     bool no_use = true;
     no_use = !no_use;
@@ -2183,6 +2198,10 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
 
     if (!QHead[tid]) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+
+        if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+            IQHeadNull++;
+        }
         return;
     }
 
@@ -2206,12 +2225,34 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
         if (!md.valid) {
             slotConsumer.queueHeadState[tid][fs] =
                     HeadInstrState::WaitingAddress;
+
+            if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+                if ((head->isLoad() && head->physEffAddr == 0) ||
+                    (head->isStore() && head->physEffAddr == 0)) {
+                    IQHeadZeroAddr++;
+
+                } else if (head->isLoad() || head->isStore()) {
+                    IQHeadWaitingResp++;
+
+                } else if (head->isFloating()) {
+                    IQHeadFloat++;
+
+                } else {
+                    IQHeadUnknown++;
+                }
+            }
         } else if (md.isCacheInterference) {
             slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
                     HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
+            if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+                IQHeadCacheInterf++;
+            }
         } else {
             slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
                     HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
+            if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+                IQHeadCacheMiss++;
+            }
         }
     }
 }

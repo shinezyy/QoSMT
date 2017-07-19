@@ -3260,4 +3260,11 @@ bool validateStatName(const std::string &name);
 
 void debugDumpStats();
 
+#define scalarSimpleRegister(stat_name) \
+    do { \
+        stat_name \
+            .name(name() + "." + #stat_name) \
+            .desc(#stat_name); \
+    } while(0)
+
 #endif // __BASE_STATISTICS_HH__
