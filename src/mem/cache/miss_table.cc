@@ -96,4 +96,43 @@ bool MissTables::perThreadMSHRFull(int cacheLevel, bool isDCache,
     }
 }
 
+bool MissTables::kickedDataBlock(ThreadID tid) {
+    return kickedBlock(l1DMissTable, tid) ||
+           (hasMiss(l1DMissTable, tid) &&
+            kickedBlock(l2MissTable, tid));
+}
+
+bool MissTables::kickedInstBlock(ThreadID tid) {
+    return kickedBlock(l1IMissTable, tid) ||
+           (hasMiss(l1IMissTable, tid) &&
+            kickedBlock(l2MissTable, tid));
+}
+
+bool MissTables::kickedBlock(MissTable &mt, ThreadID tid) {
+    for (auto &it : mt) {
+        if (it.second.tid == tid && it.second.isInterference) {
+            return true;
+        }
+    }
+    return false;
+}
+
+bool MissTables::hasInstMiss(ThreadID tid) {
+    return hasMiss(l1IMissTable, tid);
+}
+
+bool MissTables::hasDataMiss(ThreadID tid) {
+    return hasMiss(l1DMissTable, tid);
+}
+
+bool MissTables::hasMiss(MissTable &mt, ThreadID tid) {
+    for (auto &it : mt) {
+        if (it.second.tid == tid) {
+            return true;
+        }
+    }
+    return false;
+}
+
+
 MissTables missTables;

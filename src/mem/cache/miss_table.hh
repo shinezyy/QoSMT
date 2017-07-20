@@ -75,6 +75,18 @@ public:
     bool isMSHRFull(int cacheLevel, bool isDCache);
 
     bool perThreadMSHRFull(int cacheLevel, bool isDCache, ThreadID tid, bool isLoad);
+
+    bool hasInstMiss(ThreadID tid);
+
+    bool hasDataMiss(ThreadID tid);
+
+    bool hasMiss(MissTable &mt, ThreadID tid);
+
+    bool kickedDataBlock(ThreadID tid);
+
+    bool kickedInstBlock(ThreadID tid);
+
+    bool kickedBlock(MissTable &mt, ThreadID tid);
 };
 
 extern MissTables missTables;
