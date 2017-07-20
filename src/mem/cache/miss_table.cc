@@ -96,16 +96,30 @@ bool MissTables::perThreadMSHRFull(int cacheLevel, bool isDCache,
     }
 }
 
-bool MissTables::kickedDataBlock(ThreadID tid) {
-    return kickedBlock(l1DMissTable, tid) ||
-           (hasMiss(l1DMissTable, tid) &&
-            kickedBlock(l2MissTable, tid));
+bool MissTables::kickedDataBlock(ThreadID tid, int &cacheLevel) {
+    if (kickedBlock(l1DMissTable, tid)) {
+        cacheLevel = 1;
+        return true;
+    }
+    if (hasMiss(l1DMissTable, tid) && kickedBlock(l2MissTable, tid)) {
+        cacheLevel = 2;
+        return true;
+    }
+    cacheLevel = -1;
+    return false;
 }
 
-bool MissTables::kickedInstBlock(ThreadID tid) {
-    return kickedBlock(l1IMissTable, tid) ||
-           (hasMiss(l1IMissTable, tid) &&
-            kickedBlock(l2MissTable, tid));
+bool MissTables::kickedInstBlock(ThreadID tid, int &cacheLevel) {
+    if (kickedBlock(l1IMissTable, tid)) {
+        cacheLevel = 1;
+        return true;
+    }
+    if (hasMiss(l1IMissTable, tid) && kickedBlock(l2MissTable, tid)) {
+        cacheLevel = 2;
+        return true;
+    }
+    cacheLevel = -1;
+    return false;
 }
 
 bool MissTables::kickedBlock(MissTable &mt, ThreadID tid) {

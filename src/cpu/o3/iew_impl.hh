@@ -388,6 +388,7 @@ DefaultIEW<Impl>::regStats()
     scalarSimpleRegister(IQHeadCacheMiss);
     scalarSimpleRegister(IQHeadCacheInterf);
     scalarSimpleRegister(IQHeadUnknown);
+    scalarSimpleRegister(IQNoLongLatency);
 }
 
 template<class Impl>
@@ -2193,12 +2194,8 @@ void
 DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
                                 typename SlotConsm::FullSource fs, ThreadID tid)
 {
-    MissDescriptor md;
-    md.valid = false;
-
     if (!QHead[tid]) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
-
         if (fullSource[tid] == SlotConsm::FullSource::IQ) {
             IQHeadNull++;
         }
@@ -2207,51 +2204,56 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
 
     DynInstPtr head = QHead[tid];
 
-    if (!head->readMiss) {
-        head->DCacheMiss = missTables.isSpecifiedMiss(head->physEffAddr, true, md);
-        head->readMiss = true;
-    }
+    bool hasLongLatency;
 
-    bool is_miss = head->DCacheMiss ||
-                   missTables.isSpecifiedMiss(head->physEffAddr, true, md) ||
-                   (head->isLoad() && head->physEffAddr == 0) ||
-                   (head->isStore() && head->physEffAddr == 0) ||
-                   head->isFloating();
+    bool hasDCacheMiss = missTables.hasDataMiss(tid);
 
-    if (!is_miss) {
+    bool zeroAddr = (head->isLoad() && head->physEffAddr == 0) ||
+                    (head->isStore() && head->physEffAddr == 0);
+
+    bool headFloat = head->isFloating();
+
+    hasLongLatency = zeroAddr || hasDCacheMiss || headFloat;
+
+    if (!hasLongLatency) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+        if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+            if (head->isLoad() || head->isStore()) {
+                IQHeadWaitingResp++;
+            } else {
+                IQNoLongLatency++;
+            }
+        }
     } else {
-        // trick
-        if (!md.valid) {
+        if (hasDCacheMiss) {
+            auto cache_level = 0;
+            if (missTables.kickedDataBlock(tid, cache_level)) {
+                slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
+                        HeadInstrState::L1DCacheWait + cache_level - 1);
+            } else {
+                slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
+                        HeadInstrState::L1DCacheMiss);
+            }
+        } else {
             slotConsumer.queueHeadState[tid][fs] =
                     HeadInstrState::WaitingAddress;
-
-            if (fullSource[tid] == SlotConsm::FullSource::IQ) {
-                if ((head->isLoad() && head->physEffAddr == 0) ||
-                    (head->isStore() && head->physEffAddr == 0)) {
-                    IQHeadZeroAddr++;
-
-                } else if (head->isLoad() || head->isStore()) {
-                    IQHeadWaitingResp++;
-
-                } else if (head->isFloating()) {
+        }
+        if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+            if (hasDCacheMiss) {
+                auto cache_level = 0;
+                if (missTables.kickedDataBlock(tid, cache_level)) {
+                    IQHeadCacheInterf++;
+                } else {
+                    IQHeadCacheMiss++;
+                }
+            } else {
+                if (headFloat) {
                     IQHeadFloat++;
-
+                } else if (zeroAddr){
+                    IQHeadZeroAddr++;
                 } else {
                     IQHeadUnknown++;
                 }
-            }
-        } else if (md.isCacheInterference) {
-            slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
-                    HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
-            if (fullSource[tid] == SlotConsm::FullSource::IQ) {
-                IQHeadCacheInterf++;
-            }
-        } else {
-            slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
-                    HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
-            if (fullSource[tid] == SlotConsm::FullSource::IQ) {
-                IQHeadCacheMiss++;
             }
         }
     }

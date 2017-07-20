@@ -82,9 +82,9 @@ public:
 
     bool hasMiss(MissTable &mt, ThreadID tid);
 
-    bool kickedDataBlock(ThreadID tid);
+    bool kickedDataBlock(ThreadID tid, int &cacheLevel);
 
-    bool kickedInstBlock(ThreadID tid);
+    bool kickedInstBlock(ThreadID tid, int &cacheLevel);
 
     bool kickedBlock(MissTable &mt, ThreadID tid);
 };
