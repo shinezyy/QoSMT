@@ -676,8 +676,11 @@ class DefaultRename : public SlotCounter<Impl>
     Stats::Scalar ROBHeadNull;
     Stats::Scalar ROBHeadFloat;
     Stats::Scalar ROBHeadZeroAddr;
+    Stats::Scalar ROBHeadWaitingResp;
     Stats::Scalar ROBHeadCacheMiss;
     Stats::Scalar ROBHeadCacheInterf;
+    Stats::Scalar ROBHeadUnknown;
+    Stats::Scalar ROBNoLongLatency;
 
 };
 

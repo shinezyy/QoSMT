@@ -2217,6 +2217,7 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
 
     if (!hasLongLatency) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+        //<editor-fold desc="IQ extra stats">
         if (fullSource[tid] == SlotConsm::FullSource::IQ) {
             if (head->isLoad() || head->isStore()) {
                 IQHeadWaitingResp++;
@@ -2224,6 +2225,7 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
                 IQNoLongLatency++;
             }
         }
+        //</editor-fold>
     } else {
         if (hasDCacheMiss) {
             auto cache_level = 0;
@@ -2231,13 +2233,13 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
                 slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
                         HeadInstrState::L1DCacheWait + cache_level - 1);
             } else {
-                slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
-                        HeadInstrState::L1DCacheMiss);
+                slotConsumer.queueHeadState[tid][fs] = HeadInstrState::L1DCacheMiss;
             }
         } else {
             slotConsumer.queueHeadState[tid][fs] =
                     HeadInstrState::WaitingAddress;
         }
+        //<editor-fold desc="IQ extra stats">
         if (fullSource[tid] == SlotConsm::FullSource::IQ) {
             if (hasDCacheMiss) {
                 auto cache_level = 0;
@@ -2256,6 +2258,7 @@ DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
                 }
             }
         }
+        //</editor-fold>
     }
 }
 

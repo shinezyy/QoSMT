@@ -280,8 +280,11 @@ DefaultRename<Impl>::regStats()
     scalarSimpleRegister(ROBHeadNull);
     scalarSimpleRegister(ROBHeadFloat);
     scalarSimpleRegister(ROBHeadZeroAddr);
+    scalarSimpleRegister(ROBHeadWaitingResp);
     scalarSimpleRegister(ROBHeadCacheInterf);
     scalarSimpleRegister(ROBHeadCacheMiss);
+    scalarSimpleRegister(ROBHeadUnknown);
+    scalarSimpleRegister(ROBNoLongLatency);
 
 }
 
@@ -2012,66 +2015,68 @@ template<class Impl>
 void
 DefaultRename<Impl>::getQHeadState(ThreadID tid)
 {
-    MissDescriptor md;
-    md.valid = false;
-
     if (!ROBHead[tid]) {
         slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                 HeadInstrState::Normal;
-        normalNoROBHead[tid] += 1;
-        DPRINTF(missTry, "ROBHead[T%i] is NULL\n", tid);
         ROBHeadNull++;
     } else {
         DPRINTFR(missTry, "ROB Head[T%i][sn:%llu] ----: %s\n",
                  tid, ROBHead[tid]->seqNum ,dis(ROBHead[tid]));
-        if (!ROBHead[tid]->readMiss) {
-            ROBHead[tid]->DCacheMiss = missTables.isSpecifiedMiss(
-                    ROBHead[tid]->physEffAddr, true, md);
-            ROBHead[tid]->readMiss = true;
-        }
 
+        bool hasLongLatency;
 
-        bool is_miss = ROBHead[tid]->DCacheMiss ||
-                       missTables.isSpecifiedMiss(ROBHead[tid]->physEffAddr, true, md) ||
-                       (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0) ||
-                       (ROBHead[tid]->isStore() && ROBHead[tid]->physEffAddr == 0) ||
-                       ROBHead[tid]->isFloating();
+        bool hasDCacheMiss = missTables.hasDataMiss(tid);
 
-        if (ROBHead[tid]->isFloating()) {
-            ROBHeadFloat++;
-        }
+        bool zeroAddr = (ROBHead[tid]->isLoad() && ROBHead[tid]->physEffAddr == 0) ||
+                        (ROBHead[tid]->isStore() && ROBHead[tid]->physEffAddr == 0);
 
-        if (!is_miss) {
+        bool headFloat = ROBHead[tid]->isFloating();
+
+        hasLongLatency = zeroAddr || hasDCacheMiss || headFloat;
+
+        if (!hasLongLatency) {
             slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
                     HeadInstrState::Normal;
-            normalHeadNotMiss[tid] += 1;
-            DPRINTF(missTry3, "ROBHead[T%i] is not miss\n", tid);
-
+            //<editor-fold desc="ROB extra stats">
+            if (ROBHead[tid]->isLoad() || ROBHead[tid]->isStore()) {
+                ROBHeadWaitingResp++;
+            } else {
+                ROBNoLongLatency++;
+            }
+            //</editor-fold>
         } else {
-            // trick
-            if (!md.valid) {
-                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                        HeadInstrState::WaitingAddress;
-                ROBHeadZeroAddr++;
-            } else if (md.isCacheInterference) {
-                slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                        static_cast<HeadInstrState>(
-                                HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
-                DPRINTF(missTry, "ROBHead[T%i] miss is cache interference\n", tid);
-                ROBHeadCacheMiss++;
+            if (hasDCacheMiss) {
+                auto cache_level = 0;
+                if (missTables.kickedDataBlock(tid, cache_level)) {
+                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                            static_cast<HeadInstrState>(
+                                    HeadInstrState::L1DCacheWait + cache_level - 1);
+                } else {
+                    slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
+                            HeadInstrState::L1DCacheMiss;
+                }
             } else {
                 slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB] =
-                        static_cast<HeadInstrState>(
-                                HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
-                DPRINTF(missTry, "ROBHead[T%i] miss is not cache interference\n",
-                        tid);
-                ROBHeadCacheInterf++;
+                        HeadInstrState ::WaitingAddress;
             }
-
-            if (slotConsumer.queueHeadState[tid][SlotConsm::FullSource::ROB]
-                == HeadInstrState::Normal) {
-                normalHeadIsMiss[tid]++;
+            //<editor-fold desc="ROB extra stats">
+            if (hasDCacheMiss) {
+                auto cache_level = 0;
+                if (missTables.kickedDataBlock(tid, cache_level)) {
+                    ROBHeadCacheInterf++;
+                } else {
+                    ROBHeadCacheMiss++;
+                }
+            } else {
+                if (headFloat) {
+                    ROBHeadFloat++;
+                } else if (zeroAddr){
+                    ROBHeadZeroAddr++;
+                } else {
+                    ROBHeadUnknown++;
+                }
             }
+            //</editor-fold>
         }
     }
 
