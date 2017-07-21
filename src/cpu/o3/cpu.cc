@@ -1993,19 +1993,19 @@ FullO3CPU<Impl>::sortContention() {
     std::iota(contIndices.begin(), contIndices.end(), 0);
 
     //<editor-fold desc="Contention aggregation">
-    contNums[Contention::FetchCont] = iew.slots[SlotsUse::FetchSliceWait]
-                                      + iew.slots[SlotsUse::SplitWait]
-                                      + iew.slots[SlotsUse::WidthWait];
+    contNums[Contention::FetchCont] = iew.recentSlots[SlotsUse::FetchSliceWait]
+                                      + iew.recentSlots[SlotsUse::SplitWait]
+                                      + iew.recentSlots[SlotsUse::WidthWait];
 
-    contNums[Contention::ROBCont] = iew.slots[SlotsUse::ROBWait];
-    contNums[Contention::IQCont] = iew.slots[SlotsUse::IQWait];
-    contNums[Contention::LQCont] = iew.slots[SlotsUse::LQWait];
-    contNums[Contention::SQCont] = iew.slots[SlotsUse::SQWait];
+    contNums[Contention::ROBCont] = iew.recentSlots[SlotsUse::ROBWait];
+    contNums[Contention::IQCont] = iew.recentSlots[SlotsUse::IQWait];
+    contNums[Contention::LQCont] = iew.recentSlots[SlotsUse::LQWait];
+    contNums[Contention::SQCont] = iew.recentSlots[SlotsUse::SQWait];
 
-    contNums[Contention::L1DCacheCont] = iew.slots[SlotsUse::L1DCacheInterference];
-    contNums[Contention::L1ICacheCont] = iew.slots[SlotsUse::L1ICacheInterference];
-    contNums[Contention::L2CacheCont] = iew.slots[SlotsUse::L2DCacheInterference]
-                                        + iew.slots[SlotsUse::L2ICacheInterference];
+    contNums[Contention::L1DCacheCont] = iew.recentSlots[SlotsUse::L1DCacheInterference];
+    contNums[Contention::L1ICacheCont] = iew.recentSlots[SlotsUse::L1ICacheInterference];
+    contNums[Contention::L2CacheCont] = iew.recentSlots[SlotsUse::L2DCacheInterference]
+                                        + iew.recentSlots[SlotsUse::L2ICacheInterference];
     //</editor-fold>
 
     std::sort(contIndices.begin(), contIndices.end(),
@@ -2014,6 +2014,8 @@ FullO3CPU<Impl>::sortContention() {
     for (size_t i = 0; i < ContentionNum; ++i) {
         rankedContentions[i] = static_cast<Contention>((int)contIndices[i]);
     }
+
+    iew.clearRecent();
 }
 
 template <class Impl>

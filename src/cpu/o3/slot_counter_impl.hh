@@ -92,6 +92,8 @@ SlotCounter<Impl>::SlotCounter(DerivO3CPUParams *params, uint32_t _width)
         curCycleMiss[tid] = 0;
         curCycleWait[tid] = 0;
     }
+    std::fill(slots.begin(), slots.end(), 0);
+    std::fill(recentSlots.begin(), recentSlots.end(), 0);
 }
 
 template <class Impl>
@@ -110,6 +112,7 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su, int32_t num)
     perCycleSlots[tid][su] += num;
     slotsStat[su] += num;
     slots[su] += num;
+    recentSlots[su] += num;
 }
 
 template <class Impl>
@@ -120,6 +123,7 @@ SlotCounter<Impl>::incLocalSlots(ThreadID tid, SlotsUse su,
     perCycleSlots[tid][su] += num;
     slotsStat[su] += num;
     slots[su] += num;
+    recentSlots[su] += num;
 
     if (verbose) {
         DPRINTF(VLB, "T[%i]: Adding %i %s slots locally\n", tid, num,
@@ -191,7 +195,6 @@ SlotCounter<Impl>::regStats()
             .desc("number of " + suStr + " Slots")
             .flags(total)
             ;
-        slots[su] = 0;
     }
 
     waitSlots
@@ -233,6 +236,12 @@ SlotCounter<Impl>::dumpStats() {
     for (auto it = missEnums.begin(); it != missEnums.end(); ++it) {
         missSlots += slots[*it];
     }
+}
+
+template<class Impl>
+void
+SlotCounter<Impl>::clearRecent() {
+    std::fill(recentSlots.begin(), recentSlots.end(), 0);
 }
 
 
