@@ -1959,9 +1959,6 @@ template <class Impl>
 void
 FullO3CPU<Impl>::adjustCache(int cacheLevel, bool DCache, bool incHPT)
 {
-    if (!dynCache) {
-        return;
-    }
     WayRationConfig *wayRationConfig = nullptr;
     if (cacheLevel == 2) {
         wayRationConfig = &controlPanel.l2CacheWayConfig;
@@ -2070,12 +2067,15 @@ FullO3CPU<Impl>::adjustRoute(Contention contention, bool incHPT)
 {
     switch (contention) {
         case Contention::L1DCacheCont:
+            if (!dynCache) return 0;
             adjustCache(1, true, incHPT);
             break;
         case Contention::L1ICacheCont:
+            if (!dynCache) return 0;
             adjustCache(1, false, incHPT);
             break;
         case Contention::L2CacheCont:
+            if (!dynCache) return 0;
             adjustCache(2, true, incHPT);
             break;
         case Contention::FetchCont:
