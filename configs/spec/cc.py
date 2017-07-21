@@ -233,7 +233,7 @@ else:
 for cpu in system.cpu:
     common_config(cpu, options.o3cpu_little_core)
 
-    cpu.expectedQoS = 70 * 1024 / 100 # 0~1024
+    cpu.expectedQoS = 90 * 1024 / 100 # 0~1024
 
     # configs for control
     cpu.controlPolicy = 'Combined'

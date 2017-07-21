@@ -113,10 +113,12 @@ def smt_run(pair):
 
     if opt.gem5_args:
         arg_list = str(opt.gem5_args).split('&')
+        arg_list = [x for x in arg_list if len(x)]
         options = arg_list + options
 
     if opt.cmd_args:
         arg_list = str(opt.cmd_args).split('&')
+        arg_list = [x for x in arg_list if len(x)]
         options = options + arg_list
 
     print options
@@ -147,7 +149,7 @@ def smt_run(pair):
         sh.chmod('+x', 'debug.sh')
         return
 
-    # sh.touch(pjoin(outdir, 'done'))
+    sh.touch(pjoin(outdir, 'done'))
 
 
 def set_conf(opt):
