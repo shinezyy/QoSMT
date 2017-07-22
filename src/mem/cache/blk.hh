@@ -174,7 +174,7 @@ class CacheBlk
   public:
 
     CacheBlk()
-        : task_id(ContextSwitchTaskId::Unknown),
+        : task_id(ContextSwitchTaskId::Unknown), threadID(-1),
           asid(-1), tag(0), data(0) ,size(0), status(0), whenReady(0),
           set(-1), isTouched(false), refCount(0),
           srcMasterId(Request::invldMasterId),
@@ -197,6 +197,7 @@ class CacheBlk
         set = rhs.set;
         refCount = rhs.refCount;
         task_id = rhs.task_id;
+        threadID = rhs.threadID;
         return *this;
     }
 

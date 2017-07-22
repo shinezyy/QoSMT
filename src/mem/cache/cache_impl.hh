@@ -1513,6 +1513,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks)
             DPRINTF(Cache, "using temp block for %#llx (%s)\n", addr,
                     is_secure ? "s" : "ns");
         } else {
+            blk->threadID = pkt->req->threadId();
             tags->insertBlock(pkt, blk);
         }
 
