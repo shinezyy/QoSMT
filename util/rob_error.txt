@@ -1,0 +1,8 @@
+astar bzip2
+astar sphinx3
+bzip2 sphinx3
+gcc milc
+perlbench hmmer
+perlbench mcf
+sjeng lbm
+soplex libquantum

@@ -106,6 +106,8 @@ set(SOURCE_FILES
         mem/cache/tags/random_repl.hh
         mem/cache/tags/lru_dynpartition.cc
         mem/cache/tags/lru_dynpartition.hh
+        mem/cache/tags/shadow_lru_tag.hh
+        mem/cache/tags/shadow_lru_tag.cc
         mem/cache/tags/Tags.py
         mem/cache/base.cc
         mem/cache/base.hh

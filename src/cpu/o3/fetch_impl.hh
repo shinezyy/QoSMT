@@ -666,6 +666,16 @@ DefaultFetch<Impl>::fetchCacheLine(Addr vaddr, ThreadID tid, Addr pc)
         DPRINTF(Fetch, "[tid:%i] Can't fetch cache line, interrupt pending\n",
                 tid);
         return false;
+    } else if (missTables.perThreadMSHRFull(1, false, tid, false)) {
+        int threadInstMiss = 0;
+        for (auto &it : missTables.l1IMissTable) {
+            threadInstMiss += it.second.tid == tid;
+        }
+        DPRINTF(MSHR, "T[%i] fetch blocked because of MSHR full\n");
+        DPRINTF(MSHR, "T[%i] miss stat inst miss: %i, inst miss table size: %i\n",
+                tid, missTables.missStat.numL1InstMiss[tid], threadInstMiss);
+        warn("MSHR of icache should not be used up!\n");
+        return false;
     }
 
     // Align the fetch address to the start of a fetch buffer segment.

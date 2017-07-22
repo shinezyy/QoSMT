@@ -60,7 +60,7 @@ import Ruby
 import Simulation
 import CacheConfig
 import MemConfig
-from shared_config import common_config
+from shared_config import *
 
 # Check if KVM support has been enabled, we might need to do VM
 # configuration if that's the case.
@@ -92,6 +92,9 @@ if '--ruby' in sys.argv:
     Ruby.define_options(parser)
 
 (options, args) = parser.parse_args()
+
+cache_config_1(options)
+# TODO: go to cache_config_2
 
 if args:
     print "Error: script doesn't take any positional arguments"
@@ -228,7 +231,7 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    common_config(cpu)
+    common_config(cpu, options.o3cpu_little_core)
 
     cpu.expectedQoS = 0 * 1024 / 100
 
@@ -245,16 +248,8 @@ for cpu in system.cpu:
     cpu.smtIQPolicy = 'Dynamic'
     cpu.smtLSQPolicy = 'Dynamic'
 
-
-for cpu in system.cpu:
-    cpu.icache.tags = LRUPartition()
-    cpu.icache.tags.thread_0_assoc = 8
-    cpu.dcache.tags = LRUPartition()
-    cpu.dcache.tags.thread_0_assoc = 8
-
-system.l2.tags = LRUPartition() # L2 partition
-system.l2.tags.thread_0_assoc = 8
-
+# NOTE that static partition is used!
+cache_config_2(system, options)
 
 # options.take_checkpoints=100000
 # options.at_instruction=True

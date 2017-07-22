@@ -628,6 +628,15 @@ class DefaultIEW : public SlotCounter<Impl>
     void dumpStats() {
         SlotCounter<Impl>::dumpStats();
     }
+
+    Stats::Scalar IQHeadNull;
+    Stats::Scalar IQHeadFloat;
+    Stats::Scalar IQHeadZeroAddr;
+    Stats::Scalar IQHeadWaitingResp;
+    Stats::Scalar IQHeadCacheMiss;
+    Stats::Scalar IQHeadCacheInterf;
+    Stats::Scalar IQHeadUnknown;
+    Stats::Scalar IQNoLongLatency;
 };
 
 #endif // __CPU_O3_IEW_HH__

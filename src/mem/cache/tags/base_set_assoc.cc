@@ -50,6 +50,7 @@
 #include "base/intmath.hh"
 #include "mem/cache/tags/base_set_assoc.hh"
 #include "sim/core.hh"
+#include "debug/DynCache.hh"
 
 using namespace std;
 
@@ -68,6 +69,8 @@ BaseSetAssoc::BaseSetAssoc(const Params *p)
     if (assoc <= 0) {
         fatal("associativity must be greater than zero");
     }
+
+    DPRINTF(DynCache, "Cache num set: %i, assoc: %i\n", numSets, assoc);
 
     blkMask = blkSize - 1;
     setShift = floorLog2(blkSize);
@@ -108,7 +111,6 @@ BaseSetAssoc::BaseSetAssoc(const Params *p)
             blk->size = blkSize;
             sets[i].blks[j]=blk;
             blk->set = i;
-            blk->shadowtag = 666666; 
         }
     }
 }
@@ -128,11 +130,7 @@ BaseSetAssoc::findBlock(Addr addr, bool is_secure) const
     BlkType *blk = sets[set].findBlk(tag, is_secure);
     return blk;
 }
-CacheBlk*
-BaseSetAssoc::accessShadowTag(Addr addr)
-{
-    return NULL;
-}
+
 void
 BaseSetAssoc::clearLocks()
 {

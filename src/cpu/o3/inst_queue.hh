@@ -358,6 +358,9 @@ class InstructionQueue
     /** List of instructions that have been cache blocked. */
     std::list<DynInstPtr> blockedMemInsts;
 
+    /** List of instructions that have been blocked by per thread mshr limit. */
+    std::list<DynInstPtr> mshrRejectedMemInsts;
+
     /** List of instructions that were cache blocked, but a retry has been seen
      * since, so they can now be retried. May fail again go on the blocked list.
      */
@@ -653,6 +656,13 @@ class InstructionQueue
     void insertInstCount(DynInstPtr inst, ThreadID tid);
 
     std::array<int, Impl::MaxThreads> localWaitSlots;
+
+  public:
+
+    void mshrRejectMemInst(DynInstPtr &rejected_inst);
+
+    DynInstPtr getMshrRejectedMemInstToExecute();
+
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__

@@ -63,6 +63,7 @@
 #include "debug/CachePort.hh"
 #include "debug/LLM.hh"
 #include "debug/missTry.hh"
+#include "debug/MSHR.hh"
 #include "mem/cache/mshr_queue.hh"
 #include "mem/mem_object.hh"
 #include "mem/cache/miss_table.hh"
@@ -616,10 +617,15 @@ class BaseCache : public MemObject
             if (cacheLevel == 1) {
                 //仅L1 cache的访存类型对我们有意义
                 if (pkt->cmdToIndex() == MemCmd::ReadReq ||
-                    pkt->cmdToIndex() == MemCmd::ReadExReq) {
+                    pkt->cmdToIndex() == MemCmd::LoadLockedReq ||
+                    pkt->cmdToIndex() == MemCmd::SoftPFReq) {
                     mat = MemAccessType::MemLoad;
-                } else {
+                } else if (pkt->cmdToIndex() == MemCmd::StoreCondReq ||
+                        pkt->cmdToIndex() == MemCmd::WriteReq ||
+                        pkt->cmdToIndex() == MemCmd::SwapReq) {
                     mat = MemAccessType::MemStore;
+                } else {
+                    panic("Unexpected memory access type!\n");
                 }
             }
 
@@ -656,7 +662,8 @@ class BaseCache : public MemObject
                     bool is_data;
                     if (!missTables.isL1Miss(pkt->getAddr(), is_data)) {
                         missTables.printAllMiss();
-                        panic("L2 miss has no miss in L1!\n");
+                        warn("L2 miss has no miss in L1!\n");
+                        is_data = true;
                     }
                     if (is_data) {
                         ms.numL2DataMiss[tid]++;

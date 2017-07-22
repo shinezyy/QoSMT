@@ -51,18 +51,19 @@
 
 using namespace std;
 
-MSHRQueue::MSHRQueue(const std::string &_label,
-                     int num_entries, int reserve, int demand_reserve,
-                     int _index)
+MSHRQueue::MSHRQueue(const std::string &_label, int num_entries, int reserve,
+                     int demand_reserve, int _index,
+                     int _cacheLevel)
     : label(_label), numEntries(num_entries + reserve - 1),
       numReserve(reserve), demandReserve(demand_reserve),
       registers(numEntries), drainManager(NULL), allocated(0),
-      inServiceEntries(0), index(_index)
+      inServiceEntries(0), index(_index), cacheLevel(_cacheLevel)
 {
     for (int i = 0; i < numEntries; ++i) {
         registers[i].queue = this;
         freeList.push_back(&registers[i]);
     }
+    std::fill(numMissPerThread.begin(), numMissPerThread.end(), 0);
 }
 
 MSHR *

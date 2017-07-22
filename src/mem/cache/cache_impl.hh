@@ -313,7 +313,7 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // sanity check
     assert(pkt->isRequest());
 
-    CacheBlk *shadowblk ; // 
+    bool shadowBlockHit ; //
     DPRINTF(Cache, "%s for %s addr %#llx size %d\n", __func__,
             pkt->cmdString(), pkt->getAddr(), pkt->getSize());
     if (pkt->req->isUncacheable()) {
@@ -343,12 +343,12 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     // Here lat is the value passed as parameter to accessBlock() function
     // that can modify its value.
     blk = tags->accessBlock(pkt->getAddr(), pkt->isSecure(), lat, id);
-    shadowblk = tags->accessShadowTag(pkt->getAddr()); // access the shadow tag
+    shadowBlockHit = tags->accessShadowTag(pkt->getAddr()); // access the shadow tag
     bool is_interference = false;
-    if ((blk == NULL) & (shadowblk != NULL)) {
+    if ((blk == NULL) & shadowBlockHit) {
         is_interference = true;
         DPRINTF(Cache,"A wait event happened!");
-    } else if ((blk == NULL) & (shadowblk == NULL)) {
+    } else if ((blk == NULL) & !shadowBlockHit) {
         DPRINTF(Cache,"A miss event happened!");
     } 
     DPRINTF(Cache, "%s%s addr %#llx size %d (%s) %s\n", pkt->cmdString(),
@@ -1513,6 +1513,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks)
             DPRINTF(Cache, "using temp block for %#llx (%s)\n", addr,
                     is_secure ? "s" : "ns");
         } else {
+            blk->threadID = pkt->req->threadId();
             tags->insertBlock(pkt, blk);
         }
 
@@ -2141,14 +2142,22 @@ Cache::CpuSidePort::recvTimingReq(PacketPtr pkt)
     } else if (blocked || mustSendRetry) {
         // either already committed to send a retry, or blocked
         success = false;
+        DPRINTF(MSHR, "Packet %llu rejected by MSHR full\n", pkt->req->seqNum);
+
     } else {
         // pass it on to the cache, and let the cache decide if we
         // have to retry or not
         success = cache->recvTimingReq(pkt);
+        if (!success) {
+            DPRINTF(MSHR, "Packet %llu rejected by cache\n", pkt->req->seqNum);
+        }
     }
 
     // remember if we have to retry
     mustSendRetry = !success;
+    if (mustSendRetry) {
+        DPRINTF(MSHR, "Set mustSendRetry in %s\n", __func__);
+    }
     return success;
 }
 

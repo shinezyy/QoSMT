@@ -59,6 +59,7 @@
 #include "cpu/inst_seq.hh"
 #include "cpu/timebuf.hh"
 #include "debug/LSQUnit.hh"
+#include "debug/MSHR.hh"
 #include "mem/packet.hh"
 #include "mem/port.hh"
 

@@ -92,7 +92,9 @@ class SlotCounter
 
     void sumLocalSlots(ThreadID tid);
 
-    uint64_t slots[NumUse];
+    std::array<uint64_t, NumUse> slots;
+
+    std::array<uint64_t, NumUse> recentSlots;
 
     Stats::Scalar slotsStat[NumUse];
 
@@ -124,6 +126,8 @@ class SlotCounter
     virtual void dumpStats();
 
     std::array<int, Impl::MaxThreads> curCycleBase, curCycleWait, curCycleMiss;
+
+    void clearRecent();
 };
 
 #endif // __CPU_O3_SLOTCOUNTER_HH__

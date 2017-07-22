@@ -380,6 +380,15 @@ DefaultIEW<Impl>::regStats()
         ;
 
     avgWaitWBCycle = overallWaitWBCycle / numConcerned;
+
+    scalarSimpleRegister(IQHeadNull);
+    scalarSimpleRegister(IQHeadFloat);
+    scalarSimpleRegister(IQHeadZeroAddr);
+    scalarSimpleRegister(IQHeadWaitingResp);
+    scalarSimpleRegister(IQHeadCacheMiss);
+    scalarSimpleRegister(IQHeadCacheInterf);
+    scalarSimpleRegister(IQHeadUnknown);
+    scalarSimpleRegister(IQNoLongLatency);
 }
 
 template<class Impl>
@@ -1518,6 +1527,12 @@ DefaultIEW<Impl>::executeInsts()
                 // event adds the instruction to the queue to commit
                 fault = ldstQueue.executeLoad(inst);
 
+                if (inst->memRefRejected && fault == NoFault) {
+                    DPRINTF(IEW, "Execute: Memory ref rejected by cache because of MSHR full.\n");
+                    instQueue.mshrRejectMemInst(inst);
+                    continue;
+                }
+
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
                     // A hw page table walk is currently going on; the
@@ -1533,6 +1548,12 @@ DefaultIEW<Impl>::executeInsts()
                 }
             } else if (inst->isStore()) {
                 fault = ldstQueue.executeStore(inst);
+
+                if (inst->memRefRejected && fault == NoFault) {
+                    DPRINTF(IEW, "Execute: Memory ref rejected by cache because of MSHR full.\n");
+                    instQueue.mshrRejectMemInst(inst);
+                    continue;
+                }
 
                 if (inst->isTranslationDelayed() &&
                     fault == NoFault) {
@@ -2077,9 +2098,16 @@ DefaultIEW<Impl>::cycleDispatchEnd(ThreadID tid)
     LQHead[tid] = ldstQueue.getLoadHeadInst(tid);
     SQHead[tid] = ldstQueue.getStoreHeadInst(tid);
 
-    getQHeadState(head, SlotConsm::FullSource::IQ, tid);
-    getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
-    getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
+    if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+        getQHeadState(head, SlotConsm::FullSource::IQ, tid);
+    }
+
+    if (fullSource[tid] == SlotConsm::FullSource::LQ) {
+        getQHeadState(LQHead, SlotConsm::FullSource::LQ, tid);
+    }
+    if (fullSource[tid] == SlotConsm::FullSource::SQ) {
+        getQHeadState(SQHead, SlotConsm::FullSource::SQ, tid);
+    }
 
     bool no_use = true;
     no_use = !no_use;
@@ -2166,41 +2194,71 @@ void
 DefaultIEW<Impl>::getQHeadState(DynInstPtr QHead[],
                                 typename SlotConsm::FullSource fs, ThreadID tid)
 {
-    MissDescriptor md;
-    md.valid = false;
-
     if (!QHead[tid]) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+        if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+            IQHeadNull++;
+        }
         return;
     }
 
     DynInstPtr head = QHead[tid];
 
-    if (!head->readMiss) {
-        head->DCacheMiss = missTables.isSpecifiedMiss(head->physEffAddr, true, md);
-        head->readMiss = true;
-    }
+    bool hasLongLatency;
 
-    bool is_miss = head->DCacheMiss ||
-                   missTables.isSpecifiedMiss(head->physEffAddr, true, md) ||
-                   (head->isLoad() && head->physEffAddr == 0) ||
-                   (head->isStore() && head->physEffAddr == 0) ||
-                   head->isFloating();
+    bool hasDCacheMiss = missTables.hasDataMiss(tid);
 
-    if (!is_miss) {
+    bool zeroAddr = (head->isLoad() && head->physEffAddr == 0) ||
+                    (head->isStore() && head->physEffAddr == 0);
+
+    bool headFloat = head->isFloating();
+
+    hasLongLatency = zeroAddr || hasDCacheMiss || headFloat;
+
+    if (!hasLongLatency) {
         slotConsumer.queueHeadState[tid][fs] = HeadInstrState::Normal;
+        //<editor-fold desc="IQ extra stats">
+        if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+            if (head->isLoad() || head->isStore()) {
+                IQHeadWaitingResp++;
+            } else {
+                IQNoLongLatency++;
+            }
+        }
+        //</editor-fold>
     } else {
-        // trick
-        if (!md.valid) {
+        if (hasDCacheMiss) {
+            auto cache_level = 0;
+            if (missTables.kickedDataBlock(tid, cache_level)) {
+                slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
+                        HeadInstrState::L1DCacheWait + cache_level - 1);
+            } else {
+                slotConsumer.queueHeadState[tid][fs] = HeadInstrState::L1DCacheMiss;
+            }
+        } else {
             slotConsumer.queueHeadState[tid][fs] =
                     HeadInstrState::WaitingAddress;
-        } else if (md.isCacheInterference) {
-            slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
-                    HeadInstrState::L1DCacheWait + md.missCacheLevel - 1);
-        } else {
-            slotConsumer.queueHeadState[tid][fs] = static_cast<HeadInstrState>(
-                    HeadInstrState::L1DCacheMiss + md.missCacheLevel - 1);
         }
+        //<editor-fold desc="IQ extra stats">
+        if (fullSource[tid] == SlotConsm::FullSource::IQ) {
+            if (hasDCacheMiss) {
+                auto cache_level = 0;
+                if (missTables.kickedDataBlock(tid, cache_level)) {
+                    IQHeadCacheInterf++;
+                } else {
+                    IQHeadCacheMiss++;
+                }
+            } else {
+                if (headFloat) {
+                    IQHeadFloat++;
+                } else if (zeroAddr){
+                    IQHeadZeroAddr++;
+                } else {
+                    IQHeadUnknown++;
+                }
+            }
+        }
+        //</editor-fold>
     }
 }
 

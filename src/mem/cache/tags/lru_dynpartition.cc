@@ -52,7 +52,8 @@
 
 
 LRUDynPartition::LRUDynPartition(const Params *p)
-        : BaseSetAssoc(p), cacheLevel(p->cache_level), isDCache(p->is_dcache)
+        : BaseSetAssoc(p), cacheLevel(p->cache_level), isDCache(p->is_dcache),
+          shadowLRUTag(numSets, (unsigned int) p->shadow_tag_assoc, this)
 {
     assert(numSets <= MAX_NUM_SETS);
     int rationFirst = p->thread_0_assoc;
@@ -115,19 +116,18 @@ LRUDynPartition::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_
     return blk;
 }
 
-CacheBlk*
+bool
 LRUDynPartition::accessShadowTag(Addr addr)
 {
-    int set = extractSet(addr);
     Addr tag = extractTag(addr);
+    tag = tag;
     DPRINTF(CacheRepl, "The  shadow tag should be  %x\n", tag);
-    for (int nWay = 0; nWay < assoc; nWay++) {
-        auto blk = sets[set].blks[nWay];
-    DPRINTF(CacheRepl, "The  shadow tag list is  %x\n", blk->shadowtag);
-    if (blk && blk->shadowtag == tag) {
-       return blk;
-       }
+
+    if (shadowLRUTag.findBlock(addr)) {
+        shadowLRUTag.touch(addr);
+        return true;
     }
+
     return NULL;
 }
 
@@ -252,9 +252,13 @@ LRUDynPartition::insertBlock(PacketPtr pkt, BlkType *blk)
     // <curThreadID>
     BaseSetAssoc::insertBlock(pkt, blk);
     assert(pkt->getAddr());
-    uint64_t tag = extractTag(pkt->getAddr());
-    if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-	    blk->shadowtag = tag ;
+    if (curThreadID == 0) {
+        if (!shadowLRUTag.findBlock(pkt->getAddr())) {
+            // update shadowtag when HP thread evict one way
+            shadowLRUTag.insert(pkt->getAddr());
+        } else {
+            shadowLRUTag.touch(pkt->getAddr());
+        }
     }
     assert(blk->threadID >= 0);
     int set = extractSet(pkt->getAddr());

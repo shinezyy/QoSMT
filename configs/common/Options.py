@@ -73,6 +73,14 @@ def addCommonOptions(parser):
                       action="store_true",
                       help="Use duplicated cache for threads")
 
+    parser.add_option("--dyn-cache",
+                      action="store_true",
+                      help="Use dynamic controlled cache")
+
+    parser.add_option("--comp-cache",
+                      action="store_true",
+                      help="Use competitive cache for threads")
+
     parser.add_option("--checker", action="store_true");
     parser.add_option("-n", "--num-cpus", type="int", default=1)
     parser.add_option("--sys-voltage", action="store", type="string",

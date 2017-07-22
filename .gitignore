@@ -18,7 +18,6 @@ m5out
 *.txt
 !/src/CMakeLists.txt
 spec_run
-tags
 .clang_complete
 st_run
 smt_run

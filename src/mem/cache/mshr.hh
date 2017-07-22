@@ -299,6 +299,8 @@ class MSHR : public Packet::SenderState, public Printable
      * @return string with mshr fields + [deferred]targets
      */
     std::string print() const;
+
+    ThreadID tid;
 };
 
 #endif // __MEM_CACHE_MSHR_HH__

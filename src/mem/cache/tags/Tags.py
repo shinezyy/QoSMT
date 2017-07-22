@@ -54,7 +54,7 @@ class BaseTags(ClockedObject):
                                "The hit latency for this cache")
 
     # The ration for thread 0 when applying LRUPartition
-    thread_0_assoc = Param.Int(4, "ways for thread 0")
+    thread_0_assoc = Param.Int(0, "ways for thread 0")
 
 class BaseSetAssoc(BaseTags):
     type = 'BaseSetAssoc'
@@ -80,6 +80,7 @@ class LRUDynPartition(BaseSetAssoc):
     cxx_header = "mem/cache/tags/lru_dynpartition.hh"
     cache_level = Param.Int(Parent.cache_level, "cache level")
     is_dcache = Param.Bool(Parent.is_dcache, "is d-cache")
+    shadow_tag_assoc = Param.Int(Parent.shadow_tag_assoc, "assoc of shadow tag")
 
 class RandomRepl(BaseSetAssoc):
     type = 'RandomRepl'

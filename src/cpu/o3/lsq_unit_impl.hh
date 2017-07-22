@@ -128,7 +128,7 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
     ThreadID tid = inst->threadNumber;
 
 
-    if (l1_table.size() > 100 || l2_table.size() > 100) {
+    if (l1_table.size() > 15 || l2_table.size() > 40) {
         panic("Miss table size is too large, find bug!\n");
     }
 
@@ -137,13 +137,22 @@ LSQUnit<Impl>::completeDataAccess(PacketPtr pkt)
         DPRINTF(MissTable, "T[%i] Remove L%i cache miss [0x%x] from L1 miss table.\n",
                 tid, it1->second.cacheLevel, phyAddress);
 
+        ms.numL1LoadMiss[tid] = 0;
+        ms.numL1StoreMiss[tid] = 0;
+        // Do calibration
+        for (auto& it : l1_table) {
+            if (it.second.tid == tid) {
+                ms.numL1LoadMiss[tid] += it.second.mat == MemAccessType::MemLoad;
+                ms.numL1StoreMiss[tid] += it.second.mat == MemAccessType::MemStore;
+            }
+        }
         if (inst->isLoad()) {
             ms.numL1LoadMiss[tid]--;
         } else {
             ms.numL1StoreMiss[tid]--;
         }
         l1_table.erase(it1);
-    } else if (it1 != l1_table.end()){
+    } else if (it1 != l1_table.end()) {
         it1->second.MSHRHits--;
     }
 
@@ -794,6 +803,13 @@ LSQUnit<Impl>::executeLoad(DynInstPtr &inst)
 
     assert(!inst->isSquashed());
 
+    if (missTables.perThreadMSHRFull(1, true, lsqID, true)) {
+        inst->memRefRejected = true;
+        DPRINTF(MSHR, "Return because MSHR full.\n");
+        return NoFault;
+    }
+    inst->memRefRejected = false;
+
     load_fault = inst->initiateAcc();
 
     if (inst->isTranslationDelayed() &&
@@ -845,6 +861,12 @@ LSQUnit<Impl>::executeStore(DynInstPtr &store_inst)
 
     assert(!store_inst->isSquashed());
 
+    if (missTables.perThreadMSHRFull(1, true, lsqID, false)) {
+        DPRINTF(MSHR, "Return because MSHR full.\n");
+        store_inst->memRefRejected = true;
+        return NoFault;
+    }
+    store_inst->memRefRejected = false;
     // Check the recently completed loads to see if any match this store's
     // address.  If so, then we have a memory ordering violation.
     int load_idx = store_inst->lqIdx;
@@ -1432,6 +1454,7 @@ LSQUnit<Impl>::sendStore(PacketPtr data_pkt)
     data_pkt->req->seqNum = inst->seqNum;
 
     if (!dcachePort->sendTimingReq(data_pkt)) {
+        DPRINTF(MSHR, "Packet %llu rejected by dcache\n", inst->seqNum);
         // Need to handle becoming blocked on a store.
         isStoreBlocked = true;
         ++lsqCacheBlocked;

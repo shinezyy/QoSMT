@@ -53,9 +53,11 @@
 #include "cpu/o3/slot_counter.hh"
 #include "debug/IQ.hh"
 #include "debug/Pard.hh"
+#include "debug/MSHR.hh"
 #include "enums/OpClass.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/core.hh"
+#include "mem/cache/miss_table.hh"
 
 // clang complains about std::set being overloaded with Packet::set if
 // we open up the entire namespace std
@@ -482,6 +484,7 @@ InstructionQueue<Impl>::resetState()
     nonSpecInsts.clear();
     listOrder.clear();
     deferredMemInsts.clear();
+    mshrRejectedMemInsts.clear();
     blockedMemInsts.clear();
     retryMemInsts.clear();
     wbOutstanding = 0;
@@ -935,6 +938,10 @@ InstructionQueue<Impl>::scheduleReadyInsts()
         addReadyMemInst(mem_inst);
     }
 
+    while (mem_inst = getMshrRejectedMemInstToExecute()) {
+        addReadyMemInst(mem_inst);
+    }
+
     // Have iterator to head of the list
     // While I haven't exceeded bandwidth or reached the end of the list,
     // Try to get a FU that can do what this op needs.
@@ -960,6 +967,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
         assert(issuing_inst->seqNum == (*order_it).oldestInst);
         */
 
+        //<editor-fold desc="Squashed inst">
         if (issuing_inst->isSquashed()) {
             readyInsts[op_class].pop();
 
@@ -976,11 +984,13 @@ InstructionQueue<Impl>::scheduleReadyInsts()
 
             continue;
         }
+        //</editor-fold>
 
         int idx = -2;
         Cycles op_latency = Cycles(1);
         ThreadID tid = issuing_inst->threadNumber;
 
+        //<editor-fold desc="No Op">
         if (op_class != No_OpClass) {
             idx = fuPool->getUnit(op_class);
             issuing_inst->isFloating() ? fpAluAccesses++ : intAluAccesses++;
@@ -988,6 +998,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
                 op_latency = fuPool->getOpLatency(op_class);
             }
         }
+        //</editor-fold>
 
         // If we have an instruction that doesn't require a FU,
         // or it got a valid FU, then schedule for execution.
@@ -1068,7 +1079,8 @@ InstructionQueue<Impl>::scheduleReadyInsts()
     // @todo If the way deferred memory instructions are handeled due to
     // translation changes then the deferredMemInsts condition should be removed
     // from the code below.
-    if (total_issued || !retryMemInsts.empty() || !deferredMemInsts.empty()) {
+    if (total_issued || !retryMemInsts.empty() || !deferredMemInsts.empty() ||
+            !mshrRejectedMemInsts.empty()) {
         cpu->activityThisCycle();
     } else {
         DPRINTF(IQ, "Not able to schedule any instructions.\n");
@@ -1878,5 +1890,48 @@ InstructionQueue<Impl>::insertInstCount(DynInstPtr inst, ThreadID tid) {
         localWaitSlots[tid] = 0;
     }
 }
+
+template <class Impl>
+void
+InstructionQueue<Impl>::mshrRejectMemInst(DynInstPtr &rejected_inst) {
+    mshrRejectedMemInsts.push_back(rejected_inst);
+}
+
+template <class Impl>
+typename Impl::DynInstPtr
+InstructionQueue<Impl>::getMshrRejectedMemInstToExecute() {
+    for (auto it = mshrRejectedMemInsts.begin();
+            it != mshrRejectedMemInsts.end(); ++it) {
+        assert((*it)->isMemRef());
+        ThreadID tid = (*it)->threadNumber;
+
+        if ((*it)->isLoad()) {
+            if (!missTables.perThreadMSHRFull(1, true, tid, true)) {
+                DynInstPtr inst = *it;
+                mshrRejectedMemInsts.erase(it);
+                return inst;
+            } else {
+                missTables.printAllMiss();
+                DPRINTF(MSHR, "T[%i] still blocked by load mshr full\n", tid);
+            }
+        }
+
+        if ((*it)->isStore()) {
+            if (!missTables.perThreadMSHRFull(1, true, tid, false)) {
+                DynInstPtr inst = *it;
+                mshrRejectedMemInsts.erase(it);
+                return inst;
+            } else {
+                missTables.printAllMiss();
+                DPRINTF(MSHR, "T[%i] load / store miss in miss stat: %i / %i\n", tid,
+                        missTables.missStat.numL1LoadMiss[tid],
+                        missTables.missStat.numL1StoreMiss[tid]);
+                DPRINTF(MSHR, "T[%i] still blocked by store mshr full\n", tid);
+            }
+        }
+    }
+    return nullptr;
+}
+
 
 #endif//__CPU_O3_INST_QUEUE_IMPL_HH__

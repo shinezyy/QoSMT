@@ -50,8 +50,9 @@ class L1Cache(BaseCache):
     assoc = 2
     hit_latency = 2
     response_latency = 2
-    mshrs = 4
+    mshrs = 8
     tgts_per_mshr = 20
+    write_buffers = 8
     is_top_level = True
     cache_level = 1
     numThreads = 2
@@ -62,7 +63,7 @@ class L2Cache(BaseCache):
     response_latency = 20
     mshrs = 20
     tgts_per_mshr = 12
-    write_buffers = 8
+    write_buffers = 20
     cache_level = 2
     numThreads = 2
 

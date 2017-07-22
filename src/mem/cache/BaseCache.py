@@ -85,3 +85,4 @@ class BaseCache(MemObject):
     cache_level = Param.Int("The cache level")
     is_dcache = Param.Bool("Is data cache")
     numThreads = Param.Int("Number of threads")
+    shadow_tag_assoc = Param.Int(0, "assoc of shadow tag")

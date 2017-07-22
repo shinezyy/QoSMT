@@ -47,6 +47,7 @@
 
 #include "debug/Cache.hh"
 #include "debug/Drain.hh"
+#include "debug/MSHR.hh"
 #include "mem/cache/tags/fa_lru.hh"
 #include "mem/cache/tags/lru.hh"
 #include "mem/cache/tags/random_repl.hh"
@@ -68,9 +69,10 @@ BaseCache::CacheSlavePort::CacheSlavePort(const std::string &_name,
 BaseCache::BaseCache(const Params *p)
     : MemObject(p),
       cpuSidePort(nullptr), memSidePort(nullptr),
-      mshrQueue("MSHRs", p->mshrs, 4, p->demand_mshr_reserve, MSHRQueue_MSHRs),
-      writeBuffer("write buffer", p->write_buffers, p->mshrs+1000, 0,
-                  MSHRQueue_WriteBuffer),
+      mshrQueue("MSHRs", p->mshrs, 4, p->demand_mshr_reserve,
+                MSHRQueue_MSHRs, p->cache_level),
+      writeBuffer("write buffer", p->write_buffers, p->mshrs + 1000, 0,
+                  MSHRQueue_WriteBuffer, p->cache_level),
       blkSize(p->system->cacheLineSize()),
       lookupLatency(p->hit_latency),
       forwardLatency(p->hit_latency),
@@ -91,8 +93,21 @@ BaseCache::BaseCache(const Params *p)
 
 {
     missTables.cacheBlockSize = blkSize;
-    missTable = cacheLevel==2 ? &missTables.l2MissTable :
-                isDCache ? &missTables.l1DMissTable : &missTables.l1IMissTable;
+    if (cacheLevel == 2) {
+        missTable = &missTables.l2MissTable;
+        missTables.numL2_MSHR = p->mshrs;
+    } else if (cacheLevel == 1){
+        if (isDCache) {
+            missTable = &missTables.l1DMissTable;
+            missTables.numL1DR_MSHR = p->mshrs;
+            missTables.numL1DW_MSHR = p->write_buffers;
+        } else {
+            missTable = &missTables.l1IMissTable;
+            missTables.numL1I_MSHR = p->mshrs;
+        }
+    } else {
+        panic("Unknown cache level %i\n", cacheLevel);
+    }
 }
 
 void
@@ -106,6 +121,7 @@ BaseCache::CacheSlavePort::setBlocked()
     if (sendRetryEvent.scheduled()) {
         owner.deschedule(sendRetryEvent);
         DPRINTF(CachePort, "Port descheduled retry\n");
+        DPRINTF(MSHR, "Set mustSendRetry in %s\n", __func__);
         mustSendRetry = true;
     }
 }
@@ -128,6 +144,7 @@ BaseCache::CacheSlavePort::processSendRetry()
     DPRINTF(CachePort, "Port is sending retry\n");
 
     // reset the flag and call retry
+    DPRINTF(MSHR, "Clear mustSendRetry in %s\n", __func__);
     mustSendRetry = false;
     sendRetryReq();
 }
@@ -670,7 +687,7 @@ BaseCache::drain(DrainManager *dm)
     if (count != 0) {
         setDrainState(Drainable::Draining);
         DPRINTF(Drain, "Cache not drained\n");
-        return count;
+        return (unsigned int) count;
     }
 
     setDrainState(Drainable::Drained);
