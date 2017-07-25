@@ -248,6 +248,13 @@ for cpu in system.cpu:
     cpu.smtIQPolicy = 'Programmable'
     cpu.smtLSQPolicy = 'Programmable'
 
+    if options.dyn_cache:
+        numResourceToReserve = 4
+        numResourceToRelease = 8
+    else:
+        numResourceToReserve = 2
+        numResourceToRelease = 5
+
 # NOTE that static partition is used!
 cache_config_2(system, options)
 

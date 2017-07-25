@@ -184,6 +184,9 @@ class DerivO3CPU(BaseCPU):
 
     dynCache = Param.Bool(False, "Whether control cache for QoS")
 
+    numResourceToReserve = Param.Int(4, "number of resources to reserve at each end of policy window")
+    numResourceToRelease = Param.Int(8, "number of resources to release at each end of policy window")
+
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:
             from ArmTLB import ArmTLB
