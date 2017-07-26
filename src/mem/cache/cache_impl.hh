@@ -370,7 +370,9 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 incMissCount(pkt, is_interference);
                 return false;
             }
+            tags->setThread(pkt->req->threadId());
             tags->insertBlock(pkt, blk);
+            tags->clearThread();
 
             blk->status = (BlkValid | BlkReadable);
             if (pkt->isSecure()) {
@@ -1514,7 +1516,9 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks)
                     is_secure ? "s" : "ns");
         } else {
             blk->threadID = pkt->req->threadId();
+            tags->setThread(pkt->req->threadId());
             tags->insertBlock(pkt, blk);
+            tags->clearThread();
         }
 
         // we should never be overwriting a valid block
