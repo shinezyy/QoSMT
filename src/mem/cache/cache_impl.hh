@@ -364,13 +364,15 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
             // need to do a replacement
             tags->setThread(pkt->req->threadId());
             blk = allocateBlock(pkt->getAddr(), pkt->isSecure(), writebacks);
-            //tags->clearThread();
+            tags->clearThread();
             if (blk == NULL) {
                 // no replaceable block available: give up, fwd to next level.
                 incMissCount(pkt, is_interference);
                 return false;
             }
+            tags->setThread(pkt->req->threadId());
             tags->insertBlock(pkt, blk);
+            tags->clearThread();
 
             blk->status = (BlkValid | BlkReadable);
             if (pkt->isSecure()) {
@@ -1501,7 +1503,7 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks)
         // need to do a replacement
         tags->setThread(pkt->req->threadId());
         blk = allocateBlock(addr, is_secure, writebacks);
-        //tags->clearThread();
+        tags->clearThread();
         if (blk == NULL) {
             // No replaceable block... just use temporary storage to
             // complete the current request and then get rid of it
@@ -1514,7 +1516,9 @@ Cache::handleFill(PacketPtr pkt, CacheBlk *blk, PacketList &writebacks)
                     is_secure ? "s" : "ns");
         } else {
             blk->threadID = pkt->req->threadId();
+            tags->setThread(pkt->req->threadId());
             tags->insertBlock(pkt, blk);
+            tags->clearThread();
         }
 
         // we should never be overwriting a valid block

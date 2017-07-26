@@ -68,22 +68,23 @@ def cache_config_2(system, options):
     if options.dup_cache:
         dup = 2
 
-    if not options.comp_cache:
+    if options.dyn_cache:
+        assert not options.dup_cache
+        assert not options.comp_cache
         for cpu in system.cpu:
             cpu.icache.tags = LRUDynPartition()
-            cpu.icache.tags.thread_0_assoc = 2 * dup
+            cpu.icache.tags.thread_0_assoc = 2
             cpu.icache.shadow_tag_assoc = 4
             cpu.dcache.tags = LRUDynPartition()
-            cpu.dcache.tags.thread_0_assoc = 2 * dup
+            cpu.dcache.tags.thread_0_assoc = 2
             cpu.dcache.shadow_tag_assoc = 4
-            if options.dyn_cache:
-                cpu.dynCache = True
+            cpu.dynCache = True
 
         system.l2.tags = LRUDynPartition()
-        system.l2.tags.thread_0_assoc = 4 * dup
+        system.l2.tags.thread_0_assoc = 4
         system.l2.shadow_tag_assoc = 8
 
-    else:
+    elif options.comp_cache:
         assert not options.dup_cache
         assert not options.dyn_cache
 
@@ -91,3 +92,18 @@ def cache_config_2(system, options):
             cpu.icache.tags = LRU()
             cpu.dcache.tags = LRU()
         system.l2.tags = LRU()
+
+    else: # static partition
+        for cpu in system.cpu:
+            cpu.icache.tags = LRUPartition()
+            cpu.icache.tags.thread_0_assoc = 2 * dup
+            cpu.icache.shadow_tag_assoc = 4
+            cpu.dcache.tags = LRUPartition()
+            cpu.dcache.tags.thread_0_assoc = 2 * dup
+            cpu.dcache.shadow_tag_assoc = 4
+            cpu.dynCache = True
+
+        system.l2.tags = LRUPartition()
+        system.l2.tags.thread_0_assoc = 4 * dup
+        system.l2.shadow_tag_assoc = 8
+

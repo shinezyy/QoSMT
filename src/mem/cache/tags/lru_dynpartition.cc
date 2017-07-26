@@ -168,16 +168,17 @@ LRUDynPartition::findVictim(Addr addr)
         // Consume ration in invalid cases.
         // This has pityfalls when performing cache coherence.
         // But we don't care that now.
-        if(blk->threadID == -1){
-            wayCount[set][curThreadID]++;
-        }
-        else if(blk->threadID != curThreadID){
-            wayCount[set][1-curThreadID]--;
-            wayCount[set][curThreadID]++;
-        }
+	if(blk->threadID == -1){
+		wayCount[set][curThreadID]++;
+		blk->threadID = (ThreadID) curThreadID;
+	}
+	else if(blk->threadID != curThreadID){
+		wayCount[set][1-curThreadID]--;
+		wayCount[set][curThreadID]++;
+		blk->threadID = (ThreadID) curThreadID;
+	}
         assert((wayCount[set][curThreadID]+wayCount[set][1-curThreadID])<=assoc);
         assert(blk);
-        blk->threadID = (ThreadID) curThreadID;
         if (threadWayRation[set][curThreadID] == wayCount[set][curThreadID]) {
             noInvalid[set][curThreadID] = true;
             DPRINTF(DynCache, "First,way ration[0]: %i, way ration[1]: %i\n",
@@ -187,7 +188,7 @@ LRUDynPartition::findVictim(Addr addr)
         // if (curThreadID == 0) {
         //     blk->shadowtag = tag;
         // }
-    } else if ((threadWayRation[set][curThreadID] >= wayCount[set][curThreadID])
+    } else if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
                && (noInvalid[set][curThreadID])) { // find victim after new allocation
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];

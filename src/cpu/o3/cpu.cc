@@ -225,8 +225,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       localCycles(0),
       abnormal(false),
       numContCtrl(0),
-      numResourceToReserve(4),
-      numResourceToRelease(8),
+      numResourceToReserve(params->numResourceToReserve),
+      numResourceToRelease(params->numResourceToRelease),
       dynCache(params->dynCache)
 {
     if (!params->switched_out) {

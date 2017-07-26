@@ -60,7 +60,7 @@ import Ruby
 import Simulation
 import CacheConfig
 import MemConfig
-from shared_config import common_config
+from shared_config import *
 
 # Check if KVM support has been enabled, we might need to do VM
 # configuration if that's the case.
@@ -93,6 +93,9 @@ if '--ruby' in sys.argv:
 
 (options, args) = parser.parse_args()
 
+cache_config_1(options)
+# TODO: go to cache_config_2
+
 if args:
     print "Error: script doesn't take any positional arguments"
     sys.exit(1)
@@ -101,6 +104,7 @@ numThreads = 1
 
 if options.smt:
     numThreads = 2
+
 
 def get_benchmark_process(spec_obj, benchmark_name):
     process = spec_obj.gen_proc(benchmark_name)
@@ -115,7 +119,6 @@ benchmarks = options.benchmark.split(';')
 assert(len(benchmarks) < 2 or options.smt)
 if options.smt:
     assert(len(benchmarks) == 2)
-
 spec06 = Spec06()
 for bm in benchmarks:
     multiprocess.append(get_benchmark_process(spec06, bm))
@@ -228,7 +231,7 @@ else:
     MemConfig.config_mem(options, system)
 
 for cpu in system.cpu:
-    common_config(cpu)
+    common_config(cpu, options.o3cpu_little_core)
 
     cpu.expectedQoS = 90 * 1024 / 100 # 0~1024
 
@@ -238,22 +241,22 @@ for cpu in system.cpu:
     cpu.smtFetchPolicy = 'Programmable'
     cpu.hptFetchProp = 0.5
 
-    cpu.iewProgrammable = True
+    cpu.iewProgrammable = False
     cpu.hptDispatchProp = 0.5
 
-    cpu.smtROBPolicy = 'Dynamic'
-    cpu.smtIQPolicy = 'Dynamic'
-    cpu.smtLSQPolicy = 'Dynamic'
+    cpu.smtROBPolicy = 'Partitioned'
+    cpu.smtIQPolicy = 'Partitioned'
+    cpu.smtLSQPolicy = 'Partitioned'
 
-for cpu in system.cpu:
-    cpu.icache.tags = LRUPartition()
-    cpu.icache.tags.thread_0_assoc = 8
-    cpu.dcache.tags = LRUPartition()
-    cpu.dcache.tags.thread_0_assoc = 8
+    if options.dyn_cache:
+        numResourceToReserve = 3
+        numResourceToRelease = 4
+    else:
+        numResourceToReserve = 1
+        numResourceToRelease = 1
 
-system.l2.tags = LRUPartition() # L2 partition
-system.l2.tags.thread_0_assoc = 8
-
+# NOTE that static partition is used!
+cache_config_2(system, options)
 
 # options.take_checkpoints=100000
 # options.at_instruction=True
