@@ -161,7 +161,8 @@ class DerivO3CPU(BaseCPU):
     policyWindowSize = Param.Int(100000, "stat dump cycle interval")
 
     # controlPolicy = Param.String('FrontEnd', 'control policy')
-    controlPolicy = Param.String('Combined', 'control policy')
+    # controlPolicy = Param.String('Combined', 'control policy')
+    controlPolicy = Param.String('Cazorla', 'control policy')
 
     branchPred = Param.BranchPredictor(TournamentBP(numThreads =
                                                        Parent.numThreads),

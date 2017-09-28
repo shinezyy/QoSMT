@@ -457,6 +457,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     } else if (params->controlPolicy == "ILPOriented") {
         controlPolicy = ILPOriented;
         leastPortion = 256;
+    } else if (params->controlPolicy == "Cazorla") {
+        controlPolicy = Cazorla;
     } else if (params->controlPolicy == "None") {
         controlPolicy = None;
     } else {
@@ -2024,6 +2026,10 @@ FullO3CPU<Impl>::resourceAdjust() {
     if (controlPolicy == ControlPolicy::None)
         return;
 
+    if (controlPolicy == ControlPolicy::Cazorla) {
+
+    }
+
     if (controlPolicy == ControlPolicy::Combined ||
         controlPolicy == ControlPolicy::FrontEnd) {
         sortContention();
@@ -2104,6 +2110,12 @@ FullO3CPU<Impl>::adjustRoute(Contention contention, bool incHPT)
 
     }
     return 1;
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::doCazorlaControl() {
+
 }
 
 // Forward declaration of FullO3CPU.

@@ -800,6 +800,7 @@ class FullO3CPU : public BaseO3CPU
         FrontEnd,
         Combined, // Front-end + Back-end
         ILPOriented,
+        Cazorla,
         None
     };
 
@@ -846,6 +847,14 @@ class FullO3CPU : public BaseO3CPU
     int leastPortion;
 
     const bool dynCache;
+
+    void doCazorlaControl();
+
+    enum CazorlaPhase {
+        Presample,      // Warm-up phase of sampling: 50,000 cycles
+        Sampling,       // 10,000 cycles
+        Tuning,         // 1,200,000 / 15,000 sub-phases
+    };
 };
 
 #endif // __CPU_O3_CPU_HH__
