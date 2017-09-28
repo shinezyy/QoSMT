@@ -35,6 +35,7 @@
 //
 // Authors: Ali Saidi
 
+syntax = "proto2";
 
 // Put all the generated messages in a namespace
 package ProtoMessage;

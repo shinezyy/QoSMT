@@ -44,3 +44,5 @@ if env['HAVE_PROTOBUF']:
     ProtoBuf('packet.proto')
     ProtoBuf('inst.proto')
     Source('protoio.cc')
+
+    env.Append(CCFLAGS='-DPROTOBUF_INLINE_NOT_IN_HEADERS=0')

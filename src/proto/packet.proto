@@ -35,6 +35,8 @@
 //
 // Authors: Andreas Hansson
 
+syntax = "proto2";
+
 // Put all the generated messages in a namespace
 package ProtoMessage;
 
