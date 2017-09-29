@@ -213,13 +213,13 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       system(params->system),
       drainManager(NULL),
       lastRunningCycle(curCycle()),
-      expectedQoS(params->expectedQoS),
+      expectedQoS((uint32_t) params->expectedQoS),
       robReserved(false),
       lqReserved(false),
       sqReserved(false),
       fetchReserved(false),
-      dumpWindowSize(params->dumpWindowSize),
-      policyWindowSize(params->policyWindowSize),
+      dumpWindowSize((unsigned int) params->dumpWindowSize),
+      policyWindowSize((unsigned int) params->policyWindowSize),
       numPhysIntRegs(params->numPhysIntRegs),
       numPhysFloatRegs(params->numPhysFloatRegs),
       localCycles(0),
@@ -227,7 +227,18 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       numContCtrl(0),
       numResourceToReserve(params->numResourceToReserve),
       numResourceToRelease(params->numResourceToRelease),
-      dynCache(params->dynCache)
+      dynCache(params->dynCache),
+      cazorlaPhase(CazorlaPhase::NotStarted),
+      subTuningPhaseNumber(0),
+      numPreSampleCycles(0),
+      numSampleCycles(0),
+      numSubPhaseCycles(0),
+      curPhaseInsts(0),
+      sampledIPC(0.0),
+      targetIPC(0.0),
+      localIPC(0.0),
+      localTargetIPC(0.0),
+      compensationTerm(0)
 {
     if (!params->switched_out) {
         _status = Running;
@@ -2027,7 +2038,8 @@ FullO3CPU<Impl>::resourceAdjust() {
         return;
 
     if (controlPolicy == ControlPolicy::Cazorla) {
-
+        doCazorlaControl();
+        return;
     }
 
     if (controlPolicy == ControlPolicy::Combined ||
@@ -2115,6 +2127,69 @@ FullO3CPU<Impl>::adjustRoute(Contention contention, bool incHPT)
 template <class Impl>
 void
 FullO3CPU<Impl>::doCazorlaControl() {
+    if (cazorlaPhase == CazorlaPhase::Tuning) {
+        if (subTuningPhaseNumber != 80) {
+            phaseLength = numSubPhaseCycles;
+            curPhaseCycles = 0;
+            curPhaseInsts = 0;
+            subTuningPhaseNumber += 1;
+
+            // Resource allocation
+        } else {
+            cazorlaPhase = CazorlaPhase::Presample;
+            phaseLength = numSubPhaseCycles;
+            curPhaseCycles = 0;
+            curPhaseInsts = 0;
+            subTuningPhaseNumber = 0;
+        }
+    } else if (cazorlaPhase == CazorlaPhase::NotStarted) {
+        cazorlaPhase = CazorlaPhase::Presample;
+        phaseLength = numPreSampleCycles;
+        curPhaseCycles = 0;
+
+        // switch to ST:
+
+    } else if (cazorlaPhase == CazorlaPhase::Presample) {
+        cazorlaPhase = CazorlaPhase::Sampling;
+        phaseLength = numSampleCycles;
+        curPhaseInsts = 0;
+        curPhaseCycles = 0;
+
+        // count instruction numbers
+
+    } else if (cazorlaPhase == CazorlaPhase::Sampling) {
+        cazorlaPhase = CazorlaPhase::Tuning;
+        phaseLength = numSubPhaseCycles;
+        curPhaseInsts = 0;
+        curPhaseCycles = 0;
+
+        // compute target IPC
+
+        // switch to SMT
+    }
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::incSubTuningNumber() {
+
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::switch2Presample() {
+
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::switch2Sampling() {
+
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::switch2Tuning() {
 
 }
 

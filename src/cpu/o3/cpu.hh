@@ -851,10 +851,45 @@ class FullO3CPU : public BaseO3CPU
     void doCazorlaControl();
 
     enum CazorlaPhase {
+        NotStarted,
         Presample,      // Warm-up phase of sampling: 50,000 cycles
         Sampling,       // 10,000 cycles
         Tuning,         // 1,200,000 / 15,000 sub-phases
     };
+
+    CazorlaPhase cazorlaPhase;
+
+    unsigned subTuningPhaseNumber;
+
+    void incSubTuningNumber();
+
+    void switch2Presample();
+
+    void switch2Sampling();
+
+    void switch2Tuning();
+
+    const unsigned numPreSampleCycles;
+
+    const unsigned numSampleCycles;
+
+    const unsigned numSubPhaseCycles;
+
+    unsigned phaseLength;
+
+    unsigned curPhaseInsts;
+
+    unsigned curPhaseCycles;
+
+    float sampledIPC;
+
+    float targetIPC;
+
+    float localIPC;
+
+    float localTargetIPC;
+
+    unsigned compensationTerm;
 };
 
 #endif // __CPU_O3_CPU_HH__
