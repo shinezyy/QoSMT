@@ -63,6 +63,7 @@
 #include "debug/QoSCtrl.hh"
 #include "debug/FMT.hh"
 #include "debug/ILPPred.hh"
+#include "debug/Cazorla.hh"
 #include "enums/MemoryMode.hh"
 #include "sim/core.hh"
 #include "sim/full_system.hh"
@@ -2126,42 +2127,28 @@ FullO3CPU<Impl>::adjustRoute(Contention contention, bool incHPT)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::doCazorlaControl() {
+FullO3CPU<Impl>::doCazorlaControl()
+{
     if (cazorlaPhase == CazorlaPhase::Tuning) {
         if (subTuningPhaseNumber != 80) {
-            phaseLength = numSubPhaseCycles;
-            curPhaseCycles = 0;
-            curPhaseInsts = 0;
-            subTuningPhaseNumber += 1;
-
+            continueTuning();
             // Resource allocation
+
         } else {
-            cazorlaPhase = CazorlaPhase::Presample;
-            phaseLength = numSubPhaseCycles;
-            curPhaseCycles = 0;
-            curPhaseInsts = 0;
-            subTuningPhaseNumber = 0;
+            switch2Presample();
         }
     } else if (cazorlaPhase == CazorlaPhase::NotStarted) {
-        cazorlaPhase = CazorlaPhase::Presample;
-        phaseLength = numPreSampleCycles;
-        curPhaseCycles = 0;
+        switch2Presample();
 
         // switch to ST:
 
     } else if (cazorlaPhase == CazorlaPhase::Presample) {
-        cazorlaPhase = CazorlaPhase::Sampling;
-        phaseLength = numSampleCycles;
-        curPhaseInsts = 0;
-        curPhaseCycles = 0;
+        switch2Sampling();
 
         // count instruction numbers
 
     } else if (cazorlaPhase == CazorlaPhase::Sampling) {
-        cazorlaPhase = CazorlaPhase::Tuning;
-        phaseLength = numSubPhaseCycles;
-        curPhaseInsts = 0;
-        curPhaseCycles = 0;
+        switch2Tuning();
 
         // compute target IPC
 
@@ -2171,26 +2158,113 @@ FullO3CPU<Impl>::doCazorlaControl() {
 
 template <class Impl>
 void
-FullO3CPU<Impl>::incSubTuningNumber() {
-
+FullO3CPU<Impl>::continueTuning()
+{
+    phaseLength = numSubPhaseCycles;
+    curPhaseCycles = 0;
+    curPhaseInsts = 0;
+    subTuningPhaseNumber += 1;
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::switch2Presample() {
-
+FullO3CPU<Impl>::switch2Presample()
+{
+    cazorlaPhase = CazorlaPhase::Presample;
+    phaseLength = numPreSampleCycles;
+    curPhaseCycles = 0;
+    curPhaseInsts = 0;
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::switch2Sampling() {
-
+FullO3CPU<Impl>::switch2Sampling()
+{
+    cazorlaPhase = CazorlaPhase::Sampling;
+    phaseLength = numSampleCycles;
+    curPhaseCycles = 0;
+    curPhaseInsts = 0;
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::switch2Tuning() {
+FullO3CPU<Impl>::switch2Tuning()
+{
+    cazorlaPhase = CazorlaPhase::Tuning;
+    phaseLength = numSubPhaseCycles;
+    subTuningPhaseNumber = 0;
+    curPhaseCycles = 0;
+    curPhaseInsts = 0;
+}
 
+template <class Impl>
+void
+FullO3CPU<Impl>::AllocAllFetch2HPT()
+{
+    DPRINTF(Cazorla, "Allocate all fetch opportunities to HPT\n");
+    fetch.reassignFetchSlice(cazorlaVec, 1024);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::AllocAllROB2HPT()
+{
+    DPRINTF(Cazorla, "Allocate all ROB to HPT\n");
+    commit.rob->reassignPortion(cazorlaVec, 2, 1024);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::AllocAllIQ2HPT()
+{
+    DPRINTF(Cazorla, "Allocate all IQ to HPT\n");
+    iew.instQueue.reassignPortion(cazorlaVec, 2, 1024);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::AllocAllLQ2HPT()
+{
+    DPRINTF(Cazorla, "Allocate all LQ to HPT\n");
+    iew.ldstQueue.reassignLQPortion(cazorlaVec, 2, 1024);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::AllocAllSQ2HPT()
+{
+    DPRINTF(Cazorla, "Allocate all SQ to HPT\n");
+    iew.ldstQueue.reassignSQPortion(cazorlaVec, 2, 1024);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::AllocAllCache2HPT()
+{
+    DPRINTF(Cazorla, "Allocate all cache to HPT\n");
+    int cacheAssoc;
+
+    cacheAssoc = controlPanel.l1ICacheWayConfig.assoc;
+    reConfigOneCache(controlPanel.l1ICacheWayConfig, cacheAssoc);
+
+    cacheAssoc = controlPanel.l1DCacheWayConfig.assoc;
+    reConfigOneCache(controlPanel.l1DCacheWayConfig, cacheAssoc);
+
+    cacheAssoc = controlPanel.l2CacheWayConfig.assoc;
+    reConfigOneCache(controlPanel.l2CacheWayConfig, cacheAssoc);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::reConfigOneCache(
+        WayRationConfig &wayRationConfig, int HPTAssoc)
+{
+    assert(HPTAssoc <= wayRationConfig.assoc);
+    wayRationConfig.threadWayRations[HPT] = HPTAssoc;
+    wayRationConfig.threadWayRations[LPT] =
+            wayRationConfig.assoc - HPTAssoc;
+
+    wayRationConfig.updatedByCore = true;
 }
 
 // Forward declaration of FullO3CPU.

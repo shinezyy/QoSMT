@@ -69,6 +69,7 @@
 #include "params/DerivO3CPU.hh"
 #include "sim/process.hh"
 #include "cpu/o3/ilp_pred.hh"
+#include "mem/cache/tags/control_panel.hh"
 //#include "cpu/o3/thread_context.hh"
 
 template <class>
@@ -822,6 +823,18 @@ class FullO3CPU : public BaseO3CPU
 
     void adjustCache(int cacheLevel, bool DCache, bool incHPT);
 
+    void AllocAllFetch2HPT();
+
+    void AllocAllROB2HPT();
+
+    void AllocAllIQ2HPT();
+
+    void AllocAllLQ2HPT();
+
+    void AllocAllSQ2HPT();
+
+    void AllocAllCache2HPT();
+
     enum Contention {
         L1DCacheCont = 0,
         L1ICacheCont,
@@ -861,7 +874,7 @@ class FullO3CPU : public BaseO3CPU
 
     unsigned subTuningPhaseNumber;
 
-    void incSubTuningNumber();
+    void continueTuning();
 
     void switch2Presample();
 
@@ -890,6 +903,16 @@ class FullO3CPU : public BaseO3CPU
     float localTargetIPC;
 
     unsigned compensationTerm;
+
+    // quota vector for the presample phase
+    int cazorlaVec[2];
+
+    void allocAllVec2HPT() {
+        cazorlaVec[0] = 1024;
+        cazorlaVec[1] = 0;
+    }
+
+    void reConfigOneCache(WayRationConfig &wayRationConfig, int HPTAssoc);
 };
 
 #endif // __CPU_O3_CPU_HH__
