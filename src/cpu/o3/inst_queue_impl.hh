@@ -54,6 +54,7 @@
 #include "debug/IQ.hh"
 #include "debug/Pard.hh"
 #include "debug/MSHR.hh"
+#include "debug/ThreadIssue.hh"
 #include "enums/OpClass.hh"
 #include "params/DerivO3CPU.hh"
 #include "sim/core.hh"
@@ -187,12 +188,15 @@ InstructionQueue<Impl>::InstructionQueue(O3CPU *cpu_ptr, IEW *iew_ptr,
         iqPolicy = Programmable;
 
         portion[HPT] = hptInitPriv * denominator / numEntries;
+        threadWidths[HPT] = hptInitPriv * denominator / numEntries;
         maxEntries[HPT] = hptInitPriv;
-        unsigned portion_other_thread = (denominator - portion[HPT]) / (numThreads - 1);
+        unsigned portion_other_thread =
+                (unsigned int) ((denominator - portion[HPT]) / (numThreads - 1));
 
         for (ThreadID tid = 1; tid < numThreads; tid++) {
             portion[tid] = portion_other_thread;
             maxEntries[tid] = numEntries * portion_other_thread / denominator;
+            threadWidths[tid] = totalWidth * portion_other_thread / denominator;
         }
 
         DPRINTF(IQ, "IQ sharing policy set to Programmable\n");
@@ -436,10 +440,16 @@ InstructionQueue<Impl>::regStats()
         .flags(total);
 
     iqUtilization
-        .init(numThreads)
+        .init((size_type) numThreads)
         .name(name() + ".iq_utilization")
         .desc("Accumulation of instruction queue used every cycle")
         .flags(display | total);
+
+    issueThreadBlockedCycles
+            .init((size_type) numThreads)
+            .name(name() + ".issueThreadBlockedCycles")
+            .desc("Accumulated blocking cycles due to another thread")
+            .flags(display | total);
 }
 
 template <class Impl>
@@ -604,6 +614,10 @@ InstructionQueue<Impl>::reassignPortion(int newPortionVec[],
     }
 
     denominator = newPortionDenominator;
+
+    // Issue width
+    threadWidths[HPT] = totalWidth * portion[0] / denominator;
+    threadWidths[LPT] = totalWidth - threadWidths[HPT];
 }
 
 template <class Impl>
@@ -951,6 +965,7 @@ InstructionQueue<Impl>::scheduleReadyInsts()
     // This will avoid trying to schedule a certain op class if there are no
     // FUs that handle it.
     int total_issued = 0;
+    std::fill(issuedInsts.begin(), issuedInsts.end(), 0);
     ListOrderIt order_it = listOrder.begin();
     ListOrderIt order_end_it = listOrder.end();
 
@@ -990,84 +1005,91 @@ InstructionQueue<Impl>::scheduleReadyInsts()
         Cycles op_latency = Cycles(1);
         ThreadID tid = issuing_inst->threadNumber;
 
-        //<editor-fold desc="No Op">
-        if (op_class != No_OpClass) {
-            idx = fuPool->getUnit(op_class);
-            issuing_inst->isFloating() ? fpAluAccesses++ : intAluAccesses++;
-            if (idx > -1) {
-                op_latency = fuPool->getOpLatency(op_class);
-            }
-        }
-        //</editor-fold>
-
-        // If we have an instruction that doesn't require a FU,
-        // or it got a valid FU, then schedule for execution.
-        if (idx == -2 || idx != -1) {
-            if (op_latency == Cycles(1)) {
-                i2e_info->size++;
-                instsToExecute.push_back(issuing_inst);
-
-                // Add the FU onto the list of FU's to be freed next
-                // cycle if we used one.
-                if (idx >= 0)
-                    fuPool->freeUnitNextCycle(idx);
-            } else {
-                bool pipelined = fuPool->isPipelined(op_class);
-                // Generate completion event for the FU
-                ++wbOutstanding;
-                FUCompletion *execution = new FUCompletion(issuing_inst,
-                                                           idx, this);
-
-                cpu->schedule(execution,
-                              cpu->clockEdge(Cycles(op_latency - 1)));
-
-                if (!pipelined) {
-                    // If FU isn't pipelined, then it must be freed
-                    // upon the execution completing.
-                    execution->setFreeFU();
-                } else {
-                    // Add the FU onto the list of FU's to be freed next cycle.
-                    fuPool->freeUnitNextCycle(idx);
+        if (issuedInsts[tid] < threadWidths[tid]) {
+            //<editor-fold desc="Get Op">
+            if (op_class != No_OpClass) {
+                idx = fuPool->getUnit(op_class);
+                issuing_inst->isFloating() ? fpAluAccesses++ : intAluAccesses++;
+                if (idx > -1) {
+                    op_latency = fuPool->getOpLatency(op_class);
                 }
             }
+            //</editor-fold>
 
-            DPRINTF(IQ, "Thread %i: Issuing instruction PC %s "
-                    "[sn:%lli]\n",
-                    tid, issuing_inst->pcState(),
-                    issuing_inst->seqNum);
+            // If we have an instruction that doesn't require a FU,
+            // or it got a valid FU, then schedule for execution.
+            if (idx == -2 || idx != -1) {
+                if (op_latency == Cycles(1)) {
+                    i2e_info->size++;
+                    instsToExecute.push_back(issuing_inst);
 
-            readyInsts[op_class].pop();
+                    // Add the FU onto the list of FU's to be freed next
+                    // cycle if we used one.
+                    if (idx >= 0)
+                        fuPool->freeUnitNextCycle(idx);
+                } else {
+                    bool pipelined = fuPool->isPipelined(op_class);
+                    // Generate completion event for the FU
+                    ++wbOutstanding;
+                    FUCompletion *execution = new FUCompletion(issuing_inst,
+                                                               idx, this);
 
-            if (!readyInsts[op_class].empty()) {
-                moveToYoungerInst(order_it);
-            } else {
-                readyIt[op_class] = listOrder.end();
-                queueOnList[op_class] = false;
-            }
+                    cpu->schedule(execution,
+                                  cpu->clockEdge(Cycles(op_latency - 1)));
 
-            issuing_inst->setIssued();
-            ++total_issued;
-            ++iqInstsIssuedPerThread[tid];
+                    if (!pipelined) {
+                        // If FU isn't pipelined, then it must be freed
+                        // upon the execution completing.
+                        execution->setFreeFU();
+                    } else {
+                        // Add the FU onto the list of FU's to be freed next cycle.
+                        fuPool->freeUnitNextCycle(idx);
+                    }
+                }
+
+                DPRINTF(IQ, "Thread %i: Issuing instruction PC %s "
+                        "[sn:%lli]\n",
+                        tid, issuing_inst->pcState(),
+                        issuing_inst->seqNum);
+
+                readyInsts[op_class].pop();
+
+                if (!readyInsts[op_class].empty()) {
+                    moveToYoungerInst(order_it);
+                } else {
+                    readyIt[op_class] = listOrder.end();
+                    queueOnList[op_class] = false;
+                }
+
+                issuing_inst->setIssued();
+                ++total_issued;
+                ++issuedInsts[tid];
+                ++iqInstsIssuedPerThread[tid];
 
 #if TRACING_ON
-            issuing_inst->issueTick = curTick() - issuing_inst->fetchTick;
+                issuing_inst->issueTick = curTick() - issuing_inst->fetchTick;
 #endif
 
-            if (!issuing_inst->isMemRef()) {
-                // Memory instructions can not be freed from the IQ until they
-                // complete.
-                commitInstCount(issuing_inst, tid);
-                issuing_inst->clearInIQ();
+                if (!issuing_inst->isMemRef()) {
+                    // Memory instructions can not be freed from the IQ until they
+                    // complete.
+                    commitInstCount(issuing_inst, tid);
+                    issuing_inst->clearInIQ();
+                } else {
+                    memDepUnit[tid].issue(issuing_inst);
+                    ILP_predictor[tid].incIssued();
+                }
+
+                listOrder.erase(order_it++);
+                statIssuedInstType[tid][op_class]++;
             } else {
-                memDepUnit[tid].issue(issuing_inst);
-                ILP_predictor[tid].incIssued();
+                statFuBusy[op_class]++;
+                fuBusy[tid]++;
+                ++order_it;
             }
 
-            listOrder.erase(order_it++);
-            statIssuedInstType[tid][op_class]++;
         } else {
-            statFuBusy[op_class]++;
-            fuBusy[tid]++;
+            issueThreadBlockedCycles[tid]++;
             ++order_it;
         }
     }

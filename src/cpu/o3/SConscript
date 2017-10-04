@@ -105,6 +105,7 @@ if 'O3CPU' in env['CPU_MODELS']:
     DebugFlag('EntrySanity')
     DebugFlag('ILPPred')
     DebugFlag('Cazorla')
+    DebugFlag('ThreadIssue')
 
     CompoundFlag('PardAll', ['FmtCtrl', 'Pard', 'FMT', 'VOC', 'BMT'])
 

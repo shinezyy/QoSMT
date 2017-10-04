@@ -663,6 +663,17 @@ class InstructionQueue
 
     DynInstPtr getMshrRejectedMemInstToExecute();
 
+  private:
+
+    // Issued instructions in one cycle
+    std::array<unsigned, Impl::MaxThreads> issuedInsts;
+
+    // Accumulated blocking cycles due to another thread
+    Stats::Vector issueThreadBlockedCycles;
+
+    // Issue width per thread
+    std::array<unsigned, Impl::MaxThreads> threadWidths;
+
 };
 
 #endif //__CPU_O3_INST_QUEUE_HH__
