@@ -668,15 +668,24 @@ FullO3CPU<Impl>::tick()
         getEventQueue(0)->wakeup();
     }
 
-    if (policyCycles >= policyWindowSize) {
-        resourceAdjust();
+    if (controlPolicy == ControlPolicy::Combined ||
+            controlPolicy == ControlPolicy::FrontEnd ||
+            controlPolicy == ControlPolicy::ILPOriented) {
+        if (policyCycles >= policyWindowSize) {
+            resourceAdjust();
 
-        rename.dumpStats();
-        rename.clearFull();
-        iew.dumpStats();
-        iew.clearFull();
+            rename.dumpStats();
+            rename.clearFull();
+            iew.dumpStats();
+            iew.clearFull();
 
-        policyCycles = 0;
+            policyCycles = 0;
+        }
+
+    } else if (controlPolicy == ControlPolicy::Cazorla) {
+        if (curPhaseCycles >= phaseLength) {
+            doCazorlaControl();
+        }
     }
 
     ppCycles->notify(1);
@@ -2035,14 +2044,6 @@ FullO3CPU<Impl>::sortContention() {
 template <class Impl>
 void
 FullO3CPU<Impl>::resourceAdjust() {
-    if (controlPolicy == ControlPolicy::None)
-        return;
-
-    if (controlPolicy == ControlPolicy::Cazorla) {
-        doCazorlaControl();
-        return;
-    }
-
     if (controlPolicy == ControlPolicy::Combined ||
         controlPolicy == ControlPolicy::FrontEnd) {
         sortContention();
@@ -2132,27 +2133,51 @@ FullO3CPU<Impl>::doCazorlaControl()
     if (cazorlaPhase == CazorlaPhase::Tuning) {
         if (subTuningPhaseNumber != 80) {
             continueTuning();
+
+            // Compute local IPC and compensation term
+            localIPC = div(curPhaseInsts, curPhaseCycles);
+            if (localIPC < targetIPC) {
+                compensationTerm += 5;
+            } else if (localIPC > targetIPC && compensationTerm >= 5) {
+                compensationTerm -= 5;
+            }
+
+            // Compute local target IPC
+            double expectedQoS_d = (double) expectedQoS;
+            double compensatedQoS = expectedQoS_d * 100 / 1024 + compensationTerm;
+            localTargetIPC = compensatedQoS * sampledIPC / 100;
+
             // Resource allocation
+            if (localIPC < localTargetIPC) {
+                // TODO: Allocate more to HPT
+
+            } else if (localIPC > localTargetIPC){
+                // TODO: Allocate more to LPT
+            }
 
         } else {
             switch2Presample();
+            allocAllResource2HPT();
         }
+
     } else if (cazorlaPhase == CazorlaPhase::NotStarted) {
         switch2Presample();
-
-        // switch to ST:
+        allocAllResource2HPT();
 
     } else if (cazorlaPhase == CazorlaPhase::Presample) {
         switch2Sampling();
-
-        // count instruction numbers
 
     } else if (cazorlaPhase == CazorlaPhase::Sampling) {
         switch2Tuning();
 
         // compute target IPC
+        sampledIPC = div(curPhaseInsts, curPhaseCycles);
+        targetIPC = sampledIPC * expectedQoS / 1024;
 
-        // switch to SMT
+        localTargetIPC = targetIPC;
+
+        // TODO: switch to SMT, allocate half of resources to HPT
+
     }
 }
 
@@ -2199,7 +2224,7 @@ FullO3CPU<Impl>::switch2Tuning()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::AllocAllFetch2HPT()
+FullO3CPU<Impl>::allocAllFetch2HPT()
 {
     DPRINTF(Cazorla, "Allocate all fetch opportunities to HPT\n");
     fetch.reassignFetchSlice(cazorlaVec, 1024);
@@ -2207,7 +2232,7 @@ FullO3CPU<Impl>::AllocAllFetch2HPT()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::AllocAllROB2HPT()
+FullO3CPU<Impl>::allocAllROB2HPT()
 {
     DPRINTF(Cazorla, "Allocate all ROB to HPT\n");
     commit.rob->reassignPortion(cazorlaVec, 2, 1024);
@@ -2215,7 +2240,7 @@ FullO3CPU<Impl>::AllocAllROB2HPT()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::AllocAllIQ2HPT()
+FullO3CPU<Impl>::allocAllIQ2HPT()
 {
     DPRINTF(Cazorla, "Allocate all IQ to HPT\n");
     iew.instQueue.reassignPortion(cazorlaVec, 2, 1024);
@@ -2223,7 +2248,7 @@ FullO3CPU<Impl>::AllocAllIQ2HPT()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::AllocAllLQ2HPT()
+FullO3CPU<Impl>::allocAllLQ2HPT()
 {
     DPRINTF(Cazorla, "Allocate all LQ to HPT\n");
     iew.ldstQueue.reassignLQPortion(cazorlaVec, 2, 1024);
@@ -2231,7 +2256,7 @@ FullO3CPU<Impl>::AllocAllLQ2HPT()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::AllocAllSQ2HPT()
+FullO3CPU<Impl>::allocAllSQ2HPT()
 {
     DPRINTF(Cazorla, "Allocate all SQ to HPT\n");
     iew.ldstQueue.reassignSQPortion(cazorlaVec, 2, 1024);
@@ -2239,7 +2264,7 @@ FullO3CPU<Impl>::AllocAllSQ2HPT()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::AllocAllCache2HPT()
+FullO3CPU<Impl>::allocAllCache2HPT()
 {
     DPRINTF(Cazorla, "Allocate all cache to HPT\n");
     int cacheAssoc;
@@ -2265,6 +2290,31 @@ FullO3CPU<Impl>::reConfigOneCache(
             wayRationConfig.assoc - HPTAssoc;
 
     wayRationConfig.updatedByCore = true;
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::allocAllResource2HPT()
+{
+    allocAllROB2HPT();
+    allocAllIQ2HPT();
+    allocAllLQ2HPT();
+    allocAllSQ2HPT();
+    allocAllCache2HPT();
+}
+
+template <class Impl>
+double
+FullO3CPU<Impl>::div(unsigned x, unsigned y)
+{
+    assert(y != 0);
+    return ((double) x) / ((double) y);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::allocIssue() {
+    //TODO: implement
 }
 
 // Forward declaration of FullO3CPU.

@@ -823,17 +823,17 @@ class FullO3CPU : public BaseO3CPU
 
     void adjustCache(int cacheLevel, bool DCache, bool incHPT);
 
-    void AllocAllFetch2HPT();
+    void allocAllFetch2HPT();
 
-    void AllocAllROB2HPT();
+    void allocAllROB2HPT();
 
-    void AllocAllIQ2HPT();
+    void allocAllIQ2HPT();
 
-    void AllocAllLQ2HPT();
+    void allocAllLQ2HPT();
 
-    void AllocAllSQ2HPT();
+    void allocAllSQ2HPT();
 
-    void AllocAllCache2HPT();
+    void allocAllCache2HPT();
 
     enum Contention {
         L1DCacheCont = 0,
@@ -894,13 +894,13 @@ class FullO3CPU : public BaseO3CPU
 
     unsigned curPhaseCycles;
 
-    float sampledIPC;
+    double sampledIPC;
 
-    float targetIPC;
+    double targetIPC;
 
-    float localIPC;
+    double localIPC;
 
-    float localTargetIPC;
+    double localTargetIPC;
 
     unsigned compensationTerm;
 
@@ -913,6 +913,12 @@ class FullO3CPU : public BaseO3CPU
     }
 
     void reConfigOneCache(WayRationConfig &wayRationConfig, int HPTAssoc);
+
+    void allocAllResource2HPT();
+
+    void allocIssue();
+
+    double div(unsigned x, unsigned y);
 };
 
 #endif // __CPU_O3_CPU_HH__
