@@ -811,29 +811,29 @@ class FullO3CPU : public BaseO3CPU
 
     bool satisfiedQoS();
 
-    void adjustFetch(bool incHPT);
+    void allocFetch(bool incHPT);
 
-    void adjustROB(bool incHPT);
+    void allocROB(bool incHPT);
 
-    void adjustIQ(bool incHPT);
+    void allocIQ(bool incHPT);
 
-    void adjustLQ(bool incHPT);
+    void allocLQ(bool incHPT);
 
-    void adjustSQ(bool incHPT);
+    void allocSQ(bool incHPT);
 
-    void adjustCache(int cacheLevel, bool DCache, bool incHPT);
+    void allocCache(int cacheLevel, bool DCache, bool incHPT);
 
-    void allocAllFetch2HPT();
+    void assignFetch(int quota);
 
-    void allocAllROB2HPT();
+    void assignROB(int quota);
 
-    void allocAllIQ2HPT();
+    void assignIQ(int quota);
 
-    void allocAllLQ2HPT();
+    void assignLQ(int quota);
 
-    void allocAllSQ2HPT();
+    void assignSQ(int quota);
 
-    void allocAllCache2HPT();
+    void assignL2Cache(int quota);
 
     enum Contention {
         L1DCacheCont = 0,
@@ -914,11 +914,24 @@ class FullO3CPU : public BaseO3CPU
 
     void reConfigOneCache(WayRationConfig &wayRationConfig, int HPTAssoc);
 
-    void allocAllResource2HPT();
+    void assignAllResource2HPT();
 
-    void allocIssue();
+    void assignHalfResource2HPT();
 
     double div(unsigned x, unsigned y);
+
+    const int grainFactor;
+
+    const int grain;
+
+    // If maxQuota is set to 1024, LPT can be throttled;
+    // Otherwise, set to 1024 - grain, LPT can keep running.
+    // It is set in constructor by params from O3CPU.py
+    const int HPTMaxQuota;
+
+    const int HPTMinQuota;
+
+    void allocAllResource(bool incHPT);
 };
 
 #endif // __CPU_O3_CPU_HH__

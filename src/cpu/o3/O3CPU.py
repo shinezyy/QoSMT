@@ -188,6 +188,10 @@ class DerivO3CPU(BaseCPU):
     numResourceToReserve = Param.Int(4, "number of resources to reserve at each end of policy window")
     numResourceToRelease = Param.Int(8, "number of resources to release at each end of policy window")
 
+    grainFactor = Param.Int(8, "Divide resources by grainFactor")
+    HPTMaxQuota = Param.Int(1024, "Max resource quota for HPT")
+    HPTMinQuota = Param.Int(128, "Min resource quota for HPT")
+
     def addCheckerCpu(self):
         if buildEnv['TARGET_ISA'] in ['arm']:
             from ArmTLB import ArmTLB

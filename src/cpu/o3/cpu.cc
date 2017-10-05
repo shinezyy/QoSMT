@@ -239,7 +239,11 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       targetIPC(0.0),
       localIPC(0.0),
       localTargetIPC(0.0),
-      compensationTerm(0)
+      compensationTerm(0),
+      grainFactor(params->grainFactor),
+      grain(1024 / grainFactor),
+      HPTMaxQuota(params->HPTMaxQuota),
+      HPTMinQuota(params->HPTMinQuota)
 {
     if (!params->switched_out) {
         _status = Running;
@@ -460,7 +464,7 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     iew.ldstQueue.init(params);
     rob.init(params);
 
-    leastPortion = 64;
+    leastPortion = grain;
     // check control policy
     if (params->controlPolicy == "Combined") {
         controlPolicy = Combined;
@@ -1888,14 +1892,14 @@ FullO3CPU<Impl>::satisfiedQoS()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustFetch(bool incHPT)
+FullO3CPU<Impl>::allocFetch(bool incHPT)
 {
     int vec[2];
-    int delta = incHPT ? 64 : -64;
+    int delta = incHPT ? grain : -grain;
 
     vec[HPT] = fetch.getHPTPortion() + delta;
-    vec[HPT] = std::min(vec[HPT], 1024 - 64);
-    vec[HPT] = std::max(vec[HPT], 64);
+    vec[HPT] = std::min(vec[HPT], HPTMaxQuota);
+    vec[HPT] = std::max(vec[HPT], HPTMinQuota);
     vec[LPT] = 1024 - vec[HPT];
 
     if (vec[HPT] != fetch.getHPTPortion()) {
@@ -1907,17 +1911,17 @@ FullO3CPU<Impl>::adjustFetch(bool incHPT)
 
 #define portionRangeCheck \
 do { \
-    vec[HPT] = std::min(vec[HPT], 1024 - leastPortion); \
-    vec[HPT] = std::max(vec[HPT], leastPortion); \
+    vec[HPT] = std::min(vec[HPT], HPTMaxQuota); \
+    vec[HPT] = std::max(vec[HPT], HPTMinQuota); \
     vec[LPT] = 1024 - vec[HPT]; \
 } while(0)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustROB(bool incHPT)
+FullO3CPU<Impl>::allocROB(bool incHPT)
 {
     int vec[2];
-    int delta = incHPT ? 64 : -64;
+    int delta = incHPT ? grain : -grain;
     vec[HPT] = commit.rob->getHPTPortion() + delta;
     portionRangeCheck;
 
@@ -1930,10 +1934,10 @@ FullO3CPU<Impl>::adjustROB(bool incHPT)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustIQ(bool incHPT)
+FullO3CPU<Impl>::allocIQ(bool incHPT)
 {
     int vec[2];
-    int delta = incHPT ? 64 : -64;
+    int delta = incHPT ? grain : -grain;
     vec[HPT] = iew.instQueue.getHPTPortion() + delta;
     portionRangeCheck;
 
@@ -1946,10 +1950,10 @@ FullO3CPU<Impl>::adjustIQ(bool incHPT)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustLQ(bool incHPT)
+FullO3CPU<Impl>::allocLQ(bool incHPT)
 {
     int vec[2];
-    int delta = incHPT ? 64 : -64;
+    int delta = incHPT ? grain : -grain;
     vec[0] = iew.ldstQueue.getHPTLQPortion() + delta;
     portionRangeCheck;
 
@@ -1962,10 +1966,10 @@ FullO3CPU<Impl>::adjustLQ(bool incHPT)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustSQ(bool incHPT)
+FullO3CPU<Impl>::allocSQ(bool incHPT)
 {
     int vec[2];
-    int delta = incHPT ? 64 : -64;
+    int delta = incHPT ? grain : -grain;
     vec[0] = iew.ldstQueue.getHPTSQPortion() + delta;
     portionRangeCheck;
 
@@ -1980,7 +1984,7 @@ FullO3CPU<Impl>::adjustSQ(bool incHPT)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::adjustCache(int cacheLevel, bool DCache, bool incHPT)
+FullO3CPU<Impl>::allocCache(int cacheLevel, bool DCache, bool incHPT)
 {
     WayRationConfig *wayRationConfig = nullptr;
     if (cacheLevel == 2) {
@@ -2072,10 +2076,10 @@ FullO3CPU<Impl>::resourceAdjust() {
         ILP_predictor[LPT].clear();
         DPRINTF(ILPPred, "T[0] ILP: %f; T[1] ILP: %f\n", ILP0, ILP1);
 
-        adjustROB(ILP0 >= ILP1);
-        adjustIQ(ILP0 >= ILP1);
-        adjustLQ(ILP0 >= ILP1);
-        adjustSQ(ILP0 >= ILP1);
+        allocROB(ILP0 >= ILP1);
+        allocIQ(ILP0 >= ILP1);
+        allocLQ(ILP0 >= ILP1);
+        allocSQ(ILP0 >= ILP1);
 
         return;
     }
@@ -2090,34 +2094,34 @@ FullO3CPU<Impl>::adjustRoute(Contention contention, bool incHPT)
     switch (contention) {
         case Contention::L1DCacheCont:
             if (!dynCache) return 0;
-            adjustCache(1, true, incHPT);
+            allocCache(1, true, incHPT);
             break;
         case Contention::L1ICacheCont:
             if (!dynCache) return 0;
-            adjustCache(1, false, incHPT);
+            allocCache(1, false, incHPT);
             break;
         case Contention::L2CacheCont:
             if (!dynCache) return 0;
-            adjustCache(2, true, incHPT);
+            allocCache(2, true, incHPT);
             break;
         case Contention::FetchCont:
-            adjustFetch(incHPT);
+            allocFetch(incHPT);
             break;
         case Contention::ROBCont:
             if (controlPolicy == ControlPolicy::FrontEnd) return 0;
-            adjustROB(incHPT);
+            allocROB(incHPT);
             break;
         case Contention::IQCont:
             if (controlPolicy == ControlPolicy::FrontEnd) return 0;
-            adjustIQ(incHPT);
+            allocIQ(incHPT);
             break;
         case Contention::LQCont:
             if (controlPolicy == ControlPolicy::FrontEnd) return 0;
-            adjustLQ(incHPT);
+            allocLQ(incHPT);
             break;
         case Contention::SQCont:
             if (controlPolicy == ControlPolicy::FrontEnd) return 0;
-            adjustSQ(incHPT);
+            allocSQ(incHPT);
             break;
         default:
             panic("Unexpected type of contention!\n");
@@ -2149,20 +2153,20 @@ FullO3CPU<Impl>::doCazorlaControl()
 
             // Resource allocation
             if (localIPC < localTargetIPC) {
-                // TODO: Allocate more to HPT
+                allocAllResource(true);
 
             } else if (localIPC > localTargetIPC){
-                // TODO: Allocate more to LPT
+                allocAllResource(false);
             }
 
         } else {
             switch2Presample();
-            allocAllResource2HPT();
+            assignAllResource2HPT();
         }
 
     } else if (cazorlaPhase == CazorlaPhase::NotStarted) {
         switch2Presample();
-        allocAllResource2HPT();
+        assignAllResource2HPT();
 
     } else if (cazorlaPhase == CazorlaPhase::Presample) {
         switch2Sampling();
@@ -2176,8 +2180,8 @@ FullO3CPU<Impl>::doCazorlaControl()
 
         localTargetIPC = targetIPC;
 
-        // TODO: switch to SMT, allocate half of resources to HPT
-
+        // switch to SMT, allocate half of resources to HPT
+        assignHalfResource2HPT();
     }
 }
 
@@ -2224,58 +2228,60 @@ FullO3CPU<Impl>::switch2Tuning()
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocAllFetch2HPT()
+FullO3CPU<Impl>::assignFetch(int quota)
 {
     DPRINTF(Cazorla, "Allocate all fetch opportunities to HPT\n");
-    fetch.reassignFetchSlice(cazorlaVec, 1024);
+    fetch.reassignFetchSlice(cazorlaVec, quota);
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocAllROB2HPT()
+FullO3CPU<Impl>::assignROB(int quota)
 {
     DPRINTF(Cazorla, "Allocate all ROB to HPT\n");
-    commit.rob->reassignPortion(cazorlaVec, 2, 1024);
+    commit.rob->reassignPortion(cazorlaVec, 2, quota);
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocAllIQ2HPT()
+FullO3CPU<Impl>::assignIQ(int quota)
 {
     DPRINTF(Cazorla, "Allocate all IQ to HPT\n");
-    iew.instQueue.reassignPortion(cazorlaVec, 2, 1024);
+    iew.instQueue.reassignPortion(cazorlaVec, 2, quota);
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocAllLQ2HPT()
+FullO3CPU<Impl>::assignLQ(int quota)
 {
     DPRINTF(Cazorla, "Allocate all LQ to HPT\n");
-    iew.ldstQueue.reassignLQPortion(cazorlaVec, 2, 1024);
+    iew.ldstQueue.reassignLQPortion(cazorlaVec, 2, quota);
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocAllSQ2HPT()
+FullO3CPU<Impl>::assignSQ(int quota)
 {
     DPRINTF(Cazorla, "Allocate all SQ to HPT\n");
-    iew.ldstQueue.reassignSQPortion(cazorlaVec, 2, 1024);
+    iew.ldstQueue.reassignSQPortion(cazorlaVec, 2, quota);
 }
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocAllCache2HPT()
+FullO3CPU<Impl>::assignL2Cache(int quota)
 {
     DPRINTF(Cazorla, "Allocate all cache to HPT\n");
     int cacheAssoc;
 
-    cacheAssoc = controlPanel.l1ICacheWayConfig.assoc;
-    reConfigOneCache(controlPanel.l1ICacheWayConfig, cacheAssoc);
+    // Note that Cazorla does not requires L1 configuration
+    // So TODO: use Normal cache for L1
+    //    cacheAssoc = controlPanel.l1ICacheWayConfig.assoc;
+    //    reConfigOneCache(controlPanel.l1ICacheWayConfig, cacheAssoc);
+    //
+    //    cacheAssoc = controlPanel.l1DCacheWayConfig.assoc;
+    //    reConfigOneCache(controlPanel.l1DCacheWayConfig, cacheAssoc);
 
-    cacheAssoc = controlPanel.l1DCacheWayConfig.assoc;
-    reConfigOneCache(controlPanel.l1DCacheWayConfig, cacheAssoc);
-
-    cacheAssoc = controlPanel.l2CacheWayConfig.assoc;
+    cacheAssoc = controlPanel.l2CacheWayConfig.assoc * quota / 1024;
     reConfigOneCache(controlPanel.l2CacheWayConfig, cacheAssoc);
 }
 
@@ -2294,13 +2300,14 @@ FullO3CPU<Impl>::reConfigOneCache(
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocAllResource2HPT()
+FullO3CPU<Impl>::assignAllResource2HPT()
 {
-    allocAllROB2HPT();
-    allocAllIQ2HPT();
-    allocAllLQ2HPT();
-    allocAllSQ2HPT();
-    allocAllCache2HPT();
+    assignFetch(1024);
+    assignROB(1024);
+    assignIQ(1024);
+    assignLQ(1024);
+    assignSQ(1024);
+    assignL2Cache(1024);
 }
 
 template <class Impl>
@@ -2313,8 +2320,26 @@ FullO3CPU<Impl>::div(unsigned x, unsigned y)
 
 template <class Impl>
 void
-FullO3CPU<Impl>::allocIssue() {
-    //TODO: implement
+FullO3CPU<Impl>::allocAllResource(bool incHPT)
+{
+    allocFetch(incHPT);
+    allocROB(incHPT);
+    allocIQ(incHPT); // Including issue width
+    allocLQ(incHPT);
+    allocSQ(incHPT);
+    allocCache(2, true, incHPT);
+}
+
+template <class Impl>
+void
+FullO3CPU<Impl>::assignHalfResource2HPT()
+{
+    assignFetch(512);
+    assignROB(512);
+    assignIQ(512);
+    assignLQ(512);
+    assignSQ(512);
+    assignL2Cache(512);
 }
 
 // Forward declaration of FullO3CPU.
