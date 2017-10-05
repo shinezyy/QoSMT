@@ -79,7 +79,7 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 CacheBlk*
 LRU::findVictim(Addr addr)
 {
-    assert(curThreadID > 0);
+    assert(curThreadID >= 0);
     int set = extractSet(addr);
     // grab a replacement candidate
     BlkType *blk = sets[set].blks[assoc - 1];

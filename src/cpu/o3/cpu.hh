@@ -890,7 +890,7 @@ class FullO3CPU : public BaseO3CPU
 
     unsigned phaseLength;
 
-    unsigned curPhaseInsts;
+    std::array<unsigned, Impl::MaxThreads> curPhaseInsts;
 
     unsigned curPhaseCycles;
 

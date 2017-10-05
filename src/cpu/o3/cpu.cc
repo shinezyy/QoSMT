@@ -234,7 +234,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       numPreSampleCycles(0),
       numSampleCycles(0),
       numSubPhaseCycles(0),
-      curPhaseInsts(0),
+      phaseLength(0),
+      curPhaseCycles(0),
       sampledIPC(0.0),
       targetIPC(0.0),
       localIPC(0.0),
@@ -480,6 +481,8 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
     } else {
         panic("Unknown Control Policy %s!\n", params->controlPolicy);
     }
+
+    std::fill(curPhaseInsts.begin(), curPhaseInsts.end(), 0);
 }
 
 template <class Impl>
@@ -656,6 +659,7 @@ FullO3CPU<Impl>::tick()
     ++localCycles;
     ++dumpCycles;
     ++policyCycles;
+    ++curPhaseCycles;
 
     if (dumpCycles >= dumpWindowSize) {
 
@@ -1596,6 +1600,7 @@ FullO3CPU<Impl>::instDone(ThreadID tid, DynInstPtr &inst)
         thread[tid]->numInst++;
         thread[tid]->numInsts++;
         committedInsts[tid]++;
+        curPhaseInsts[HPT]++;
         system->totalNumInsts++;
 
         // Check for instruction-count-based events.
@@ -1792,6 +1797,7 @@ FullO3CPU<Impl>::wakeCPU()
         localCycles += cycles;
         dumpCycles += cycles;
         policyCycles += cycles;
+        curPhaseCycles += cycles;
         ppCycles->notify(cycles);
     }
 
@@ -2136,10 +2142,8 @@ FullO3CPU<Impl>::doCazorlaControl()
 {
     if (cazorlaPhase == CazorlaPhase::Tuning) {
         if (subTuningPhaseNumber != 80) {
-            continueTuning();
-
             // Compute local IPC and compensation term
-            localIPC = div(curPhaseInsts, curPhaseCycles);
+            localIPC = div(curPhaseInsts[HPT], curPhaseCycles);
             if (localIPC < targetIPC) {
                 compensationTerm += 5;
             } else if (localIPC > targetIPC && compensationTerm >= 5) {
@@ -2159,29 +2163,31 @@ FullO3CPU<Impl>::doCazorlaControl()
                 allocAllResource(false);
             }
 
+            continueTuning();
+
         } else {
-            switch2Presample();
             assignAllResource2HPT();
+            switch2Presample();
         }
 
     } else if (cazorlaPhase == CazorlaPhase::NotStarted) {
-        switch2Presample();
         assignAllResource2HPT();
+        switch2Presample();
 
     } else if (cazorlaPhase == CazorlaPhase::Presample) {
         switch2Sampling();
 
     } else if (cazorlaPhase == CazorlaPhase::Sampling) {
-        switch2Tuning();
-
         // compute target IPC
-        sampledIPC = div(curPhaseInsts, curPhaseCycles);
+        sampledIPC = div(curPhaseInsts[HPT], curPhaseCycles);
         targetIPC = sampledIPC * expectedQoS / 1024;
 
         localTargetIPC = targetIPC;
 
         // switch to SMT, allocate half of resources to HPT
         assignHalfResource2HPT();
+
+        switch2Tuning();
     }
 }
 
@@ -2191,7 +2197,7 @@ FullO3CPU<Impl>::continueTuning()
 {
     phaseLength = numSubPhaseCycles;
     curPhaseCycles = 0;
-    curPhaseInsts = 0;
+    curPhaseInsts[HPT] = 0;
     subTuningPhaseNumber += 1;
 }
 
@@ -2202,7 +2208,7 @@ FullO3CPU<Impl>::switch2Presample()
     cazorlaPhase = CazorlaPhase::Presample;
     phaseLength = numPreSampleCycles;
     curPhaseCycles = 0;
-    curPhaseInsts = 0;
+    curPhaseInsts[HPT] = 0;
 }
 
 template <class Impl>
@@ -2212,7 +2218,7 @@ FullO3CPU<Impl>::switch2Sampling()
     cazorlaPhase = CazorlaPhase::Sampling;
     phaseLength = numSampleCycles;
     curPhaseCycles = 0;
-    curPhaseInsts = 0;
+    curPhaseInsts[HPT] = 0;
 }
 
 template <class Impl>
@@ -2223,7 +2229,7 @@ FullO3CPU<Impl>::switch2Tuning()
     phaseLength = numSubPhaseCycles;
     subTuningPhaseNumber = 0;
     curPhaseCycles = 0;
-    curPhaseInsts = 0;
+    curPhaseInsts[HPT] = 0;
 }
 
 template <class Impl>
