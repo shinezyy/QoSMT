@@ -71,6 +71,7 @@ def cache_config_2(system, options):
     if options.dyn_cache:
         assert not options.dup_cache
         assert not options.comp_cache
+        assert not options.carzola_cache
         for cpu in system.cpu:
             cpu.icache.tags = LRUDynPartition()
             cpu.icache.tags.thread_0_assoc = 2
@@ -86,14 +87,26 @@ def cache_config_2(system, options):
 
     elif options.comp_cache:
         assert not options.dup_cache
-        assert not options.dyn_cache
+        assert not options.carzola_cache
 
         for cpu in system.cpu:
             cpu.icache.tags = LRU()
             cpu.dcache.tags = LRU()
         system.l2.tags = LRU()
 
+    elif options.cazorla_cache:
+        assert not options.dup_cache
+        for cpu in system.cpu:
+            cpu.icache.tags = LRU()
+            cpu.dcache.tags = LRU()
+
+        system.l2.tags = LRUDynPartition()
+        system.l2.tags.thread_0_assoc = 4
+        system.l2.shadow_tag_assoc = 8
+
     else: # static partition
+        assert not options.dyn_cache
+        assert not options.comp_cache
         for cpu in system.cpu:
             cpu.icache.tags = LRUPartition()
             cpu.icache.tags.thread_0_assoc = 2 * dup
