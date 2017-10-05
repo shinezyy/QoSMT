@@ -62,18 +62,18 @@ class LRUPartition : public BaseSetAssoc
     /**
      * Construct and initialize this tag store.
      */
-    LRUPartition(const Params *p);
+    explicit LRUPartition(const Params *p);
 
     /**
      * Destructor
      */
-    ~LRUPartition() {}
+    ~LRUPartition() override = default;
 
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
-                         int context_src);
-    CacheBlk* findVictim(Addr addr);
-    void insertBlock(PacketPtr pkt, BlkType *blk);
-    void invalidate(CacheBlk *blk);
+                         int context_src) override;
+    CacheBlk* findVictim(Addr addr) override;
+    void insertBlock(PacketPtr pkt, BlkType *blk) override;
+    void invalidate(CacheBlk *blk) override;
 
     void setThread(ThreadID tid) override {
         curThreadID = tid;
@@ -90,7 +90,7 @@ class LRUPartition : public BaseSetAssoc
      */
 #define MAX_NUM_SETS 4096
     int threadWayRation[MAX_NUM_SETS][2];
-    int curThreadID;
+    ThreadID curThreadID;
 };
 
 #endif // __MEM_CACHE_TAGS_LRUPartition_HH__

@@ -62,18 +62,30 @@ class LRU : public BaseSetAssoc
     /**
      * Construct and initialize this tag store.
      */
-    LRU(const Params *p);
+    explicit LRU(const Params *p);
 
     /**
      * Destructor
      */
-    ~LRU() {}
+    ~LRU() override = default;
 
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
-                         int context_src);
-    CacheBlk* findVictim(Addr addr);
-    void insertBlock(PacketPtr pkt, BlkType *blk);
-    void invalidate(CacheBlk *blk);
+                         int context_src) override;
+    CacheBlk* findVictim(Addr addr) override;
+    void insertBlock(PacketPtr pkt, BlkType *blk) override;
+    void invalidate(CacheBlk *blk) override;
+
+    void setThread(ThreadID tid) override {
+        curThreadID = tid;
+    }
+
+    void clearThread() override {
+        curThreadID = -1;
+    }
+
+
+  private:
+    ThreadID curThreadID;
 };
 
 #endif // __MEM_CACHE_TAGS_LRU_HH__

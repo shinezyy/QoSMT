@@ -52,6 +52,11 @@
 LRU::LRU(const Params *p)
     : BaseSetAssoc(p)
 {
+    for (int i = 0; i < numSets; i++) {
+        for (int j = 0; j < assoc; j++) {
+            sets[i].blks[j]->threadID = -1;
+        }
+    }
 }
 
 CacheBlk*
@@ -59,9 +64,10 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 {
     CacheBlk *blk = BaseSetAssoc::accessBlock(addr, is_secure, lat, master_id);
 
-    if (blk != NULL) {
+    if (blk != nullptr) {
         // move this block to head of the MRU list
         sets[blk->set].moveToHead(blk);
+        assert(blk->threadID >= 0);
         DPRINTF(CacheRepl, "set %x: moving blk %x (%s) to MRU\n",
                 blk->set, regenerateBlkAddr(blk->tag, blk->set),
                 is_secure ? "s" : "ns");
@@ -73,6 +79,7 @@ LRU::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 CacheBlk*
 LRU::findVictim(Addr addr)
 {
+    assert(curThreadID > 0);
     int set = extractSet(addr);
     // grab a replacement candidate
     BlkType *blk = sets[set].blks[assoc - 1];
@@ -82,6 +89,8 @@ LRU::findVictim(Addr addr)
                 set, regenerateBlkAddr(blk->tag, set));
     }
 
+    blk->threadID = curThreadID;
+
     return blk;
 }
 
@@ -90,6 +99,7 @@ LRU::insertBlock(PacketPtr pkt, BlkType *blk)
 {
     BaseSetAssoc::insertBlock(pkt, blk);
 
+    assert(blk->threadID >= 0);
     int set = extractSet(pkt->getAddr());
     sets[set].moveToHead(blk);
 }
@@ -102,6 +112,9 @@ LRU::invalidate(CacheBlk *blk)
     // should be evicted before valid blocks
     int set = blk->set;
     sets[set].moveToTail(blk);
+
+    assert(blk->threadID >= 0);
+    blk->threadID = -1;
 }
 
 LRU*

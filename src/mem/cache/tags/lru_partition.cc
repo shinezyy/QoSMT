@@ -72,7 +72,7 @@ LRUPartition::accessBlock(Addr addr, bool is_secure, Cycles &lat, int master_id)
 {
     CacheBlk *blk = BaseSetAssoc::accessBlock(addr, is_secure, lat, master_id);
 
-    if (blk != NULL) {
+    if (blk != nullptr) {
         // move this block to head of the MRU list
         sets[blk->set].moveToHead(blk);
         // Check the coherence of threadID assigned when inserted.
@@ -100,7 +100,7 @@ LRUPartition::findVictim(Addr addr)
     assert(curThreadID >= 0);
     int set = extractSet(addr);
     // grab a replacement candidate
-    BlkType *blk = NULL;
+    BlkType *blk = nullptr;
     if (threadWayRation[set][curThreadID] > 0) {  // find invlaid ones
         int i;
         for (i = assoc - 1; i >= 0; i--) {
@@ -113,8 +113,7 @@ LRUPartition::findVictim(Addr addr)
         assert(i >= 0);
         threadWayRation[set][curThreadID]--;
         blk->threadID = curThreadID;
-    }
-    else {  // find last used line inside its own ways.
+    } else {  // find last used line inside its own ways.
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
             if (blk->threadID == curThreadID) break;
