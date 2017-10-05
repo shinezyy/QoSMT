@@ -2231,7 +2231,9 @@ void
 FullO3CPU<Impl>::assignFetch(int quota)
 {
     DPRINTF(Cazorla, "Allocate all fetch opportunities to HPT\n");
-    fetch.reassignFetchSlice(cazorlaVec, quota);
+    cazorlaVec[0] = quota;
+    cazorlaVec[1] = 1024 - quota;
+    fetch.reassignFetchSlice(cazorlaVec, 1024);
 }
 
 template <class Impl>
@@ -2239,7 +2241,9 @@ void
 FullO3CPU<Impl>::assignROB(int quota)
 {
     DPRINTF(Cazorla, "Allocate all ROB to HPT\n");
-    commit.rob->reassignPortion(cazorlaVec, 2, quota);
+    cazorlaVec[0] = quota;
+    cazorlaVec[1] = 1024 - quota;
+    commit.rob->reassignPortion(cazorlaVec, 2, 1024);
 }
 
 template <class Impl>
@@ -2247,7 +2251,9 @@ void
 FullO3CPU<Impl>::assignIQ(int quota)
 {
     DPRINTF(Cazorla, "Allocate all IQ to HPT\n");
-    iew.instQueue.reassignPortion(cazorlaVec, 2, quota);
+    cazorlaVec[0] = quota;
+    cazorlaVec[1] = 1024 - quota;
+    iew.instQueue.reassignPortion(cazorlaVec, 2, 1024);
 }
 
 template <class Impl>
@@ -2255,7 +2261,9 @@ void
 FullO3CPU<Impl>::assignLQ(int quota)
 {
     DPRINTF(Cazorla, "Allocate all LQ to HPT\n");
-    iew.ldstQueue.reassignLQPortion(cazorlaVec, 2, quota);
+    cazorlaVec[0] = quota;
+    cazorlaVec[1] = 1024 - quota;
+    iew.ldstQueue.reassignLQPortion(cazorlaVec, 2, 1024);
 }
 
 template <class Impl>
@@ -2263,7 +2271,9 @@ void
 FullO3CPU<Impl>::assignSQ(int quota)
 {
     DPRINTF(Cazorla, "Allocate all SQ to HPT\n");
-    iew.ldstQueue.reassignSQPortion(cazorlaVec, 2, quota);
+    cazorlaVec[0] = quota;
+    cazorlaVec[1] = 1024 - quota;
+    iew.ldstQueue.reassignSQPortion(cazorlaVec, 2, 1024);
 }
 
 template <class Impl>
