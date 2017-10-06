@@ -619,7 +619,11 @@ InstructionQueue<Impl>::reassignPortion(int newPortionVec[],
     denominator = newPortionDenominator;
 
     // Issue width
+
+
     threadWidths[HPT] = totalWidth * portion[0] / denominator;
+    // avoid LPT fill up IQ
+    threadWidths[HPT] = std::min((unsigned) totalWidth - 1, threadWidths[HPT]);
     threadWidths[LPT] = totalWidth - threadWidths[HPT];
 }
 

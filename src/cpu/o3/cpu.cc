@@ -2191,6 +2191,7 @@ FullO3CPU<Impl>::doCazorlaControl()
         DPRINTF(Cazorla, "phaseLength = %i\n", phaseLength);
         DPRINTF(Cazorla, "curPhaseCycles = %i\n", curPhaseCycles);
         DPRINTF(Cazorla, "curPhaseInsts[HPT] = %i\n", curPhaseInsts[HPT]);
+        DPRINTF(Cazorla, "curPhaseInsts[LPT] = %i\n", curPhaseInsts[LPT]);
         DPRINTF(Cazorla, "sampledIPC = %f\n", sampledIPC);
 
         // switch to SMT, allocate half of resources to HPT
@@ -2206,7 +2207,7 @@ FullO3CPU<Impl>::continueTuning()
 {
     phaseLength = numSubPhaseCycles;
     curPhaseCycles = 0;
-    curPhaseInsts[HPT] = 0;
+    std::fill(curPhaseInsts.begin(), curPhaseInsts.end(), 0);
     subTuningPhaseNumber += 1;
     DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
@@ -2218,7 +2219,7 @@ FullO3CPU<Impl>::switch2Presample()
     cazorlaPhase = CazorlaPhase::Presample;
     phaseLength = numPreSampleCycles;
     curPhaseCycles = 0;
-    curPhaseInsts[HPT] = 0;
+    std::fill(curPhaseInsts.begin(), curPhaseInsts.end(), 0);
     DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
 
@@ -2229,7 +2230,7 @@ FullO3CPU<Impl>::switch2Sampling()
     cazorlaPhase = CazorlaPhase::Sampling;
     phaseLength = numSampleCycles;
     curPhaseCycles = 0;
-    curPhaseInsts[HPT] = 0;
+    std::fill(curPhaseInsts.begin(), curPhaseInsts.end(), 0);
     DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
 
@@ -2241,7 +2242,7 @@ FullO3CPU<Impl>::switch2Tuning()
     phaseLength = numSubPhaseCycles;
     subTuningPhaseNumber = 0;
     curPhaseCycles = 0;
-    curPhaseInsts[HPT] = 0;
+    std::fill(curPhaseInsts.begin(), curPhaseInsts.end(), 0);
     DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
 
