@@ -231,9 +231,9 @@ FullO3CPU<Impl>::FullO3CPU(DerivO3CPUParams *params)
       dynCache(params->dynCache),
       cazorlaPhase(CazorlaPhase::NotStarted),
       subTuningPhaseNumber(0),
-      numPreSampleCycles(0),
-      numSampleCycles(0),
-      numSubPhaseCycles(0),
+      numPreSampleCycles(50000),
+      numSampleCycles(10000),
+      numSubPhaseCycles(15000),
       phaseLength(0),
       curPhaseCycles(0),
       sampledIPC(0.0),
@@ -1600,7 +1600,7 @@ FullO3CPU<Impl>::instDone(ThreadID tid, DynInstPtr &inst)
         thread[tid]->numInst++;
         thread[tid]->numInsts++;
         committedInsts[tid]++;
-        curPhaseInsts[HPT]++;
+        curPhaseInsts[tid]++;
         system->totalNumInsts++;
 
         // Check for instruction-count-based events.
@@ -2155,17 +2155,19 @@ FullO3CPU<Impl>::doCazorlaControl()
             double compensatedQoS = expectedQoS_d * 100 / 1024 + compensationTerm;
             localTargetIPC = compensatedQoS * sampledIPC / 100;
 
-            // Resource allocation
-            if (localIPC < localTargetIPC) {
-                allocAllResource(true);
+            bool incHPT = localIPC < localTargetIPC;
+            DPRINTF(Cazorla, "curPhaseInsts[HPT] = %i\n", curPhaseInsts[HPT]);
+            DPRINTF(Cazorla, "local target IPC is %f, local IPC is %f\n"
+                    "is to %s HPT quota\n",
+                    localTargetIPC, localIPC, incHPT ? "inc" : "dec");
 
-            } else if (localIPC > localTargetIPC){
-                allocAllResource(false);
-            }
+            // Resource allocation
+            allocAllResource(incHPT);
 
             continueTuning();
 
         } else {
+            DPRINTF(Cazorla, "==== End Tuning\n");
             assignAllResource2HPT();
             switch2Presample();
         }
@@ -2175,14 +2177,20 @@ FullO3CPU<Impl>::doCazorlaControl()
         switch2Presample();
 
     } else if (cazorlaPhase == CazorlaPhase::Presample) {
+        DPRINTF(Cazorla, "==== End PreSample\n");
         switch2Sampling();
 
     } else if (cazorlaPhase == CazorlaPhase::Sampling) {
+        DPRINTF(Cazorla, "==== End Sample\n");
         // compute target IPC
         sampledIPC = div(curPhaseInsts[HPT], curPhaseCycles);
         targetIPC = sampledIPC * expectedQoS / 1024;
 
         localTargetIPC = targetIPC;
+        DPRINTF(Cazorla, "phaseLength = %i\n", phaseLength);
+        DPRINTF(Cazorla, "curPhaseCycles = %i\n", curPhaseCycles);
+        DPRINTF(Cazorla, "curPhaseInsts[HPT] = %i\n", curPhaseInsts[HPT]);
+        DPRINTF(Cazorla, "sampledIPC = %f\n", sampledIPC);
 
         // switch to SMT, allocate half of resources to HPT
         assignHalfResource2HPT();
@@ -2240,7 +2248,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::assignFetch(int quota)
 {
-    DPRINTF(Cazorla, "Allocate all fetch opportunities to HPT\n");
+    DPRINTF(Cazorla, "Allocate %d fetch opportunities to HPT\n", quota);
     cazorlaVec[0] = quota;
     cazorlaVec[1] = 1024 - quota;
     fetch.reassignFetchSlice(cazorlaVec, 1024);
@@ -2250,7 +2258,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::assignROB(int quota)
 {
-    DPRINTF(Cazorla, "Allocate all ROB to HPT\n");
+    DPRINTF(Cazorla, "Allocate %d to HPT\n", quota);
     cazorlaVec[0] = quota;
     cazorlaVec[1] = 1024 - quota;
     commit.rob->reassignPortion(cazorlaVec, 2, 1024);
@@ -2260,7 +2268,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::assignIQ(int quota)
 {
-    DPRINTF(Cazorla, "Allocate all IQ to HPT\n");
+    DPRINTF(Cazorla, "Allocate %d IQ to HPT\n", quota);
     cazorlaVec[0] = quota;
     cazorlaVec[1] = 1024 - quota;
     iew.instQueue.reassignPortion(cazorlaVec, 2, 1024);
@@ -2270,7 +2278,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::assignLQ(int quota)
 {
-    DPRINTF(Cazorla, "Allocate all LQ to HPT\n");
+    DPRINTF(Cazorla, "Allocate %d LQ to HPT\n", quota);
     cazorlaVec[0] = quota;
     cazorlaVec[1] = 1024 - quota;
     iew.ldstQueue.reassignLQPortion(cazorlaVec, 2, 1024);
@@ -2280,7 +2288,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::assignSQ(int quota)
 {
-    DPRINTF(Cazorla, "Allocate all SQ to HPT\n");
+    DPRINTF(Cazorla, "Allocate %d SQ to HPT\n", quota);
     cazorlaVec[0] = quota;
     cazorlaVec[1] = 1024 - quota;
     iew.ldstQueue.reassignSQPortion(cazorlaVec, 2, 1024);
@@ -2290,7 +2298,7 @@ template <class Impl>
 void
 FullO3CPU<Impl>::assignL2Cache(int quota)
 {
-    DPRINTF(Cazorla, "Allocate all cache to HPT\n");
+    DPRINTF(Cazorla, "Allocate %d cache to HPT\n", quota);
     int cacheAssoc;
 
     // Note that Cazorla does not requires L1 configuration
