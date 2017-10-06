@@ -48,6 +48,7 @@
 #include "debug/CacheRepl.hh"
 #include "debug/DynCache.hh"
 #include "debug/DynCache2.hh"
+#include "debug/DynCache3.hh"
 #include "mem/cache/tags/lru_dynpartition.hh"
 #include "mem/cache/base.hh"
 
@@ -144,25 +145,34 @@ LRUDynPartition::findVictim(Addr addr)
             *selfVictim = nullptr,
             *otherVictim = nullptr;
 
+    DPRINTF(DynCache2, "To get victim\n");
     get3PossibleVictim(invalidVictim, selfVictim, otherVictim, curThreadID, set);
+    DPRINTF(DynCache2, "Got victim\n");
 
     if (threadWayRation[set][curThreadID] > wayCount[set][curThreadID]) {
         if (invalidVictim != nullptr) {
             blk = invalidVictim;
         } else {
+            assert(otherVictim);
             blk = otherVictim;
             wayCount[set][1-curThreadID]--;
         }
         blk->threadID = curThreadID;
         wayCount[set][curThreadID]++;
     } else {
+        assert(selfVictim);
         blk = selfVictim;
     }
 
-    assert(threadWayRation[set][curThreadID] >= 0);
-    assert(threadWayRation[set][1-curThreadID] >= 0);
-    assert(threadWayRation[set][curThreadID] >= wayCount[set][curThreadID]);
-    assert(threadWayRation[set][1-curThreadID] >= wayCount[set][1-curThreadID]);
+    assert(threadWayRation[set][curThreadID] > 0);
+    assert(threadWayRation[set][1-curThreadID] > 0);
+
+    // NOTE that the real way allocation will not change
+    // as soon as the ration changes,
+    // so following two assertion is false
+    // assert(threadWayRation[set][curThreadID] >= wayCount[set][curThreadID]);
+    // assert(threadWayRation[set][1-curThreadID] >= wayCount[set][1-curThreadID]);
+
     assert(wayCount[set][curThreadID] >= 0);
     assert(wayCount[set][1-curThreadID] >= 0);
     return blk;
@@ -229,8 +239,8 @@ LRUDynPartition::checkWayRationUpdate() {
         threadWayRation[i][0] = wayRationConfig->threadWayRations[0];
         threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
     }
-    DPRINTF(DynCache2, "Reallocating Thread way ration:\n");
-    DPRINTFR(DynCache2, "Thread 0: %i, Thread 1: %i\n",
+    DPRINTF(DynCache3, "Reallocating Thread way ration:\n");
+    DPRINTFR(DynCache3, "Thread 0: %i, Thread 1: %i\n",
              threadWayRation[0][0], threadWayRation[0][1]);
 
     wayRationConfig->updatedByCore = false;
@@ -245,9 +255,22 @@ LRUDynPartition::get3PossibleVictim(
         if (invalidVictim == nullptr && it->threadID == -1) {
             invalidVictim = it;
         } else if (selfVictim == nullptr && it->threadID == tid) {
+            DPRINTF(DynCache2, "Set selfVictim\n");
             selfVictim = it;
         } else if (otherVictim == nullptr && it->threadID == 1-tid) {
             otherVictim = it;
+        }
+    }
+    if (selfVictim == nullptr) {
+        DPRINTF(DynCache2, "====Self victim is null,set state:\n");
+        DPRINTFR(DynCache2, "Thread[0] wayCount: %i, Thread[1] wayCount: %i, "
+                "Thread[0] ration: %i, Thread[1] ration: %i, curThreadID: %i\n",
+                wayCount[setIndex][0], wayCount[setIndex][1],
+                threadWayRation[setIndex][0], threadWayRation[setIndex][1],
+                tid);
+        for (int i = assoc - 1; i >= 0; i--) {
+            BlkType* it = sets[setIndex].blks[i];
+            DPRINTFR(DynCache2, "Block [%i] ---- Thread[%i]\n", i, it->threadID);
         }
     }
 }

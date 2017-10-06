@@ -2301,6 +2301,8 @@ FullO3CPU<Impl>::assignL2Cache(int quota)
     //    cacheAssoc = controlPanel.l1DCacheWayConfig.assoc;
     //    reConfigOneCache(controlPanel.l1DCacheWayConfig, cacheAssoc);
 
+    // NOTE that LPT assoc should be at least one
+    quota = std::min(1024-128, quota);
     cacheAssoc = controlPanel.l2CacheWayConfig.assoc * quota / 1024;
     reConfigOneCache(controlPanel.l2CacheWayConfig, cacheAssoc);
 }
