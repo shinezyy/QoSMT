@@ -54,6 +54,7 @@
 #include "debug/IQ.hh"
 #include "debug/Pard.hh"
 #include "debug/MSHR.hh"
+#include "debug/ResourceAllocation.hh"
 #include "debug/ThreadIssue.hh"
 #include "enums/OpClass.hh"
 #include "params/DerivO3CPU.hh"
@@ -610,6 +611,8 @@ InstructionQueue<Impl>::reassignPortion(int newPortionVec[],
     maxEntriesUpToDate = false;
 
     for (int i = 0; i < numThreads; ++i) {
+        DPRINTF(ResourceAllocation, "Thread [%i] IQ/Issue portion: %i\n",
+                i, newPortionVec[i]);
         portion[i] = newPortionVec[i];
     }
 

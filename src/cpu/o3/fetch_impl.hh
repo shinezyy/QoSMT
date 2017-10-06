@@ -71,6 +71,7 @@
 #include "debug/InstPass.hh"
 #include "debug/QoSCtrl.hh"
 #include "debug/FetchBreakdown.hh"
+#include "debug/ResourceAllocation.hh"
 #include "mem/packet.hh"
 #include "mem/cache/miss_table.hh"
 #include "params/DerivO3CPU.hh"
@@ -1756,6 +1757,8 @@ DefaultFetch<Impl>::reassignFetchSlice(int newWidthVec[], int newWidthDenominato
     fetchWidthUpToDate = false;
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        DPRINTF(ResourceAllocation, "Thread [%i] Fetch portion: %i\n",
+                tid, newWidthVec[tid]);
         portion[tid] = newWidthVec[tid];
     }
     denominator = newWidthDenominator;

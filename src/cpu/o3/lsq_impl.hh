@@ -56,6 +56,7 @@
 #include "debug/Writeback.hh"
 #include "debug/Pard.hh"
 #include "debug/FmtCtrl.hh"
+#include "debug/ResourceAllocation.hh"
 #include "params/DerivO3CPU.hh"
 
 using namespace std;
@@ -840,6 +841,8 @@ LSQ<Impl>::reassignLQPortion(int newPortionVec[],
     lqUptodate = false;
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        DPRINTF(ResourceAllocation, "Thread [%i] LQ portion: %i\n",
+                tid, newPortionVec[tid]);
         LQPortion[tid] = newPortionVec[tid];
     }
 
@@ -859,6 +862,8 @@ LSQ<Impl>::reassignSQPortion(int newPortionVec[],
     sqUptodate = false;
 
     for (ThreadID tid = 0; tid < numThreads; ++tid) {
+        DPRINTF(ResourceAllocation, "Thread [%i] SQ portion: %i\n",
+                tid, newPortionVec[tid]);
         SQPortion[tid] = newPortionVec[tid];
     }
 

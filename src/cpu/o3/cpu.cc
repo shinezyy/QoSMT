@@ -64,6 +64,7 @@
 #include "debug/FMT.hh"
 #include "debug/ILPPred.hh"
 #include "debug/Cazorla.hh"
+#include "debug/ResourceAllocation.hh"
 #include "enums/MemoryMode.hh"
 #include "sim/core.hh"
 #include "sim/full_system.hh"
@@ -2311,6 +2312,8 @@ FullO3CPU<Impl>::assignL2Cache(int quota)
 
     // NOTE that LPT assoc should be at least one
     quota = std::min(1024-128, quota);
+    DPRINTF(ResourceAllocation, "Thread [%i] L2 cache portion: %i\n",
+            0, quota);
     cacheAssoc = controlPanel.l2CacheWayConfig.assoc * quota / 1024;
     reConfigOneCache(controlPanel.l2CacheWayConfig, cacheAssoc);
 }

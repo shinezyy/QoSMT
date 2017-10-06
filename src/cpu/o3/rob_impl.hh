@@ -53,6 +53,7 @@
 #include "debug/Pard.hh"
 #include "debug/FmtCtrl.hh"
 #include "debug/missTry.hh"
+#include "debug/ResourceAllocation.hh"
 #include "params/DerivO3CPU.hh"
 #include "cpu/o3/log.hh"
 
@@ -652,6 +653,8 @@ ROB<Impl>::reassignPortion(int newPortionVec[],
     maxEntriesUpToDate = false;
 
     for (int i = 0; i < numThreads; ++i) {
+        DPRINTF(ResourceAllocation, "Thread [%i] ROB portion: %i\n",
+                i, newPortionVec[i]);
         portion[i] = newPortionVec[i];
         DPRINTF(Pard, "portion[%d]: %d\n", i, portion[i]);
     }
