@@ -64,23 +64,23 @@ class LRUDynPartition : public BaseSetAssoc
     /**
      * Construct and initialize this tag store.
      */
-    LRUDynPartition(const Params *p);
+    explicit LRUDynPartition(const Params *p);
 
     /**
      * Destructor
      */
-    ~LRUDynPartition() {}
+    ~LRUDynPartition() override = default;
 
     CacheBlk* accessBlock(Addr addr, bool is_secure, Cycles &lat,
-                         int context_src);
+                         int context_src) override;
 
-    bool accessShadowTag(Addr addr);
+    bool accessShadowTag(Addr addr) override;
 
-    CacheBlk* findVictim(Addr addr);
+    CacheBlk* findVictim(Addr addr) override;
 
-    void insertBlock(PacketPtr pkt, BlkType *blk);
+    void insertBlock(PacketPtr pkt, BlkType *blk) override;
 
-    void invalidate(CacheBlk *blk);
+    void invalidate(CacheBlk *blk) override;
 
     void wayRealloc(ThreadID tid, int wayNum);
 
@@ -101,8 +101,8 @@ class LRUDynPartition : public BaseSetAssoc
 #define MaxThreads 2
     int threadWayRation[MAX_NUM_SETS][MaxThreads];
     int wayCount[MAX_NUM_SETS][MaxThreads];
-    bool noInvalid[MAX_NUM_SETS][MaxThreads];
-    int curThreadID;
+
+    ThreadID curThreadID;
 #undef MaxThreads
 
     const int cacheLevel;
@@ -111,6 +111,11 @@ class LRUDynPartition : public BaseSetAssoc
     WayRationConfig *wayRationConfig;
 
     ShadowLRUTag shadowLRUTag;
+
+    void checkWayRationUpdate();
+
+    void get3PossibleVictim(BlkType* &invalidVictim, BlkType* &selfVictim,
+                       BlkType* &otherVictim, ThreadID tid, int setIndex);
 };
 
 #endif // __MEM_CACHE_TAGS_LRUDynPartition_HH__

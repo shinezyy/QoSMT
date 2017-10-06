@@ -63,8 +63,6 @@ LRUDynPartition::LRUDynPartition(const Params *p)
         threadWayRation[i][1] = assoc - rationFirst;
         wayCount[i][0] = 0;
         wayCount[i][1] = 0;
-        noInvalid[i][0] = false;
-        noInvalid[i][1] = false;
     }
 
     for (int i = 0; i < numSets; i++) {
@@ -135,136 +133,38 @@ LRUDynPartition::accessShadowTag(Addr addr)
 CacheBlk*
 LRUDynPartition::findVictim(Addr addr)
 {
-    if (wayRationConfig->updatedByCore) {
-        if (wayRationConfig->threadWayRations[0] +
-            wayRationConfig->threadWayRations[1] != ((int)assoc)) {
-            DPRINTF(DynCache, "way ration[0]: %i, way ration[1]: %i\n",
-                    wayRationConfig->threadWayRations[0],
-                    wayRationConfig->threadWayRations[1]);
-            panic("Associativity exceeds\n");
-        }
-
-
-        for (int i = 0; i < ((int) numSets); i++) {
-            threadWayRation[i][0] = wayRationConfig->threadWayRations[0];
-            threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
-        }
-        DPRINTF(DynCache2, "Reallocating Thread way ration:\n");
-        DPRINTFR(DynCache2, "Thread 0: %i, Thread 1: %i\n",
-            threadWayRation[0][0], threadWayRation[0][1]);
-
-        wayRationConfig->updatedByCore = false;
-    }
+    checkWayRationUpdate();
 
     assert(curThreadID >= 0);
     int set = extractSet(addr);
     //Addr tag = extractTag(addr); // prepare to store the shadow tag
     // grab a replacement candidate
-    BlkType *blk = NULL;
+    BlkType *blk = nullptr,
+            *invalidVictim = nullptr,
+            *selfVictim = nullptr,
+            *otherVictim = nullptr;
 
-    if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
-            && (!noInvalid[set][curThreadID])) {  // find invlaid ones
-        for (int i = assoc - 1; i >= 0; i--) {
-            blk = sets[set].blks[i];
-            if (blk->threadID == -1) {
-                break;
-            }
-        }
+    get3PossibleVictim(invalidVictim, selfVictim, otherVictim, curThreadID, set);
 
-        // Consume ration in invalid cases.
-        // This has pityfalls when performing cache coherence.
-        // But we don't care that now.
-        if(blk->threadID == -1){
-            wayCount[set][curThreadID]++;
-            blk->threadID = (ThreadID) curThreadID;
-        } else if(blk->threadID != curThreadID){
+    if (threadWayRation[set][curThreadID] > wayCount[set][curThreadID]) {
+        if (invalidVictim != nullptr) {
+            blk = invalidVictim;
+        } else {
+            blk = otherVictim;
             wayCount[set][1-curThreadID]--;
-            wayCount[set][curThreadID]++;
-            blk->threadID = (ThreadID) curThreadID;
         }
-        assert((wayCount[set][curThreadID]+wayCount[set][1-curThreadID])<=assoc);
-        assert(blk);
-        if (threadWayRation[set][curThreadID] == wayCount[set][curThreadID]) {
-            noInvalid[set][curThreadID] = true;
-            DPRINTF(DynCache2, "Set noInvalid for Thread[%i] set[%i],"
-                    " way count[%i]: %i, way count[%i]: %i\n",
-                    curThreadID, set, curThreadID, wayCount[set][curThreadID],
-                    1-curThreadID, wayCount[set][1-curThreadID]);
-        }
-        // if (curThreadID == 0) {
-        //     blk->shadowtag = tag;
-        // }
-    } else if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
-            && (noInvalid[set][curThreadID])) { // find victim after new allocation
-        for (int i = assoc - 1; i >= 0; i--) {
-            blk = sets[set].blks[i];
-            if (blk->threadID != curThreadID) break;
-        }
-
-        if (blk->threadID == -1){
-            wayCount[set][curThreadID]++;
-        } else if (blk->threadID != curThreadID){
-            wayCount[set][curThreadID]++;
-            wayCount[set][1 - curThreadID]--;
-        }
-
-
-        assert(blk);
-        blk->threadID = (ThreadID) curThreadID;
-        DPRINTF(DynCache, "Second,way ration[0]: %i, way ration[1]: %i\n",
-                wayCount[set][curThreadID],
-                wayCount[set][1-curThreadID]);
-
-        //wayCount[set][curThreadID]++;
-        //wayCount[set][1-curThreadID]--;
-        assert(wayCount[set][curThreadID] <= assoc);
-        assert(wayCount[set][curThreadID] >= 0);
-
-        if (wayCount[set][1 - curThreadID] > ((int) assoc) ||
-                (wayCount[set][1 - curThreadID] < 0)) {
-            DPRINTF(DynCache2, "Set[%i], curThread: %i, HPT wayCount: %i,"
-                    "LPT wayCount: %i\n", set, curThreadID, wayCount[set][0],
-                    wayCount[set][1]);
-
-            DPRINTFR(DynCache2, "Set belonging dump:\n");
-
-            for (int i = assoc - 1; i >= 0; i--) {
-                BlkType *it = sets[set].blks[i];
-                DPRINTFR(DynCache2, "Way[%i] -- Thread[%i]\n",
-                        i, it->threadID);
-            }
-
-            panic("Sanity checking of way ration failed\n");
-        }
-        assert(wayCount[set][1 - curThreadID] <= assoc);
-        assert(wayCount[set][1 - curThreadID] >= 0);
-
-        //if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-        //     blk->shadowtag = tag;
-        // }
-    } else {  // find last used line inside its own ways.
-        for (int i = assoc - 1; i >= 0; i--) {
-            blk = sets[set].blks[i];
-            if (blk->threadID == curThreadID) {
-                break;
-            } else {
-                DPRINTF(DynCache, "block %i belongs to T[%i]\n", i, blk->threadID);
-            }
-        }
-        if (blk->threadID != curThreadID) {
-            DPRINTF(DynCache, "No block found for T[%i]\n, T[0] assoc: %i, "
-                    "T[1] assoc: %i]\n", curThreadID,
-                    wayRationConfig->threadWayRations[0],
-                    wayRationConfig->threadWayRations[1]
-                   );
-        }
-        //      DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
-        //               set, regenerateBlkAddr(blk->tag, set));
-        //        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-        //            blk->shadowtag = tag;
-        //        }
+        blk->threadID = curThreadID;
+        wayCount[set][curThreadID]++;
+    } else {
+        blk = selfVictim;
     }
+
     assert(threadWayRation[set][curThreadID] >= 0);
+    assert(threadWayRation[set][1-curThreadID] >= 0);
+    assert(threadWayRation[set][curThreadID] >= wayCount[set][curThreadID]);
+    assert(threadWayRation[set][1-curThreadID] >= wayCount[set][1-curThreadID]);
+    assert(wayCount[set][curThreadID] >= 0);
+    assert(wayCount[set][1-curThreadID] >= 0);
     return blk;
 }
 
@@ -298,7 +198,6 @@ LRUDynPartition::invalidate(CacheBlk *blk)
     // should be evicted before valid blocks
     int set = blk->set;
     sets[set].moveToTail(blk);
-    noInvalid[set][curThreadID] = false;
     // Reset block belonging status
     assert(blk->threadID >= 0);
     wayCount[set][blk->threadID]--;
@@ -312,6 +211,47 @@ LRUDynPartition::wayRealloc(ThreadID tid, int wayNum)
         threadWayRation[i][1-tid] = assoc - wayNum ;
     }
 }
+
+void
+LRUDynPartition::checkWayRationUpdate() {
+    if (!wayRationConfig->updatedByCore)
+        return;
+
+    if (wayRationConfig->threadWayRations[0] +
+        wayRationConfig->threadWayRations[1] != ((int)assoc)) {
+        DPRINTF(DynCache, "way ration[0]: %i, way ration[1]: %i\n",
+                wayRationConfig->threadWayRations[0],
+                wayRationConfig->threadWayRations[1]);
+        panic("Associativity exceeds\n");
+    }
+
+    for (int i = 0; i < ((int) numSets); i++) {
+        threadWayRation[i][0] = wayRationConfig->threadWayRations[0];
+        threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
+    }
+    DPRINTF(DynCache2, "Reallocating Thread way ration:\n");
+    DPRINTFR(DynCache2, "Thread 0: %i, Thread 1: %i\n",
+             threadWayRation[0][0], threadWayRation[0][1]);
+
+    wayRationConfig->updatedByCore = false;
+}
+
+void
+LRUDynPartition::get3PossibleVictim(
+        BlkType* &invalidVictim, BlkType* &selfVictim,
+        BlkType* &otherVictim, ThreadID tid, int setIndex) {
+    for (int i = assoc - 1; i >= 0; i--) {
+        BlkType* it = sets[setIndex].blks[i];
+        if (invalidVictim == nullptr && it->threadID == -1) {
+            invalidVictim = it;
+        } else if (selfVictim == nullptr && it->threadID == tid) {
+            selfVictim = it;
+        } else if (otherVictim == nullptr && it->threadID == 1-tid) {
+            otherVictim = it;
+        }
+    }
+}
+
 LRUDynPartition*
 LRUDynPartitionParams::create()
 {
