@@ -47,6 +47,7 @@
 
 #include "debug/CacheRepl.hh"
 #include "debug/DynCache.hh"
+#include "debug/DynCache2.hh"
 #include "mem/cache/tags/lru_dynpartition.hh"
 #include "mem/cache/base.hh"
 
@@ -195,10 +196,9 @@ LRUDynPartition::findVictim(Addr addr)
             if (blk->threadID != curThreadID) break;
         }
 
-        if(blk->threadID == -1){
+        if (blk->threadID == -1){
             wayCount[set][curThreadID]++;
-        }
-        else if(blk->threadID != curThreadID){
+        } else if (blk->threadID != curThreadID){
             wayCount[set][curThreadID]++;
             wayCount[set][1 - curThreadID]--;
         }
@@ -214,8 +214,25 @@ LRUDynPartition::findVictim(Addr addr)
         //wayCount[set][1-curThreadID]--;
         assert(wayCount[set][curThreadID] <= assoc);
         assert(wayCount[set][curThreadID] >= 0);
-        assert(wayCount[set][1 - curThreadID] <= assoc);
-        assert(wayCount[set][1 - curThreadID] >= 0);
+
+        if (!(wayCount[set][1 - curThreadID] <= ((int) assoc))) {
+            DPRINTF(DynCache2, "Set[%i], curThread: %i, HPT wayCount: %i,"
+                    "LPT wayCount: %i\n", set, curThreadID, wayCount[set][0],
+                    wayCount[set][1]);
+
+            DPRINTFR(DynCache2, "Set belonging dump:\n");
+
+            for (int i = assoc - 1; i >= 0; i--) {
+                BlkType *it = sets[set].blks[i];
+                DPRINTFR(DynCache2, "Way[%i] -- Thread[%i]\n",
+                        i, it->threadID);
+            }
+
+            panic("Sanity checking of way ration failed\n");
+        }
+        // assert(wayCount[set][1 - curThreadID] <= assoc);
+        // assert(wayCount[set][1 - curThreadID] >= 0);
+
         //if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
         //     blk->shadowtag = tag;
         // }
@@ -261,6 +278,7 @@ LRUDynPartition::insertBlock(PacketPtr pkt, BlkType *blk)
             shadowLRUTag.touch(pkt->getAddr());
         }
     }
+    // Ensure the TID passed to the block
     assert(blk->threadID >= 0);
     int set = extractSet(pkt->getAddr());
     sets[set].moveToHead(blk);

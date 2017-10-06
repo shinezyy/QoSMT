@@ -347,11 +347,12 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
     bool is_interference = false;
     if ((blk == NULL) & shadowBlockHit) {
         is_interference = true;
-        DPRINTF(Cache,"A wait event happened!");
+        DPRINTF(Cache,"A wait event happened!\n");
     } else if ((blk == NULL) & !shadowBlockHit) {
-        DPRINTF(Cache,"A miss event happened!");
-    } 
-    DPRINTF(Cache, "%s%s addr %#llx size %d (%s) %s\n", pkt->cmdString(),
+        DPRINTF(Cache,"A miss event happened!\n");
+    }
+    DPRINTF(Cache, "%s: %s%s addr %#llx size %d (%s) %s\n",
+            __func__, pkt->cmdString(),
             pkt->req->isInstFetch() ? " (ifetch)" : "",
             pkt->getAddr(), pkt->getSize(), pkt->isSecure() ? "s" : "ns",
             blk ? "hit " + blk->print() : "miss");
@@ -371,7 +372,11 @@ Cache::access(PacketPtr pkt, CacheBlk *&blk, Cycles &lat,
                 return false;
             }
             tags->setThread(pkt->req->threadId());
+            DPRINTF(Cache, "Is to insert block for writeback,"
+                    "Thread ID from req is %i\n", pkt->req->threadId());
             tags->insertBlock(pkt, blk);
+            DPRINTF(Cache, "Is to clear TID,"
+                    "Thread ID from req is %i\n", pkt->req->threadId());
             tags->clearThread();
 
             blk->status = (BlkValid | BlkReadable);
