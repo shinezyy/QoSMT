@@ -2199,6 +2199,7 @@ FullO3CPU<Impl>::continueTuning()
     curPhaseCycles = 0;
     curPhaseInsts[HPT] = 0;
     subTuningPhaseNumber += 1;
+    DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
 
 template <class Impl>
@@ -2209,6 +2210,7 @@ FullO3CPU<Impl>::switch2Presample()
     phaseLength = numPreSampleCycles;
     curPhaseCycles = 0;
     curPhaseInsts[HPT] = 0;
+    DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
 
 template <class Impl>
@@ -2219,6 +2221,7 @@ FullO3CPU<Impl>::switch2Sampling()
     phaseLength = numSampleCycles;
     curPhaseCycles = 0;
     curPhaseInsts[HPT] = 0;
+    DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
 
 template <class Impl>
@@ -2230,6 +2233,7 @@ FullO3CPU<Impl>::switch2Tuning()
     subTuningPhaseNumber = 0;
     curPhaseCycles = 0;
     curPhaseInsts[HPT] = 0;
+    DPRINTF(Cazorla, "==== Cazorla: %s\n", __func__);
 }
 
 template <class Impl>

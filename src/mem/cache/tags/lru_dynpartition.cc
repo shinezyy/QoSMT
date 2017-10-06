@@ -137,18 +137,23 @@ LRUDynPartition::findVictim(Addr addr)
 {
     if (wayRationConfig->updatedByCore) {
         if (wayRationConfig->threadWayRations[0] +
-            wayRationConfig->threadWayRations[1] != assoc) {
+            wayRationConfig->threadWayRations[1] != ((int)assoc)) {
             DPRINTF(DynCache, "way ration[0]: %i, way ration[1]: %i\n",
                     wayRationConfig->threadWayRations[0],
                     wayRationConfig->threadWayRations[1]);
             panic("Associativity exceeds\n");
         }
-        for (int i = 0; i < numSets; i++) {
+
+
+        for (int i = 0; i < ((int) numSets); i++) {
             threadWayRation[i][0] = wayRationConfig->threadWayRations[0];
             threadWayRation[i][1] = wayRationConfig->threadWayRations[1];
         }
-        wayRationConfig->updatedByCore = false;
+        DPRINTF(DynCache2, "Reallocating Thread way ration:\n");
+        DPRINTFR(DynCache2, "Thread 0: %i, Thread 1: %i\n",
+            threadWayRation[0][0], threadWayRation[0][1]);
 
+        wayRationConfig->updatedByCore = false;
     }
 
     assert(curThreadID >= 0);
@@ -158,7 +163,7 @@ LRUDynPartition::findVictim(Addr addr)
     BlkType *blk = NULL;
 
     if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
-        && (!noInvalid[set][curThreadID])) {  // find invlaid ones
+            && (!noInvalid[set][curThreadID])) {  // find invlaid ones
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
             if (blk->threadID == -1) {
@@ -169,28 +174,28 @@ LRUDynPartition::findVictim(Addr addr)
         // Consume ration in invalid cases.
         // This has pityfalls when performing cache coherence.
         // But we don't care that now.
-	if(blk->threadID == -1){
-		wayCount[set][curThreadID]++;
-		blk->threadID = (ThreadID) curThreadID;
-	}
-	else if(blk->threadID != curThreadID){
-		wayCount[set][1-curThreadID]--;
-		wayCount[set][curThreadID]++;
-		blk->threadID = (ThreadID) curThreadID;
-	}
+        if(blk->threadID == -1){
+            wayCount[set][curThreadID]++;
+            blk->threadID = (ThreadID) curThreadID;
+        } else if(blk->threadID != curThreadID){
+            wayCount[set][1-curThreadID]--;
+            wayCount[set][curThreadID]++;
+            blk->threadID = (ThreadID) curThreadID;
+        }
         assert((wayCount[set][curThreadID]+wayCount[set][1-curThreadID])<=assoc);
         assert(blk);
         if (threadWayRation[set][curThreadID] == wayCount[set][curThreadID]) {
             noInvalid[set][curThreadID] = true;
-            DPRINTF(DynCache, "First,way ration[0]: %i, way ration[1]: %i\n",
-                    wayCount[set][curThreadID],
-                    wayCount[set][1-curThreadID]);
+            DPRINTF(DynCache2, "Set noInvalid for Thread[%i] set[%i],"
+                    " way count[%i]: %i, way count[%i]: %i\n",
+                    curThreadID, set, curThreadID, wayCount[set][curThreadID],
+                    1-curThreadID, wayCount[set][1-curThreadID]);
         }
         // if (curThreadID == 0) {
         //     blk->shadowtag = tag;
         // }
     } else if ((threadWayRation[set][curThreadID] > wayCount[set][curThreadID])
-               && (noInvalid[set][curThreadID])) { // find victim after new allocation
+            && (noInvalid[set][curThreadID])) { // find victim after new allocation
         for (int i = assoc - 1; i >= 0; i--) {
             blk = sets[set].blks[i];
             if (blk->threadID != curThreadID) break;
@@ -215,7 +220,8 @@ LRUDynPartition::findVictim(Addr addr)
         assert(wayCount[set][curThreadID] <= assoc);
         assert(wayCount[set][curThreadID] >= 0);
 
-        if (!(wayCount[set][1 - curThreadID] <= ((int) assoc))) {
+        if (wayCount[set][1 - curThreadID] > ((int) assoc) ||
+                (wayCount[set][1 - curThreadID] < 0)) {
             DPRINTF(DynCache2, "Set[%i], curThread: %i, HPT wayCount: %i,"
                     "LPT wayCount: %i\n", set, curThreadID, wayCount[set][0],
                     wayCount[set][1]);
@@ -230,8 +236,8 @@ LRUDynPartition::findVictim(Addr addr)
 
             panic("Sanity checking of way ration failed\n");
         }
-        // assert(wayCount[set][1 - curThreadID] <= assoc);
-        // assert(wayCount[set][1 - curThreadID] >= 0);
+        assert(wayCount[set][1 - curThreadID] <= assoc);
+        assert(wayCount[set][1 - curThreadID] >= 0);
 
         //if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
         //     blk->shadowtag = tag;
@@ -250,13 +256,13 @@ LRUDynPartition::findVictim(Addr addr)
                     "T[1] assoc: %i]\n", curThreadID,
                     wayRationConfig->threadWayRations[0],
                     wayRationConfig->threadWayRations[1]
-            );
+                   );
         }
         //      DPRINTF(CacheRepl, "set %x: selecting blk %x for replacement\n",
         //               set, regenerateBlkAddr(blk->tag, set));
-//        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
-//            blk->shadowtag = tag;
-//        }
+        //        if (curThreadID == 0) {  // update shadowtag when HP thread evict one way
+        //            blk->shadowtag = tag;
+        //        }
     }
     assert(threadWayRation[set][curThreadID] >= 0);
     return blk;
