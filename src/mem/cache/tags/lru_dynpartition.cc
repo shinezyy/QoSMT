@@ -269,8 +269,8 @@ LRUDynPartition::get3PossibleVictim(
                 threadWayRation[setIndex][0], threadWayRation[setIndex][1],
                 tid);
         for (int i = assoc - 1; i >= 0; i--) {
-            BlkType* it = sets[setIndex].blks[i];
-            DPRINTFR(DynCache2, "Block [%i] ---- Thread[%i]\n", i, it->threadID);
+            DPRINTFR(DynCache2, "Block [%i] ---- Thread[%i]\n",
+                    i, sets[setIndex].blks[i]->threadID);
         }
     }
 }
