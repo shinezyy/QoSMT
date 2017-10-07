@@ -104,7 +104,7 @@ DefaultFetch<Impl>::DefaultFetch(O3CPU *_cpu, DerivO3CPUParams *params)
       numThreads( (ThreadID) params->numThreads),
       numFetchingThreads( (ThreadID) params->smtNumFetchingThreads),
       fetchWidthUpToDate(false),
-      numTimeSlice(32)
+      numTimeSlice(8)
 {
     if (numThreads > Impl::MaxThreads)
         fatal("numThreads (%d) is larger than compiled limit (%d),\n"
