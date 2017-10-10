@@ -19,10 +19,17 @@ bms4 = 4*bms
 
 pairs = []
 
-while bms4:
-    rand1 = pop_rand(bms4)
-    rand2 = pop_rand(bms4)
-    pairs.append((rand1, rand2))
+for bm in bms:
+    neighbors = []
+    i = 0
+    while i < 4:
+        rand = pop_rand(bms4)
+        if rand not in neighbors:
+            pairs.append((bm, rand))
+            neighbors.append(rand)
+            i += 1
+        else:
+            bms4.append(rand)
 
 for pair in pairs:
     print pair[0], pair[1]
