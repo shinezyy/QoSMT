@@ -71,7 +71,7 @@ def cache_config_2(system, options):
     if options.dyn_cache:
         assert not options.dup_cache
         assert not options.comp_cache
-        assert not options.carzola_cache
+        assert not options.cazorla_cache
         for cpu in system.cpu:
             cpu.icache.tags = LRUDynPartition()
             cpu.icache.tags.thread_0_assoc = 2
@@ -87,7 +87,7 @@ def cache_config_2(system, options):
 
     elif options.comp_cache:
         assert not options.dup_cache
-        assert not options.carzola_cache
+        assert not options.cazorla_cache
 
         for cpu in system.cpu:
             cpu.icache.tags = LRU()
