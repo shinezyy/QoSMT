@@ -144,7 +144,7 @@ class InstructionQueue
 
     /** reassign portion of instruction queue for each thread. */
     void reassignPortion(int newPortionVec[], int lenNewPortionVec,
-                         int newPortionDenominator);
+                         int newPortionDenominator, bool controlwidth);
 
     /** reassign issue prioirity for each thread. */
     void reassignIssuePrio(int newPrioVec[], int len);

@@ -1951,7 +1951,8 @@ FullO3CPU<Impl>::allocIQ(bool incHPT)
     if (vec[HPT] != iew.instQueue.getHPTPortion()) {
         DPRINTF(QoSCtrl, "%s [IQ], vec[0]: %d, vec[1]: %d\n",
                 incHPT ? "Reserving":"Releasing", vec[0], vec[1]);
-        iew.instQueue.reassignPortion(vec, 2, 1024);
+        iew.instQueue.reassignPortion(vec, 2, 1024,
+                controlPolicy == ControlPolicy::Cazorla);
     }
 }
 
@@ -2273,7 +2274,8 @@ FullO3CPU<Impl>::assignIQ(int quota)
     DPRINTF(Cazorla, "Allocate %d IQ to HPT\n", quota);
     cazorlaVec[0] = quota;
     cazorlaVec[1] = 1024 - quota;
-    iew.instQueue.reassignPortion(cazorlaVec, 2, 1024);
+    iew.instQueue.reassignPortion(cazorlaVec, 2, 1024,
+            controlPolicy == ControlPolicy::Cazorla);
 }
 
 template <class Impl>

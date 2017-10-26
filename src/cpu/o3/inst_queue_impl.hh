@@ -601,7 +601,7 @@ InstructionQueue<Impl>::resetEntries()
 template <class Impl>
 void
 InstructionQueue<Impl>::reassignPortion(int newPortionVec[],
-        int lenNewPortionVec, int newPortionDenominator)
+        int lenNewPortionVec, int newPortionDenominator, bool controlWidth)
 {
     //assert(lenNewPortionVec == numThreads);
     if (iqPolicy != Programmable) {
@@ -620,11 +620,16 @@ InstructionQueue<Impl>::reassignPortion(int newPortionVec[],
 
     // Issue width
 
+    if (controlWidth) {
+        threadWidths[HPT] = totalWidth * portion[0] / denominator;
+        // avoid LPT fill up IQ
+        threadWidths[HPT] = std::min((unsigned) totalWidth - 1, threadWidths[HPT]);
+        threadWidths[LPT] = totalWidth - threadWidths[HPT];
 
-    threadWidths[HPT] = totalWidth * portion[0] / denominator;
-    // avoid LPT fill up IQ
-    threadWidths[HPT] = std::min((unsigned) totalWidth - 1, threadWidths[HPT]);
-    threadWidths[LPT] = totalWidth - threadWidths[HPT];
+    } else {
+        threadWidths[HPT] = totalWidth;
+        threadWidths[LPT] = totalWidth;
+    }
 }
 
 template <class Impl>
